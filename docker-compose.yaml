@@ -1,0 +1,16 @@
+
+services:
+  database:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_DB: online_excel
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: user
+    ports:
+      - "10000:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
