@@ -1,0 +1,13 @@
+services:
+
+  db:
+    container_name: online_excel
+    image: postgres:latest
+    shm_size: 128mb
+
+    ports:
+      - '7777:5432'
+    environment:
+      POSTGRES_PASSWORD: pomodoro
+      POSTGRES_USER: postgres
+      POSTGRES_DB: pomodoro
