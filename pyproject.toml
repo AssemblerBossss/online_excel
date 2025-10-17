@@ -5,6 +5,8 @@ description = ""
 authors = [
     {name = "AssemblerBossss",email = "nazarovmisa39@mail.ru"}
 ]
+
+packages = [{include = "app"}]
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -20,3 +22,8 @@ dependencies = [
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "black (>=25.9.0,<26.0.0)"
+]
