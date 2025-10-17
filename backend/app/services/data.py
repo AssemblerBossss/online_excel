@@ -2,18 +2,19 @@ from typing import Optional, Literal, List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.schemas import TableRowResponse
+from backend.app.repository import DataRepository, TableRepository
 
 
 class DataService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.data_repo = DataRepository(db)
-        self.table_repo = TableRepository(db)
+        self.data_repo = DataRepository()
+        self.table_repo = TableRepository()
 
     async def get_table_rows(
         self,
-        table_id: str,
+        table_id: int,
         user_id: int,
         skip: int = 0,
         limit: int = 100,
@@ -22,19 +23,23 @@ class DataService:
     ) -> List[TableRowResponse]:
         """Получить строки таблицы"""
 
-        # table = await self.table_repo.get_table_with_access(table_id, user_id)
-        # if not table:
-        #     raise AccessDeniedException("No access to this table")
-        #
-        # rows = await self.data_repo.get_rows_by_table_id(
-        #     table_id, skip, limit, sort_by, sort_order
-        # )
-        #
-        # return [TableRowResponse(
-        #     "id"=row.id,
-        #     "table_id"=row.table_id,
-        #     "row_data"=row.row_data)
-        # for row in rows]
+        table = await self.table_repo.get_table_with_access(
+            table_id=table_id,
+            user_id=user_id
+        )
+
+        if not table:
+            raise AccessDeniedException("No access to this table")
+
+        rows = await self.data_repo.get_rows_by_table_id(
+            table_id, skip, limit, sort_by, sort_order
+        )
+
+        return [TableRowResponse(
+            "id"=row.id,
+            "table_id"=row.table_id,
+            "row_data"=row.row_data)
+        for row in rows]
 
         pass
 
