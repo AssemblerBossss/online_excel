@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Literal
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
 
 from backend.app.schemas import TableRowResponse, TableRowCreate, TableRowUpdate
@@ -12,6 +12,7 @@ async def list_table_rows(
     skip: int = Query(0, description="Количество пропускаемых строк", ge=0),
     limit: int = Query(100, description="Максимальное количество строк", ge=1, le=1000),
     sort_by: Optional[str] = Query(None),
+    sort_order: Literal["asc", "desc"] = Query(default="asc"),
     table_id: int = Path(..., description="ID таблицы", ge=1),
     # data_service: Annotated[TaskService, Depends(get_task_service)],
     # user: Annotated[UserSchema, Depends(get_current_active_auth_user)],
