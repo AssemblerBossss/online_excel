@@ -8,6 +8,12 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "fastapi (>=0.119.0,<0.120.0)",
+    "uvicorn (>=0.37.0,<0.38.0)",
+    "sqlalchemy (>=2.0.44,<3.0.0)",
+    "pydantic[email] (>=2.12.3,<3.0.0)",
+    "asyncpg (>=0.30.0,<0.31.0)",
+    "pydantic-settings (>=2.11.0,<3.0.0)"
 ]
 
 
