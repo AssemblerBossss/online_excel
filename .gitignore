@@ -1,5 +1,5 @@
 .idea/
 .venv
 __pycache__
-pyproject.toml
+
 .env.example
