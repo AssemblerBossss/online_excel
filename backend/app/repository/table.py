@@ -1,6 +1,7 @@
 from typing import Optional
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
 from .base import Base
@@ -99,3 +100,17 @@ class TableRepository(Base):
                 return False
 
             return False
+
+
+    async def create_table(self, table_data: DataTable, user_id: int) -> DataTable:
+        async with self._session_scope() as session:
+            stmt = insert(DataTable).values(
+                name=table_data.name,
+                description=table_data.description,
+                is_public=table_data.is_public,
+                columns_schema=table_data.columns_schema,
+                created_by=user_id
+            ).returning(DataTable)
+
+            return (await session.scalars(stmt)).one_or_none()
+
