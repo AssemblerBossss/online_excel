@@ -65,3 +65,20 @@ TokenInvalidFormatException = HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Неверный формат токена. Ожидается 'Bearer <токен>'"
 )
+
+# Нет доступа к данной таблице
+AccessDeniedException = HTTPException(
+    status_code=status.HTTP_403_FORBIDDEN,
+    detail="Нет доступа к данной таблице"
+)
+
+#Некорректные данные для данной строки
+ValidationException = HTTPException(
+    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+    detail="Некорректные данные для данной строки"
+)
+
+
+NotFoundException = HTTPException(
+    status_code=status.HTTP_40,
+)

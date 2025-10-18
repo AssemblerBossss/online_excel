@@ -28,7 +28,7 @@ class SUserRegister(UserBase):
     def check_password(self):
         if self.password != self.confirm_password:
             raise ValueError("Пароли не совпадают")
-        self.password = get_password_hash(self.password)  # хешируем пароль до сохранения в базе данных
+        #self.password = get_password_hash(self.password)  # хешируем пароль до сохранения в базе данных
         return self
 
 

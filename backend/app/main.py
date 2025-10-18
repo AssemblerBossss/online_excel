@@ -3,17 +3,18 @@ from typing import AsyncGenerator
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from loguru import logger
+#from loguru import logger
 
 from backend.app.auth.router import router as router_auth
+from backend.app.api.endpoints import data_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
-    logger.info("Инициализация приложения...")
+    #logger.info("Инициализация приложения...")
     yield
-    logger.info("Завершение работы приложения...")
+    #logger.info("Завершение работы приложения...")
 
 
 def create_app() -> FastAPI:
@@ -73,6 +74,7 @@ def register_routers(app: FastAPI) -> None:
     # Подключение роутеров
     app.include_router(root_router, tags=["root"])
     app.include_router(router_auth, prefix='/auth', tags=['Auth'])
+    app.include_router(data_router)
 
 
 # Создание экземпляра приложения

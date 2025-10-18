@@ -12,10 +12,8 @@ class TableRow(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     table_id: Mapped[int] = mapped_column(ForeignKey("data_tables.id"), nullable=False)
 
-    # Динамические данные
     row_data: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
 
-    # Мета-информация
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
