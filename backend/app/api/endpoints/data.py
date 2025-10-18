@@ -32,7 +32,7 @@ async def get_row(
     pass
 
 
-@router.post("/{table_id}/rows", response_model=TableRowResponse)
+@router.post("/{table_id}/rows", response_model=TableRowResponse, status_code=status.HTTP_201_CREATED)
 async def create_table_row(
     row_data: TableRowCreate,
     data_service: Annotated[DataService, Depends(get_data_service)],
