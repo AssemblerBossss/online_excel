@@ -4,4 +4,5 @@ from .settings import app_settings
 __all__ = [
     "Base",
     "app_settings",
+    "get_db_session"
 ]
