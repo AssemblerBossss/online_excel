@@ -1,12 +1,12 @@
 from typing import Optional
-
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
 from .base import Base
-from backend.app.models import DataTable, User, TableRow, TablePermission, UserRole
-from ..exceptions import AccessDeniedException
+from backend.app.models import DataTable, User, UserRole
+from backend.app.exceptions import AccessDeniedException
+from backend.app.schemas import DataTableCreate
 
 
 class TableRepository(Base):
@@ -102,7 +102,7 @@ class TableRepository(Base):
             return False
 
 
-    async def create_table(self, table_data: DataTable, user_id: int) -> DataTable:
+    async def create_table(self, table_data: DataTableCreate, user_id: int) -> DataTable:
         async with self._session_scope() as session:
             stmt = insert(DataTable).values(
                 name=table_data.name,
