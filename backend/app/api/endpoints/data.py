@@ -1,7 +1,8 @@
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
 
 from backend.app.schemas import TableRowResponse, TableRowCreate, TableRowUpdate
+from backend.app.services import DataService
 
 
 router = APIRouter(prefix="/data", tags=["data"])
@@ -31,13 +32,21 @@ async def get_row(
     pass
 
 
-@router.post("/{table_id}/rows", response_model=TableRowResponse)
+@router.post("/{table_id}/rows", response_model=TableRowResponse, status_code=status.HTTP_201_CREATED)
 async def create_table_row(
     row_data: TableRowCreate,
-    # user: Annotated[UserSchema, Depends(get_current_user)],
-    # data_service: Annotated[TaskService, Depends(get_task_service)],
+    data_service: Annotated[DataService, Depends(get_data_service)],
+    table_id: int = Path(description="ID таблицы", ge=1),
+    user: Annotated[UserSchema, Depends(get_current_user)],
+,
 ):
-    pass
+    result = data_service.create_table_row(
+        table_id=table_id,
+        user_id=user.id,
+        row_data=row_data,
+
+    )
+    return result
 
 
 @router.put("/{table_id}/rows/{row_id}", response_model=TableRowResponse)

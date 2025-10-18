@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
-from backend.app.auth import router as router_auth
+from backend.app.auth.router import router as router_auth
 
 
 @asynccontextmanager

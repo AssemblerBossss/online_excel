@@ -6,7 +6,8 @@ authors = [
     {name = "AssemblerBossss",email = "nazarovmisa39@mail.ru"}
 ]
 
-packages = [{include = "app"}]
+packages = [{ include = "online_excel" }]
+package-mode = "false"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -20,7 +21,8 @@ dependencies = [
     "loguru (>=0.7.0)",
     "alembic (>=1.17.0,<2.0.0)",
     "passlib (>=1.7.4,<2.0.0)",
-    "python-jose (>=3.5.0,<4.0.0)"
+    "python-jose (>=3.5.0,<4.0.0)",
+    "bcrypt (>=5.0.0,<6.0.0)"
 ]
 
 

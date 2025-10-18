@@ -1,6 +1,4 @@
-from typing import Optional, Literal, List, Dict, Any
-
-from loguru import logger
+from typing import Optional, Literal, List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.schemas import TableRowResponse
@@ -38,9 +36,9 @@ class DataService:
         )
 
         return [TableRowResponse(
-            id=row.id,
-            table_id=row.table_id,
-            row_data=row.row_data)
+            "id"=row.id,
+            "table_id"=row.table_id,
+            "row_data"=row.row_data)
         for row in rows]
 
         pass

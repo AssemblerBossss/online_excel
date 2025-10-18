@@ -45,4 +45,6 @@ class TableRowInDB(TableRowBase):
 
 
 class TableRowResponse(TableRowInDB):
+    """Схема ответа для получения данных строки таблицы"""
+
     pass
