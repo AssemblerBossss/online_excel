@@ -8,7 +8,7 @@ from backend.app.dependencies.auth_dep import get_current_user, get_current_admi
 from backend.app.dependencies.dao_dep import get_session_with_commit, get_session_without_commit
 from backend.app.exceptions import UserAlreadyExistsException, IncorrectEmailOrPasswordException
 from backend.app.repository import UserRepository
-from backend.app.auth.schemas import SUserRegister, SUserAuth, EmailModel, SUserAddDB, SUserInfo
+from backend.app.schemas.user import SUserRegister, SUserAuth, EmailModel, SUserAddDB, SUserInfo, UserFilter, UserBase
 
 router = APIRouter()
 
@@ -19,7 +19,7 @@ async def register_user(user_data: SUserRegister,
     # Проверка существования пользователя
     user_dao = UserRepository(session)
 
-    existing_user = await user_dao.find_one_or_none(filters=EmailModel(email=user_data.email))
+    existing_user = await user_dao.find_one_or_none(filters=UserFilter(email=user_data.email))
     if existing_user:
         raise UserAlreadyExistsException
 
@@ -28,7 +28,7 @@ async def register_user(user_data: SUserRegister,
     user_data_dict.pop('confirm_password', None)
 
     # Добавление пользователя
-    await user_dao.add(values=SUserAddDB(**user_data_dict))
+    await user_dao.add(user_data=UserBase(**user_data_dict))
 
     return {'message': 'Вы успешно зарегистрированы!'}
 
@@ -41,7 +41,7 @@ async def auth_user(
 ) -> dict:
     users_dao = UserRepository(session)
     user = await users_dao.find_one_or_none(
-        filters=EmailModel(email=user_data.email)
+        filters=UserFilter(email=user_data.email)
     )
 
     if not (user and await authenticate_user(user=user, password=user_data.password)):

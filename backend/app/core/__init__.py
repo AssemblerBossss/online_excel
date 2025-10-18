@@ -1,8 +1,9 @@
-from .database import Base, get_db_session
+from .database import Base, get_db_session, AsyncSessionFactory
 from .settings import app_settings
 
 __all__ = [
     "Base",
     "app_settings",
-    "get_db_session"
+    "get_db_session",
+    "AsyncSessionFactory"
 ]

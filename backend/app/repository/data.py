@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy import select, update, delete, insert
 from typing import Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import AsyncSessionFactory
+from backend.app.core import AsyncSessionFactory
 
 from backend.app.models import TableRow, DataTable
 
