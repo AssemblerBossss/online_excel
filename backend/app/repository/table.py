@@ -47,7 +47,7 @@ class TableRepository(Base):
                 .where(DataTable.id == table_id)
             )
 
-            table = (await session.execute(stmt)).scalar_one_or_none()
+            table = (await session.scalars(stmt)).one_or_none()
 
             if not table:
                 return None

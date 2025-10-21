@@ -1,4 +1,12 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, computed_field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_validator,
+    model_validator,
+    computed_field,
+)
 from typing import Optional
 import re
 from backend.app.models import UserRole
@@ -28,27 +36,35 @@ class UserFilter(BaseModel):
     is_active: Optional[bool] = None
 
 
-
-
 class EmailModel(BaseModel):
     email: EmailStr = Field(description="Электронная почта")
     model_config = ConfigDict(from_attributes=True)
 
 
 class UserBase(EmailModel):
-    first_name: str = Field(min_length=3, max_length=50, description="Имя, от 3 до 50 символов")
-    last_name: str = Field(min_length=3, max_length=50, description="Фамилия, от 3 до 50 символов")
+    first_name: str = Field(
+        min_length=3, max_length=50, description="Имя, от 3 до 50 символов"
+    )
+    last_name: str = Field(
+        min_length=3, max_length=50, description="Фамилия, от 3 до 50 символов"
+    )
 
 
 class SUserRegister(UserBase):
-    password: str = Field(min_length=5, max_length=50, description="Пароль, от 5 до 50 знаков")
-    confirm_password: str = Field(min_length=5, max_length=50, description="Повторите пароль")
+    password: str = Field(
+        min_length=5, max_length=50, description="Пароль, от 5 до 50 знаков"
+    )
+    confirm_password: str = Field(
+        min_length=5, max_length=50, description="Повторите пароль"
+    )
 
     @model_validator(mode="after")
     def check_password(self):
         if self.password != self.confirm_password:
             raise ValueError("Пароли не совпадают")
-        self.password = get_password_hash(self.password)  # хешируем пароль до сохранения в базе данных
+        self.password = get_password_hash(
+            self.password
+        )  # хешируем пароль до сохранения в базе данных
         return self
 
 
@@ -57,7 +73,9 @@ class SUserAddDB(UserBase):
 
 
 class SUserAuth(EmailModel):
-    password: str = Field(min_length=5, max_length=50, description="Пароль, от 5 до 50 знаков")
+    password: str = Field(
+        min_length=5, max_length=50, description="Пароль, от 5 до 50 знаков"
+    )
 
 
 class RoleModel(BaseModel):
@@ -77,4 +95,3 @@ class SUserInfo(UserBase):
     @computed_field
     def role_id(self) -> int:
         return self.role.id
-

@@ -80,5 +80,6 @@ ValidationException = HTTPException(
 
 
 NotFoundException = HTTPException(
-    status_code=status.HTTP_40,
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail="Not Found"
 )
