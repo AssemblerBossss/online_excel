@@ -5,7 +5,7 @@ from sqlalchemy.sql import select
 from typing import Optional, List
 
 from backend.app.models import User
-from backend.app.schemas import SUserFilter, UserBase, SUserUpdate
+from backend.app.schemas import SUserFilter, UserBase, SUserUpdate, SUserAddDB
 from backend.app.models import UserRole
 
 
@@ -126,7 +126,7 @@ class UserRepository:
             )
             raise
 
-    async def add(self, user_data: UserBase) -> "User":
+    async def add(self, user_data: SUserAddDB) -> "User":
         """
         Добавить нового пользователя
 
