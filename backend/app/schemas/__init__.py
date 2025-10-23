@@ -1,14 +1,16 @@
 from .data import TableRowCreate, TableRowResponse, TableRowUpdate, TableRowInDB
 from .table import DataTableCreate, DataTableResponse
 from .user import (
-    UserUpdate,
-    UserFilter,
+    UserBase,
+    SUserUpdate,
+    SUserFilter,
     EmailModel,
     SUserRegister,
     SUserAddDB,
     SUserAuth,
-    RoleModel,
-    SUserInfo
+    # RoleModel,
+    SUserInfo,
+    TokenData,
 )
 
 
@@ -19,12 +21,14 @@ __all__ = [
     "TableRowInDB",
     "DataTableCreate",
     "DataTableResponse",
-    "UserFilter",
-    "UserUpdate",
+    "SUserFilter",
+    "SUserUpdate",
     "EmailModel",
     "SUserRegister",
     "SUserAddDB",
     "SUserAuth",
-    "RoleModel",
-    "SUserInfo"
+    # "RoleModel",
+    "SUserInfo",
+    "UserBase",
+    "TokenData",
 ]

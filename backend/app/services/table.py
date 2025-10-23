@@ -4,8 +4,8 @@ from backend.app.repository import TableRepository
 
 class TableService:
 
-    def __init__(self):
-        self.table_repo = TableRepository()
+    def __init__(self, table_repository: TableRepository):
+        self.table_repo = table_repository
 
     async def create_table(
         self, table_data: DataTableCreate, user_id: int
@@ -36,4 +36,3 @@ class TableService:
             created_at=table.created_at,
             updated_at=table.updated_at,
         )
-

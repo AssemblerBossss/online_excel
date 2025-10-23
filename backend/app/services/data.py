@@ -10,10 +10,9 @@ from backend.app.exceptions import AccessDeniedException, ValidationException
 
 class DataService:
 
-    def __init__(self, db: AsyncSession):
-        self.db = db
-        self.data_repo = DataRepository()
-        self.table_repo = TableRepository()
+    def __init__(self, data_repo: DataRepository, table_repo: TableRepository):
+        self.data_repo = data_repo
+        self.table_repo = table_repo
 
     def _validate_row_data_with_schema(
         self, table_columns_schema: list[dict[str, Any]], row_data: TableRowCreate
@@ -154,7 +153,7 @@ class DataService:
 
     @staticmethod
     def _validate_datetime_field(
-            value: Any, col_name: str, col_schema: dict
+        value: Any, col_name: str, col_schema: dict
     ) -> Optional[str]:
         """
         Валидация поля типа 'datetime'

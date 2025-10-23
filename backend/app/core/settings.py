@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     CACHE_PORT: int = 14000
     CACHE_DB: int = 0
 
-    JWT_SECRET: str = "secret"
+    JWT_SECRET_KEY: str = "secret"
     JWT_ALGORITHM: str = "HS256"
 
     GOOGLE_CLIENT_SECRET: str = ""

@@ -5,14 +5,12 @@ from sqlalchemy.sql import select
 from typing import Optional, List
 
 from backend.app.models import User
-from backend.app.schemas import UserFilter, UserBase, UserUpdate
+from backend.app.schemas import SUserFilter, UserBase, SUserUpdate
 from backend.app.models import UserRole
 
 
-
-
-
 from loguru import logger
+
 
 class UserRepository:
     """Репозиторий для работы с пользователями"""
@@ -46,7 +44,7 @@ class UserRepository:
             logger.error(f"Ошибка при поиске пользователя с ID {user_id}: {e}")
             raise
 
-    async def find_one_or_none(self, filters: UserFilter) -> Optional["User"]:
+    async def find_one_or_none(self, filters: SUserFilter) -> Optional["User"]:
         """
         Найти одного пользователя по фильтрам
 
@@ -71,7 +69,9 @@ class UserRepository:
 
             return user
         except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске пользователя по фильтрам {filter_dict}: {e}")
+            logger.error(
+                f"Ошибка при поиске пользователя по фильтрам {filter_dict}: {e}"
+            )
             raise
 
     async def find_by_email(self, email: str) -> Optional["User"]:
@@ -99,7 +99,7 @@ class UserRepository:
             logger.error(f"Ошибка при поиске пользователя по email {email}: {e}")
             raise
 
-    async def find_all(self, filters: Optional[UserFilter] = None) -> List["User"]:
+    async def find_all(self, filters: Optional[SUserFilter] = None) -> List["User"]:
         """
         Найти всех пользователей по фильтрам
 
@@ -121,7 +121,9 @@ class UserRepository:
 
             return users
         except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске всех пользователей по фильтрам {filter_dict}: {e}")
+            logger.error(
+                f"Ошибка при поиске всех пользователей по фильтрам {filter_dict}: {e}"
+            )
             raise
 
     async def add(self, user_data: UserBase) -> "User":
@@ -142,7 +144,9 @@ class UserRepository:
             self._session.add(new_user)
             await self._session.flush()
 
-            logger.info(f"Пользователь {new_user.email} успешно добавлен с ID {new_user.id}")
+            logger.info(
+                f"Пользователь {new_user.email} успешно добавлен с ID {new_user.id}"
+            )
 
             return new_user
         except SQLAlchemyError as e:
@@ -174,7 +178,7 @@ class UserRepository:
             logger.error(f"Ошибка при добавлении нескольких пользователей: {e}")
             raise
 
-    async def update(self, filters: UserFilter, update_data: UserUpdate) -> int:
+    async def update(self, filters: SUserFilter, update_data: SUserUpdate) -> int:
         """
         Обновить пользователей по фильтрам
 
@@ -192,7 +196,9 @@ class UserRepository:
             logger.warning("Нет данных для обновления")
             return 0
 
-        logger.debug(f"Обновление пользователей по фильтру: {filter_dict} с параметрами: {update_dict}")
+        logger.debug(
+            f"Обновление пользователей по фильтру: {filter_dict} с параметрами: {update_dict}"
+        )
 
         try:
             query = (
@@ -211,7 +217,7 @@ class UserRepository:
             logger.error(f"Ошибка при обновлении пользователей: {e}")
             raise
 
-    async def update_by_id(self, user_id: int, update_data: UserUpdate) -> bool:
+    async def update_by_id(self, user_id: int, update_data: SUserUpdate) -> bool:
         """
         Обновить пользователя по ID
 
@@ -228,7 +234,9 @@ class UserRepository:
             logger.warning("Нет данных для обновления")
             return False
 
-        logger.debug(f"Обновление пользователя с ID {user_id} с параметрами: {update_dict}")
+        logger.debug(
+            f"Обновление пользователя с ID {user_id} с параметрами: {update_dict}"
+        )
 
         try:
             query = (
@@ -252,7 +260,7 @@ class UserRepository:
             logger.error(f"Ошибка при обновлении пользователя с ID {user_id}: {e}")
             raise
 
-    async def delete(self, filters: UserFilter) -> int:
+    async def delete(self, filters: SUserFilter) -> int:
         """
         Удалить пользователей по фильтрам
 
@@ -311,7 +319,7 @@ class UserRepository:
             logger.error(f"Ошибка при удалении пользователя с ID {user_id}: {e}")
             raise
 
-    async def count(self, filters: Optional[UserFilter] = None) -> int:
+    async def count(self, filters: Optional[SUserFilter] = None) -> int:
         """
         Подсчитать количество пользователей по фильтрам
 
@@ -336,7 +344,7 @@ class UserRepository:
             logger.error(f"Ошибка при подсчете пользователей: {e}")
             raise
 
-    async def exists(self, filters: UserFilter) -> bool:
+    async def exists(self, filters: SUserFilter) -> bool:
         """
         Проверить существование пользователя по фильтрам
 
@@ -372,7 +380,7 @@ class UserRepository:
             Список активных пользователей
         """
         logger.debug("Получение списка активных пользователей")
-        return await self.find_all(UserFilter(is_active=True))
+        return await self.find_all(SUserFilter(is_active=True))
 
     async def get_users_by_role(self, role: UserRole) -> List["User"]:
         """
@@ -385,7 +393,7 @@ class UserRepository:
             Список пользователей с указанной ролью
         """
         logger.debug(f"Получение пользователей с ролью {role}")
-        return await self.find_all(UserFilter(role=role))
+        return await self.find_all(SUserFilter(role=role))
 
     async def deactivate_user(self, user_id: int) -> bool:
         """
@@ -398,7 +406,7 @@ class UserRepository:
             True если пользователь деактивирован, False если не найден
         """
         logger.warning(f"Деактивация пользователя с ID {user_id}")
-        return await self.update_by_id(user_id, UserUpdate(is_active=False))
+        return await self.update_by_id(user_id, SUserUpdate(is_active=False))
 
     async def change_user_role(self, user_id: int, new_role: UserRole) -> bool:
         """
@@ -412,4 +420,4 @@ class UserRepository:
             True если роль изменена, False если пользователь не найден
         """
         logger.info(f"Изменение роли пользователя {user_id} на {new_role}")
-        return await self.update_by_id(user_id, UserUpdate(role=new_role))
+        return await self.update_by_id(user_id, SUserUpdate(role=new_role))
