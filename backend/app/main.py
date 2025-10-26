@@ -5,14 +5,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
-from backend.app.api.endpoints import auth_router
+from backend.app.api.endpoints import auth_router, data_router
+from backend.app.utils import init_admin_user
+from backend.app.core import AsyncSessionFactory
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
     logger.info("Инициализация приложения...")
+
+    try:
+        async with AsyncSessionFactory() as session:
+            await init_admin_user(session)
+            logger.info("Admin user initialization completed")
+    except Exception as e:
+        logger.error(f"Failed to initialize admin user: {e}")
+
     yield
+
     logger.info("Завершение работы приложения...")
 
 
@@ -73,7 +84,7 @@ def register_routers(app: FastAPI) -> None:
     # Подключение роутеров
     app.include_router(root_router, tags=["root"])
     app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+    app.include_router(data_router, prefix="/data", tags=["Data"])
 
 
-# Создание экземпляра приложения
 app = create_app()

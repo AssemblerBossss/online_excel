@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Response, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
 from backend.app.models import User
 from backend.app.api.jwt_utils import set_tokens
@@ -31,7 +32,7 @@ from backend.app.utils import authenticate_user, get_password_hash
 router = APIRouter()
 
 
-@router.post("/register/")
+@router.post("/register/", status_code=status.HTTP_201_CREATED)
 async def register_user(
     user_data: SUserRegister, session: AsyncSession = Depends(get_session_with_commit)
 ) -> dict:
@@ -86,7 +87,7 @@ async def get_me(user_data: User = Depends(get_current_user)) -> SUserInfo:
     return SUserInfo.model_validate(user_data)
 
 
-@router.get("/all_users/")
+@router.get("/all_users/", response_model=list[SUserInfo])
 async def get_all_users(
     session: AsyncSession = Depends(get_session_with_commit),
     user_data: User = Depends(get_admin_user),

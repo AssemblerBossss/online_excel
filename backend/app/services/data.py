@@ -3,7 +3,7 @@ from typing import Optional, Literal, List, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models import DataTable
-from backend.app.schemas import TableRowResponse, TableRowCreate
+from backend.app.schemas import TableRowResponse, TableRowCreate, TableRowUpdate
 from backend.app.repository import DataRepository, TableRepository
 from backend.app.exceptions import AccessDeniedException, ValidationException
 
@@ -238,6 +238,34 @@ class DataService:
             for row in rows
         ]
 
+    async def get_table_row(
+        self, table_id: int, user_id: int, row_id: int
+    ) -> List[TableRowResponse]:
+        """Получить строку таблицы"""
+
+        pass
+        # table = await self.table_repo.get_table_with_access(
+        #     table_id=table_id, user_id=user_id
+        # )
+        #
+        # if not table:
+        #     raise AccessDeniedException
+        #
+        # rows = await self.data_repo.get_rows_by_table_id(
+        #     table_id, skip, limit, sort_by, sort_order
+        # )
+        #
+        # return [
+        #     TableRowResponse(
+        #         id=row.id,
+        #         table_id=row.table_id,
+        #         row_data=row.row_data,
+        #         created_at=row.created_at,
+        #         updated_at=row.updated_at,
+        #     )
+        #     for row in rows
+        # ]
+
     async def create_table_row(
         self, table_id: int, user_id: int, row_data: TableRowCreate
     ) -> TableRowResponse:
@@ -264,43 +292,38 @@ class DataService:
         )
 
     #
-    # async def update_table_row(
-    #         self,
-    #         table_id: int,
-    #         row_id: int,
-    #         user_id: int,
-    #         row_data: Dict[str, Any]
-    # ) -> Optional[TableRowResponse]:
-    #     """Обновить строку таблицы"""
-    #     # Проверяем доступ на запись
-    #     table = await self.table_repo.get_table_with_write_access(table_id, user_id)
-    #     if not table:
-    #         raise AccessDeniedException("No write access to this table")
+    async def update_table_row(
+        self, table_id: int, row_id: int, user_id: int, row_data: TableRowUpdate
+    ) -> Optional[TableRowResponse]:
+        """Обновить строку таблицы"""
+        # Проверяем доступ на запись
+        # table = await self.table_repo.get_table_with_write_access(table_id, user_id)
+        # if not table:
+        #     raise AccessDeniedException("No write access to this table")
+        #
+        # # Валидация данных
+        # validation_errors = self._validate_row_data_with_schema(table.columns_schema, row_data)
+        # if validation_errors:
+        #     raise ValidationException("; ".join(validation_errors))
+        #
+        # # Обновляем строку
+        # row = await self.data_repo.update_row(table_id, row_id, row_data)
+        # if not row:
+        #     raise NotFoundException("Row not found")
+        #
+        # logger.info(f"User {user_id} updated row {row_id} in table {table_id}")
+        # return {
+        #     "id": row.id,
+        #     "table_id": row.table_id,
+        #     "row_data": row.row_data,
+        #     "updated_at": row.updated_at
+        # }
+        pass
+
     #
-    #     # Валидация данных
-    #     validation_errors = self._validate_row_data_with_schema(table.columns_schema, row_data)
-    #     if validation_errors:
-    #         raise ValidationException("; ".join(validation_errors))
-    #
-    #     # Обновляем строку
-    #     row = await self.data_repo.update_row(table_id, row_id, row_data)
-    #     if not row:
-    #         raise NotFoundException("Row not found")
-    #
-    #     logger.info(f"User {user_id} updated row {row_id} in table {table_id}")
-    #     return {
-    #         "id": row.id,
-    #         "table_id": row.table_id,
-    #         "row_data": row.row_data,
-    #         "updated_at": row.updated_at
-    #     }
-    #
-    # async def delete_table_row(
-    #         self,
-    #         table_id: int,
-    #         row_id: int,
-    #         user_id: int
-    # ) -> bool:
+    async def delete_table_row(self, table_id: int, row_id: int, user_id: int) -> bool:
+        pass
+
     #     """Удалить строку таблицы"""
     #     # Проверяем доступ на запись
     #     table = await self.table_repo.get_table_with_write_access(table_id, user_id)
