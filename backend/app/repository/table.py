@@ -1,9 +1,9 @@
-from typing import Optional
+from typing import Optional, Callable, Coroutine, Any
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
-from .base import Base
+from backend.app.repository.base import Base
 from backend.app.models import DataTable, User, UserRole
 from backend.app.exceptions import AccessDeniedException
 from backend.app.schemas import DataTableCreate
@@ -11,34 +11,25 @@ from backend.app.schemas import DataTableCreate
 
 class TableRepository(Base):
 
-    async def get_table_with_access(self, table_id: int, user_id: int):
-        pass
-
-    async def get_table_with_write_access(
-        self, table_id: int, user_id: int
+    async def _get_table_with_access_check(
+        self,
+        table_id: int,
+        user_id: int,
+        access_checker: Callable[[DataTable, int], Coroutine[Any, Any, bool]],
     ) -> Optional[DataTable]:
         """
-        Получить таблицу только если пользователь имеет права на запись.
-
-        Выполняет двухэтапную проверку:
-        1. Находит таблицу по ID (с предзагрузкой permissions)
-        2. Проверяет права записи через _check_write_access()
+        Базовая логика получения таблицы с проверкой прав доступа.
 
         Args:
-            table_id: Идентификатор таблицы для поиска
-            user_id: Идентификатор пользователя для проверки прав
+            table_id: ID таблицы
+            user_id: ID пользователя
+            access_checker: Функция проверки прав доступа
 
         Returns:
-            Optional[DataTable]: Объект таблицы с загруженными permissions если доступ есть,
-                               None если таблица не найдена
+            Optional[DataTable]: Таблица если доступ есть, иначе None
 
         Raises:
-            AccessDeniedException: Если таблица найдена, но у пользователя нет прав на запись
-
-        Note:
-            - Использует selectinload для эффективной загрузки связанных permissions
-            - Возвращает полноценный объект DataTable готовый к использованию
-            - Отличается от get_table_with_access() строгой проверкой именно прав ЗАПИСИ
+            AccessDeniedException: Если нет прав доступа
         """
         async with self._session_scope() as session:
             stmt = (
@@ -52,11 +43,34 @@ class TableRepository(Base):
             if not table:
                 return None
 
-            has_write_access: bool = await self._check_write_access(table, user_id)
+            has_access = await access_checker(table, user_id)
 
-            if not has_write_access:
+            if not has_access:
                 raise AccessDeniedException
             return table
+
+    async def get_table_with_read_access(
+        self, table_id: int, user_id: int
+    ) -> Optional[DataTable]:
+        """Получить таблицу с правами на чтение"""
+        return await self._get_table_with_access_check(
+            table_id, user_id, self._check_read_access
+        )
+
+    async def get_table_with_write_access(
+        self, table_id: int, user_id: int
+    ) -> Optional[DataTable]:
+        """Получить таблицу с правами на запись"""
+        return await self._get_table_with_access_check(
+            table_id, user_id, self._check_write_access
+        )
+
+    async def _check_read_access(self, table: DataTable, user_id: int) -> bool:
+        """
+        Упрощенная проверка прав на чтение:
+        - Любой аутентифицированный пользователь может читать любую таблицу
+        """
+        return user_id is not None
 
     async def _check_write_access(self, table: DataTable, user_id: int) -> bool:
         """

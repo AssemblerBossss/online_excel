@@ -45,8 +45,14 @@ def get_user_service() -> UserService:
     return UserService()
 
 
-def get_data_service() -> DataService:
-    return DataService(
-        table_repo=Depends(get_table_repository),
-        data_repo=Depends(get_data_repository),
-    )
+def get_data_service(
+    data_repo: DataRepository = Depends(get_data_repository),
+    table_repo: TableRepository = Depends(get_table_repository),
+) -> DataService:
+    """
+    Retrieves an instance of the data service.
+    Args:
+    Returns:
+        DataService: An instance of the data service.
+    """
+    return DataService(data_repo, table_repo)

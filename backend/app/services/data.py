@@ -216,15 +216,22 @@ class DataService:
     ) -> List[TableRowResponse]:
         """Получить строки таблицы"""
 
-        table = await self.table_repo.get_table_with_access(
+        table = await self.table_repo.get_table_with_read_access(
             table_id=table_id, user_id=user_id
         )
 
         if not table:
             raise AccessDeniedException
 
+        if not sort_by:
+            sort_by = "id"
+
         rows = await self.data_repo.get_rows_by_table_id(
-            table_id, skip, limit, sort_by, sort_order
+            table_id=table_id,
+            skip=skip,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
         )
 
         return [
