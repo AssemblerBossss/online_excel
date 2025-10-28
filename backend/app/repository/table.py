@@ -101,16 +101,22 @@ class TableRepository(Base):
 
             return False
 
-
-    async def create_table(self, table_data: DataTableCreate, user_id: int) -> DataTable:
+    async def create_table(
+        self, table_data: DataTableCreate, user_id: int
+    ) -> DataTable:
         async with self._session_scope() as session:
-            stmt = insert(DataTable).values(
-                name=table_data.name,
-                description=table_data.description,
-                is_public=table_data.is_public,
-                columns_schema=table_data.columns_schema,
-                created_by=user_id
-            ).returning(DataTable)
+            stmt = (
+                insert(DataTable)
+                .values(
+                    name=table_data.name,
+                    description=table_data.description,
+                    is_public=table_data.is_public,
+                    columns_schema=table_data.columns_schema,
+                    created_by_id=user_id,
+                )
+                .returning(DataTable)
+            )
 
-            return (await session.scalars(stmt)).one_or_none()
-
+            table = (await session.scalars(stmt)).one_or_none()
+            await session.refresh(table, ["created_by"])
+            return table

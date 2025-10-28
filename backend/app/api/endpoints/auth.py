@@ -24,7 +24,6 @@ from backend.app.schemas.user import (
     SUserAuth,
     SUserInfo,
     SUserFilter,
-    UserBase,
     SUserAddDB,
 )
 from backend.app.utils import authenticate_user, get_password_hash

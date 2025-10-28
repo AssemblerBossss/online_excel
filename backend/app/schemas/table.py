@@ -9,7 +9,7 @@ class DataTableBase(BaseModel):
     name: str
     description: Optional[str] = None
     is_public: Optional[bool] = False
-    columns_schema: Optional[dict[str, Any]] = None
+    columns_schema: Optional[List[Dict[str, Any]]] = None
 
 
 class DataTableCreate(DataTableBase):

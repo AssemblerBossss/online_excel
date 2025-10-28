@@ -32,7 +32,7 @@ class TableService:
             description=table.description,
             is_public=table.is_public,
             columns_schema=table.columns_schema,
-            created_by=table.created_by,
+            created_by=table.created_by_id,
             created_at=table.created_at,
             updated_at=table.updated_at,
         )
