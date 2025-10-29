@@ -1,4 +1,3 @@
-from typing import AsyncGenerator
 from fastapi import Depends
 
 from backend.app.services import DataService, TableService, UserService
@@ -27,10 +26,11 @@ def get_table_service(
     table_repository: TableRepository = Depends(get_table_repository),
 ) -> TableService:
     """
-    Retrieves an instance of the task service.
+    Retrieves an instance of the table service.
     Args:
+        table_repository: An instance of the table repository.
     Returns:
-        TaskService: An instance of the task service.
+        TableService: An instance of the table service.
     """
     return TableService(table_repository=table_repository)
 
@@ -38,7 +38,6 @@ def get_table_service(
 def get_user_service() -> UserService:
     """
     Retrieves an instance of the user service.
-    Args:
     Returns:
         UserService: An instance of the user service.
     """
@@ -52,6 +51,8 @@ def get_data_service(
     """
     Retrieves an instance of the data service.
     Args:
+        data_repo: An instance of the data repository.
+        table_repo: An instance of the table repository.
     Returns:
         DataService: An instance of the data service.
     """

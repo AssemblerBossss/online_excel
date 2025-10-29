@@ -95,7 +95,7 @@ class TableRepository(Base):
             - Метод ожидает что permissions уже загружены через selectinload/joinedload
             - Для публичных таблиц всегда возвращает False (только чтение)
         """
-        if table.created_by == user_id:
+        if table.created_by_id == user_id:
             return True
 
         async with self._session_scope() as session:

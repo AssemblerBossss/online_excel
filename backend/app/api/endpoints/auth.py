@@ -35,7 +35,6 @@ router = APIRouter()
 async def register_user(
     user_data: SUserRegister, session: AsyncSession = Depends(get_session_with_commit)
 ) -> dict:
-    # Проверка существования пользователя
     user_dao = UserRepository(session)
 
     existing_user = await user_dao.find_one_or_none(
@@ -44,7 +43,6 @@ async def register_user(
     if existing_user:
         raise UserAlreadyExistsException
 
-    # Хешируем пароль ПЕРЕД сохранением в БД
     hashed_password = get_password_hash(user_data.password)
 
     # Подготовка данных для добавления
@@ -53,7 +51,6 @@ async def register_user(
     user_data_dict.pop("password", None)
     user_data_dict["hashed_password"] = hashed_password  # Заменяем на хеш
 
-    # Добавление пользователя
     await user_dao.add(user_data=SUserAddDB(**user_data_dict))
 
     return {"message": "Вы успешно зарегистрированы!"}

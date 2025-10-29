@@ -9,4 +9,5 @@ __all__ = [
     "UserRole",
     "DataTable",
     "TablePermission",
+    "TableRow",
 ]

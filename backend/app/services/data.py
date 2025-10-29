@@ -1,11 +1,14 @@
 from datetime import datetime
 from typing import Optional, Literal, List, Any
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models import DataTable
 from backend.app.schemas import TableRowResponse, TableRowCreate, TableRowUpdate
 from backend.app.repository import DataRepository, TableRepository
-from backend.app.exceptions import AccessDeniedException, ValidationException
+from backend.app.exceptions import (
+    AccessDeniedException,
+    ValidationException,
+    NotFoundException,
+)
 
 
 class DataService:
@@ -15,7 +18,9 @@ class DataService:
         self.table_repo = table_repo
 
     def _validate_row_data_with_schema(
-        self, table_columns_schema: list[dict[str, Any]], row_data: TableRowCreate
+        self,
+        table_columns_schema: list[dict[str, Any]],
+        row_data: TableRowCreate | TableRowUpdate,
     ) -> list[str]:
         """
         Валидация данных строки по схеме таблицы
@@ -303,29 +308,28 @@ class DataService:
         self, table_id: int, row_id: int, user_id: int, row_data: TableRowUpdate
     ) -> Optional[TableRowResponse]:
         """Обновить строку таблицы"""
-        # Проверяем доступ на запись
-        # table = await self.table_repo.get_table_with_write_access(table_id, user_id)
-        # if not table:
-        #     raise AccessDeniedException("No write access to this table")
-        #
-        # # Валидация данных
-        # validation_errors = self._validate_row_data_with_schema(table.columns_schema, row_data)
-        # if validation_errors:
-        #     raise ValidationException("; ".join(validation_errors))
-        #
-        # # Обновляем строку
-        # row = await self.data_repo.update_row(table_id, row_id, row_data)
-        # if not row:
-        #     raise NotFoundException("Row not found")
-        #
-        # logger.info(f"User {user_id} updated row {row_id} in table {table_id}")
-        # return {
-        #     "id": row.id,
-        #     "table_id": row.table_id,
-        #     "row_data": row.row_data,
-        #     "updated_at": row.updated_at
-        # }
-        pass
+
+        table = await self.table_repo.get_table_with_write_access(table_id, user_id)
+        if not table:
+            raise AccessDeniedException
+
+        validation_errors = self._validate_row_data_with_schema(
+            table.columns_schema, row_data
+        )
+        if validation_errors:
+            raise ValidationException("; ".join(validation_errors))
+
+        row = await self.data_repo.update_table_row(table_id, row_id, row_data)
+        if not row:
+            raise NotFoundException
+
+        return TableRowResponse(
+            id=row.id,
+            table_id=row.table_id,
+            row_data=row.row_data,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
 
     #
     async def delete_table_row(self, table_id: int, row_id: int, user_id: int) -> bool:
