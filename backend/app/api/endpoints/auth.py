@@ -1,7 +1,10 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Response, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from backend.app.api.dependencies import get_user_service, get_auth_service
 from backend.app.models import User
 from backend.app.api.jwt_utils import set_tokens
 
@@ -26,33 +29,17 @@ from backend.app.schemas.user import (
     SUserFilter,
     SUserAddDB,
 )
-from backend.app.utils import authenticate_user, get_password_hash
+from backend.app.services import UserService, AuthService
+from backend.app.utils import authenticate_user
 
 router = APIRouter()
 
 
-@router.post("/register/", status_code=status.HTTP_201_CREATED)
+@router.post("/register/", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register_user(
-    user_data: SUserRegister, session: AsyncSession = Depends(get_session_with_commit)
-) -> dict:
-    user_dao = UserRepository(session)
-
-    existing_user = await user_dao.find_one_or_none(
-        filters=SUserFilter(email=user_data.email)
-    )
-    if existing_user:
-        raise UserAlreadyExistsException
-
-    hashed_password = get_password_hash(user_data.password)
-
-    # Подготовка данных для добавления
-    user_data_dict = user_data.model_dump()
-    user_data_dict.pop("confirm_password", None)
-    user_data_dict.pop("password", None)
-    user_data_dict["hashed_password"] = hashed_password  # Заменяем на хеш
-
-    await user_dao.add(user_data=SUserAddDB(**user_data_dict))
-
+    user_data: SUserRegister, auth_service: Annotated[AuthService, get_auth_service]
+):
+    await auth_service.register_user(user_data)
     return {"message": "Вы успешно зарегистрированы!"}
 
 
@@ -76,19 +63,6 @@ async def logout(response: Response):
     response.delete_cookie("user_access_token")
     response.delete_cookie("user_refresh_token")
     return {"message": "Пользователь успешно вышел из системы"}
-
-
-@router.get("/me/")
-async def get_me(user_data: User = Depends(get_current_user)) -> SUserInfo:
-    return SUserInfo.model_validate(user_data)
-
-
-@router.get("/all_users/", response_model=list[SUserInfo])
-async def get_all_users(
-    session: AsyncSession = Depends(get_session_with_commit),
-    user_data: User = Depends(get_admin_user),
-):  # -> List[SUserInfo]
-    return await UserRepository(session).find_all()
 
 
 @router.post("/refresh")

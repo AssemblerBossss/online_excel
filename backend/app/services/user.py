@@ -18,7 +18,17 @@ from backend.app.exceptions import (
     ForbiddenException,
     UserNotFoundException,
 )
+from backend.app.schemas import SUserInfo
 
 
 class UserService:
-    pass
+
+    def __init__(self, session: AsyncSession):
+        self.user_repo = UserRepository(session=session)
+
+    async def get_me(self, user: User) -> SUserInfo:
+        return SUserInfo.model_validate(user)
+
+    async def get_all_users(self) -> list[SUserInfo]:
+        pass
+        return [SUserInfo.model_validate(t) for t in (await self.user_repo.find_all())]
