@@ -2,27 +2,42 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
-from backend.app.auth.router import router as router_auth
+from backend.app.api.endpoints import (
+    auth_router,
+    data_router,
+    tables_router,
+    users_router,
+)
+from backend.app.utils import init_admin_user
+from backend.app.core import AsyncSessionFactory
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
     logger.info("Инициализация приложения...")
+
+    try:
+        async with AsyncSessionFactory() as session:
+            await init_admin_user(session)
+            logger.info("Admin user initialization completed")
+    except Exception as e:
+        logger.error(f"Failed to initialize admin user: {e}")
+
     yield
+
     logger.info("Завершение работы приложения...")
 
 
 def create_app() -> FastAPI:
     """
-   Создание и конфигурация FastAPI приложения.
+    Создание и конфигурация FastAPI приложения.
 
-   Returns:
-       Сконфигурированное приложение FastAPI
-   """
+    Returns:
+        Сконфигурированное приложение FastAPI
+    """
     app = FastAPI(
         title="Стартовая сборка FastAPI",
         description=(
@@ -41,7 +56,7 @@ def create_app() -> FastAPI:
         allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
-        allow_headers=["*"]
+        allow_headers=["*"],
     )
 
     # Монтирование статических файлов
@@ -67,13 +82,15 @@ def register_routers(app: FastAPI) -> None:
         return {
             "message": "Добро пожаловать! Проект создан для сообщества 'Легкий путь в Python'.",
             "community": "https://t.me/PythonPathMaster",
-            "author": "Яковенко Алексей"
+            "author": "Яковенко Алексей",
         }
 
     # Подключение роутеров
     app.include_router(root_router, tags=["root"])
-    app.include_router(router_auth, prefix='/auth', tags=['Auth'])
+    app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+    app.include_router(data_router, prefix="/data", tags=["Data"])
+    app.include_router(users_router, prefix="/users", tags=["Users"])
+    app.include_router(tables_router, prefix="/tables", tags=["Tables"])
 
 
-# Создание экземпляра приложения
 app = create_app()
