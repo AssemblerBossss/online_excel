@@ -1,6 +1,6 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.annotation import Annotated
+from typing import Annotated
 
 from backend.app.services import DataService, TableService, UserService, AuthService
 from backend.app.repository import TableRepository, DataRepository, UserRepository
@@ -39,7 +39,7 @@ def get_table_service(
 
 
 def get_user_service(
-    session: Annotated[AsyncSession, get_session_with_commit],
+    session: Annotated[AsyncSession, Depends(get_session_with_commit)],
 ) -> UserService:
     """
     Retrieves an instance of the user service.
@@ -52,7 +52,7 @@ def get_user_service(
 
 
 def get_auth_service(
-    session: Annotated[AsyncSession, get_session_with_commit],
+    session: Annotated[AsyncSession, Depends(get_session_with_commit)],
 ):
     """
     Retrieves an instance of the auth service.
