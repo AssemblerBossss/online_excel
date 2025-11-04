@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Literal
 
 LOG_FORMAT_DEFAULT = (
@@ -62,6 +62,14 @@ class Settings(BaseSettings):
     @property
     def google_redirect_url(self) -> str:
         return f"https://accounts.google.com/o/oauth2/auth?response_type=code&client_id={self.GOOGLE_CLIENT_ID}&redirect_uri={self.GOOGLE_REDIRECT_URI}&scope=openid%20profile%20email&access_type=offline"
+
+    model_config = SettingsConfigDict(
+        env_file=[".env.development", "local.env"],
+        env_file_encoding="utf-8",
+        env_nested_delimiter="__",
+        env_prefix="EXCEL_APP__",
+        extra="ignore",
+    )
 
 
 app_settings = Settings()
