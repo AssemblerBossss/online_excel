@@ -19,7 +19,7 @@ def _generate_columns_schema_from_dataframe(
 
         columns_schema = {
             "name": str(column_name),
-            type: "string",
+            "type": "string",
             "required": False,
         }
         columns_schemas.append(columns_schema)

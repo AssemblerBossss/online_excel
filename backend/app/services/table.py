@@ -3,7 +3,7 @@ from starlette import status
 import pandas as pd
 
 from backend.app.schemas import DataTableResponse, DataTableCreate
-from backend.app.repository import TableRepository
+from backend.app.repository import TableRepository, DataRepository
 from .excel_processor import (
     _generate_columns_schema_from_dataframe,
     _import_excel_data_to_table,
@@ -12,8 +12,11 @@ from .excel_processor import (
 
 class TableService:
 
-    def __init__(self, table_repository: TableRepository):
+    def __init__(
+        self, table_repository: TableRepository, data_repository: DataRepository
+    ):
         self.table_repo = table_repository
+        self.data_repo = data_repository
 
     async def create_table(
         self, table_data: DataTableCreate, user_id: int
@@ -87,7 +90,7 @@ class TableService:
             if not table:
                 raise Exception("Не удалось создать таблицу из Excel файла")
 
-            await _import_excel_data_to_table(table.id, df)
+            await _import_excel_data_to_table(self.data_repo, table.id, df)
 
             return DataTableResponse(
                 id=table.id,

@@ -27,15 +27,19 @@ def get_data_repository() -> DataRepository:
 
 def get_table_service(
     table_repository: TableRepository = Depends(get_table_repository),
+    data_repository: DataRepository = Depends(get_data_repository),
 ) -> TableService:
     """
     Retrieves an instance of the table service.
     Args:
         table_repository: An instance of the table repository.
+        data_repository: An instance of the data repository.
     Returns:
         TableService: An instance of the table service.
     """
-    return TableService(table_repository=table_repository)
+    return TableService(
+        table_repository=table_repository, data_repository=data_repository
+    )
 
 
 def get_user_service(
