@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Coroutine, Any
+from typing import Optional, Callable, Coroutine, Any, List
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
@@ -10,6 +10,19 @@ from backend.app.schemas import DataTableCreate
 
 
 class TableRepository(Base):
+    """Репозиторий для работы с таблицами данных (DataTable)."""
+
+    async def get_all_tables(self) -> List[DataTable]:
+        """
+        Получить список всех таблиц в базе данных.
+
+        Returns:
+            List[DataTable]: Список всех таблиц. Если таблиц нет — возвращает пустой список.
+        """
+        async with self._session_scope() as session:
+            stmt = select(DataTable)
+            tables: List[DataTable] = (await session.scalars(stmt)).all()
+            return tables
 
     async def _get_table_with_access_check(
         self,
@@ -52,7 +65,16 @@ class TableRepository(Base):
     async def get_table_with_read_access(
         self, table_id: int, user_id: int
     ) -> Optional[DataTable]:
-        """Получить таблицу с правами на чтение"""
+        """
+        Получить таблицу с проверкой прав на чтение.
+
+        Args:
+            table_id: ID таблицы
+            user_id: ID пользователя
+
+        Returns:
+            Optional[DataTable]: Таблица, если пользователь имеет доступ на чтение.
+        """
         return await self._get_table_with_access_check(
             table_id, user_id, self._check_read_access
         )
@@ -60,7 +82,16 @@ class TableRepository(Base):
     async def get_table_with_write_access(
         self, table_id: int, user_id: int
     ) -> Optional[DataTable]:
-        """Получить таблицу с правами на запись"""
+        """
+        Получить таблицу с проверкой прав на запись.
+
+        Args:
+            table_id: ID таблицы
+            user_id: ID пользователя
+
+        Returns:
+            Optional[DataTable]: Таблица, если пользователь имеет доступ на запись.
+        """
         return await self._get_table_with_access_check(
             table_id, user_id, self._check_write_access
         )
@@ -118,6 +149,16 @@ class TableRepository(Base):
     async def create_table(
         self, table_data: DataTableCreate, user_id: int
     ) -> DataTable:
+        """
+        Создать новую таблицу данных.
+
+        Args:
+            table_data: Данные для создания таблицы (имя, описание, схема и т.д.)
+            user_id: Идентификатор пользователя, создающего таблицу.
+
+        Returns:
+            DataTable: Созданная таблица с подгруженным владельцем.
+        """
         async with self._session_scope() as session:
             stmt = (
                 insert(DataTable)

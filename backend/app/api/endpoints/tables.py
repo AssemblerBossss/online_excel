@@ -1,13 +1,22 @@
-from typing import Annotated
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 
-from backend.app.api import get_admin_user
+from backend.app.api import get_admin_user, get_viewer_user
 from backend.app.schemas import DataTableCreate, DataTableResponse, TokenData
 from backend.app.services import DataService, TableService
 from backend.app.api.dependencies import get_table_service, get_table_repository
 
 
 router = APIRouter()
+
+
+@router.get("/tables", response_model=List[DataTableResponse])
+async def get_tables(
+    table_service: Annotated[TableService, Depends(get_table_service)],
+    user: Annotated[TokenData, Depends(get_viewer_user)],
+) -> List[DataTableResponse]:
+
+    return await table_service.get_all_tables()
 
 
 @router.post(

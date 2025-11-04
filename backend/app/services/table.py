@@ -1,5 +1,5 @@
+from typing import List, Optional
 from fastapi import UploadFile, HTTPException
-from starlette import status
 import pandas as pd
 
 from backend.app.schemas import DataTableResponse, DataTableCreate
@@ -17,6 +17,29 @@ class TableService:
     ):
         self.table_repo = table_repository
         self.data_repo = data_repository
+
+    def _to_response(self, table) -> DataTableResponse:
+        return DataTableResponse(
+            id=table.id,
+            name=table.name,
+            description=table.description,
+            is_public=table.is_public,
+            columns_schema=table.columns_schema,
+            created_by=table.created_by_id,
+            created_at=table.created_at,
+            updated_at=table.updated_at,
+        )
+
+    async def get_all_tables(self) -> List[DataTableResponse]:
+        """
+        Получить список всtх таблиц
+        Returns:
+            List[DataTableResponse]: Список таблиц
+        """
+        tables = await self.table_repo.get_all_tables()
+        if not tables:
+            return []
+        return [self._to_response(table) for table in tables]
 
     async def create_table(
         self, table_data: DataTableCreate, user_id: int
@@ -37,16 +60,7 @@ class TableService:
         if not table:
             raise Exception("Не удалось создать таблицу")
 
-        return DataTableResponse(
-            id=table.id,
-            name=table.name,
-            description=table.description,
-            is_public=table.is_public,
-            columns_schema=table.columns_schema,
-            created_by=table.created_by_id,
-            created_at=table.created_at,
-            updated_at=table.updated_at,
-        )
+        return self._to_response(table)
 
     async def create_table_from_excel_file(
         self, excel_file: UploadFile, user_id: int, table_name: str = None
@@ -92,16 +106,7 @@ class TableService:
 
             await _import_excel_data_to_table(self.data_repo, table.id, df)
 
-            return DataTableResponse(
-                id=table.id,
-                name=table.name,
-                description=table.description,
-                is_public=table.is_public,
-                columns_schema=table.columns_schema,
-                created_by=table.created_by_id,
-                created_at=table.created_at,
-                updated_at=table.updated_at,
-            )
+            return self._to_response(table)
 
         except pd.errors.EmptyDataError:
             raise HTTPException(400, "Excel файл пустой")
