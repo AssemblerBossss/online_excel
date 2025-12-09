@@ -81,7 +81,8 @@ def create_app() -> FastAPI:
 def register_routers(app: FastAPI) -> None:
     """Регистрация роутеров приложения."""
     # Корневой роутер
-    root_router = APIRouter()
+    API_PREFIX = "/api"
+    root_router = APIRouter(prefix=API_PREFIX, tags=["root"])
 
     @root_router.get("/", tags=["root"])
     def home_page():
@@ -91,12 +92,14 @@ def register_routers(app: FastAPI) -> None:
             "author": "Яковенко Алексей",
         }
 
-    # Подключение роутеров
-    app.include_router(root_router, tags=["root"])
-    app.include_router(auth_router, prefix="/auth", tags=["Auth"])
-    app.include_router(data_router, prefix="/data", tags=["Data"])
-    app.include_router(users_router, prefix="/users", tags=["Users"])
-    app.include_router(tables_router, prefix="/tables", tags=["Tables"])
+    # Подключение дочерних роутеров к корневому с префиксом /api
+    root_router.include_router(auth_router, prefix="/auth", tags=["Auth"])
+    root_router.include_router(data_router, prefix="/data", tags=["Data"])
+    root_router.include_router(users_router, prefix="/users", tags=["Users"])
+    root_router.include_router(tables_router, prefix="/tables", tags=["Tables"])
+
+    # Регистрируем корневой роутер в приложении
+    app.include_router(root_router)
 
 
 app = create_app()

@@ -15,6 +15,7 @@ ALLOWED_EXCEL_MIME_TYPES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.ms-excel",
     "application/octet-stream",
+    "application/wps-office.xlsx"
 }
 
 

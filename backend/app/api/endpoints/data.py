@@ -19,7 +19,7 @@ from backend.app.api.dependencies import (
 router = APIRouter()
 
 
-@router.get("{table_id}/rows", response_model=List[TableRowResponse])
+@router.get("/{table_id}/rows", response_model=List[TableRowResponse])
 async def list_table_rows(
     data_service: Annotated[DataService, Depends(get_data_service)],
     user: Annotated[TokenData, Depends(get_viewer_user)],
