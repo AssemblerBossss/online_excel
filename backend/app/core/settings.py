@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     GOOGLE_REDIRECT_URI: str = ""
     GOOGLE_TOKEN_URL: str = "https://accounts.google.com/o/oauth2/token"
 
+    MAX_FILE_SIZE_MB: int = 10  # Максимальный размер файла в MB
+    MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB в байтах
+
     @property
     def db_url(self) -> str:
         return f"{self.DB_DRIVER}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"

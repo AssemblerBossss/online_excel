@@ -1,13 +1,21 @@
 from typing import List, Optional
-from fastapi import UploadFile, HTTPException
+from fastapi import UploadFile, HTTPException, status
 import pandas as pd
 
 from backend.app.schemas import DataTableResponse, DataTableCreate
 from backend.app.repository import TableRepository, DataRepository
+from backend.app.models import DataTable
 from .excel_processor import (
     _generate_columns_schema_from_dataframe,
     _import_excel_data_to_table,
 )
+
+
+ALLOWED_EXCEL_MIME_TYPES = {
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+    "application/octet-stream",
+}
 
 
 class TableService:
@@ -82,6 +90,12 @@ class TableService:
                 400, "Файл должен быть в формате Excel (.xlsx или .xls)"
             )
 
+        if excel_file.content_type not in ALLOWED_EXCEL_MIME_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail=f"Unsupported file type: '{excel_file.content_type}'. Only {', '.join(ALLOWED_EXCEL_MIME_TYPES)} are allowed.",
+            )
+
         try:
             df = pd.read_excel(excel_file.file)
 
@@ -114,3 +128,15 @@ class TableService:
             raise HTTPException(400, "Ошибка парсинга Excel файла")
         except Exception as e:
             raise HTTPException(500, f"Ошибка обработки Excel файла: {str(e)}")
+
+    async def delete_table(self, table_id: int, user_id: int) -> None:
+        table: Optional[DataTable] = await self.table_repo.get_table_with_write_access(
+            table_id, user_id
+        )
+        if not table:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Table not found or access denied",
+            )
+        await self.table_repo.delete_table(table_id=table_id, user_id=user_id)
+        return None

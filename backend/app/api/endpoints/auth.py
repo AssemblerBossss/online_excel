@@ -4,13 +4,8 @@ from fastapi import status
 
 from backend.app.api.dependencies import get_auth_service
 from backend.app.models import User
-from backend.app.api.jwt_utils import (
-    check_refresh_token,
-)
-from backend.app.schemas.user import (
-    SUserRegister,
-    SUserAuth,
-)
+from backend.app.api.jwt_utils import check_refresh_token
+from backend.app.schemas.user import SUserRegister, SUserAuth
 from backend.app.services import AuthService
 
 router = APIRouter()

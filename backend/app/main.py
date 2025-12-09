@@ -10,8 +10,10 @@ from backend.app.api.endpoints import (
     tables_router,
     users_router,
 )
+from backend.app.core.settings import app_settings
 from backend.app.utils import init_admin_user
 from backend.app.core import AsyncSessionFactory
+from backend.app.middleware import FileSizeLimitMiddleware
 
 
 @asynccontextmanager
@@ -48,6 +50,10 @@ def create_app() -> FastAPI:
         ),
         version="1.0.0",
         lifespan=lifespan,
+    )
+
+    app.add_middleware(
+        FileSizeLimitMiddleware, max_file_size=app_settings.MAX_FILE_SIZE_BYTES
     )
 
     # Настройка CORS

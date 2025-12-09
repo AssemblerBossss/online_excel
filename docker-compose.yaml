@@ -11,3 +11,16 @@ services:
       POSTGRES_PASSWORD: online_excel
       POSTGRES_USER: postgres
       POSTGRES_DB: online_excel
+    networks:
+      - appnet
+
+#  frontend:
+#    build: ./frontend
+#    ports:
+#      - "3000:80"
+#    networks:
+#      - appnet
+#
+networks:
+  appnet:
+    driver: bridge
