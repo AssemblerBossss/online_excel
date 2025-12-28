@@ -29,16 +29,40 @@ def _generate_columns_schema_from_dataframe(
 
 async def _import_excel_data_to_table(
     data_repo: DataRepository, table_id: int, df: pd.DataFrame
-) -> None:
-    for _, row in df.iterrows():
+) -> dict[str, int]:
+    """
+    Импортирует данные из DataFrame в таблицу используя bulk insert.
+
+    Args:
+        data_repo: Репозиторий для работы с данными
+        table_id: ID таблицы
+        df: DataFrame с данными для импорта
+
+    Returns:
+        dict: Статистика импорта {"total": N, "success": M, "failed": K}
+    """
+
+    rows_to_create = []
+    failed_count = 0
+
+    for idx, row in df.iterrows():
         try:
             row_data = {
                 str(col): str(row[col]) if not pd.isna(row[col]) else None
                 for col in df.columns
             }
             row_create = TableRowCreate(row_data=row_data)
-            await data_repo.create_table_row(table_id, row_create)
+            rows_to_create.append(row_create)
 
         except Exception as e:
             # logger.warning(f"Не удалось импортировать строку: {str(e)}")
+            failed_count += 1
             continue
+    if rows_to_create:
+        created_count = await data_repo.bulk_create_table_row(
+            table_id=table_id, rows_data=rows_to_create
+        )
+    else:
+        created_count = 0
+
+    return {"total": len(df), "success": created_count, "failed": failed_count}

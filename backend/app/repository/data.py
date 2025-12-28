@@ -1,10 +1,9 @@
-                                from sqlalchemy import select, update, delete, insert, asc, desc
+from sqlalchemy import select, update, delete, insert, asc, desc
 from typing import Any, Optional, List
 
 from backend.app.models import TableRow, DataTable
-
-from .base import Base
-from ..schemas import TableRowCreate, TableRowUpdate
+from backend.app.repository.base import Base
+from backend.app.schemas import TableRowCreate, TableRowUpdate
 
 
 class DataRepository(Base):
@@ -79,6 +78,37 @@ class DataRepository(Base):
                 .returning(TableRow)
             )
             return (await session.scalars(stmt)).one_or_none()
+
+    async def bulk_create_table_row(
+        self, table_id: int, rows_data: List[TableRowCreate]
+    ) -> int:
+        """
+        Массовое создание строк в таблице.
+
+        Args:
+            table_id: ID таблицы, в которую добавляются строки
+            rows_data: Список данных строк для вставки
+
+        Returns:
+            int: Количество созданных строк
+        """
+        if not rows_data:
+            return 0
+
+        async with self._session_scope() as session:
+            values_to_insert = [
+                {
+                    "table_id": table_id,
+                    "row_data": (
+                        row.row_data if hasattr(row, "row_data") else row.model_dump()
+                    ),
+                }
+                for row in rows_data
+            ]
+
+            stmt = insert(TableRow).values(values_to_insert)
+            result = await session.execute(stmt)
+            return result.rowcount
 
     async def update_table_row(
         self,
