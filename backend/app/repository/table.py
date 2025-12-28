@@ -1,5 +1,5 @@
 from typing import Optional, Callable, Coroutine, Any, List
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
@@ -177,4 +177,34 @@ class TableRepository(Base):
             return table
 
     async def delete_table(self, table_id: int, user_id: int) -> None:
-        pass
+        """
+        Удалить таблицу со всеми данными.
+
+        Благодаря cascade="all, delete-orphan" в модели DataTable,
+        при удалении таблицы автоматически удалятся:
+        - Все строки таблицы (TableRow)
+        - Все права доступа (TablePermission)
+
+        Args:
+            table_id: ID таблицы для удаления
+            user_id: ID пользователя (для проверки прав)
+
+        Returns:
+            bool: True если таблица удалена, False если не найдена
+
+        Raises:
+            AccessDeniedException: Если нет прав на удаление
+        """
+
+        table = await self.get_table_with_write_access(
+            table_id=table_id, user_id=user_id
+        )
+
+        if not table:
+            return False
+
+        async with self._session_scope() as session:
+            stmt = delete(DataTable).where(DataTable.id == table_id)
+            result = await session.execute(stmt)
+
+            return result.rowcount > 0

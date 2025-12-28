@@ -166,15 +166,3 @@ class DataRepository(Base):
 
             result = await session.execute(stmt)
             return result.rowcount > 1
-
-    #
-    # async def delete_task(self, task_id: UUID, user_id: UUID) -> None:
-    #     """Retrieve all tasks from the database.
-    #
-    #     Returns:
-    #         list[Task]: List of all tasks
-    #     """
-    #     async with self._session_scope() as session:
-    #         stmt = delete(Task).where(Task.task_id == task_id, Task.user_id == user_id)
-    #         await session.execute(stmt)
-    #
