@@ -11,8 +11,6 @@ from backend.app.api.endpoints import (
     users_router,
 )
 from backend.app.core.settings import app_settings
-from backend.app.utils import init_admin_user
-from backend.app.core import AsyncSessionFactory
 from backend.app.middleware import FileSizeLimitMiddleware
 
 
@@ -20,13 +18,6 @@ from backend.app.middleware import FileSizeLimitMiddleware
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
     logger.info("Инициализация приложения...")
-
-    try:
-        async with AsyncSessionFactory() as session:
-            await init_admin_user(session)
-            logger.info("Admin user initialization completed")
-    except Exception as e:
-        logger.error(f"Failed to initialize admin user: {e}")
 
     yield
 
