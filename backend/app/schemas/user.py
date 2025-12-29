@@ -1,15 +1,7 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 from typing import Optional
+from datetime import datetime
 from backend.app.models import UserRole
-
-
-# class UserBase(BaseModel):
-#     email: str
-#     hashed_password: str
-#     full_name: str
-#
-#     is_active: bool = True
-#
 
 
 class TokenData(BaseModel):
@@ -80,3 +72,4 @@ class SUserInfo(UserBase):
     id: int = Field(description="Идентификатор пользователя")
     is_active: Optional[bool] = None
     role: UserRole = Field(description="Роль пользователя")
+    created_at: datetime = Field(description="Дата регистрации")

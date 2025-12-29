@@ -3,6 +3,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import TablesPage from './pages/TablePage';
 import TableViewPage from './pages/TableViewPage';
+import ProfilePage from './pages/ProfilePage';
 
 
 console.log("App loaded");
@@ -15,7 +16,7 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/tables" element={<TablesPage />} />
         <Route path="/data/:id/rows" element={<TableViewPage />} />
-
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<Navigate to="/login" />} />
 
       </Routes>
