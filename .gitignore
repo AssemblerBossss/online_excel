@@ -4,4 +4,3 @@ __pycache__
 .env
 .env.local
 .env.example
-frontend/*

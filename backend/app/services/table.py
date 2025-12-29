@@ -72,7 +72,11 @@ class TableService:
         return self._to_response(table)
 
     async def create_table_from_excel_file(
-        self, excel_file: UploadFile, user_id: int, table_name: str = None
+        self,
+        excel_file: UploadFile,
+        user_id: int,
+        table_name: str = None,
+        description: str = None,
     ) -> DataTableResponse:
         """
         Создать новую таблицу из Excel файла
@@ -107,9 +111,12 @@ class TableService:
             # Генерация схемы колонок на основе DataFrame
             columns_schema = _generate_columns_schema_from_dataframe(df)
 
+            if not description:
+                description = f"Таблица создана из файла {excel_file.filename}"
+
             table_data = DataTableCreate(
                 name=table_name,
-                description=f"Таблица создана из файла {excel_file.filename}",
+                description=description,
                 is_public=False,
                 columns_schema=columns_schema,
             )

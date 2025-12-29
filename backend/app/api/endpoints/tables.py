@@ -45,7 +45,7 @@ async def create_table_from_excel(
 ) -> DataTableResponse:
 
     return await table_service.create_table_from_excel_file(
-        excel_file=file, user_id=user.id, table_name=table_name
+        excel_file=file, user_id=user.id, table_name=table_name, description=description
     )
 
 
