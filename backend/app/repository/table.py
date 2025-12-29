@@ -176,7 +176,7 @@ class TableRepository(Base):
             await session.refresh(table, ["created_by"])
             return table
 
-    async def delete_table(self, table_id: int, user_id: int) -> None:
+    async def delete_table(self, table_id: int, user_id: int) -> bool:
         """
         Удалить таблицу со всеми данными.
 

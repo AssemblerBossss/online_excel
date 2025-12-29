@@ -15,7 +15,7 @@ ALLOWED_EXCEL_MIME_TYPES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.ms-excel",
     "application/octet-stream",
-    "application/wps-office.xlsx"
+    "application/wps-office.xlsx",
 }
 
 
@@ -130,14 +130,35 @@ class TableService:
         except Exception as e:
             raise HTTPException(500, f"Ошибка обработки Excel файла: {str(e)}")
 
-    async def delete_table(self, table_id: int, user_id: int) -> None:
+    async def delete_table(self, table_id: int, user_id: int) -> bool:
+        """
+        Удалить таблицу.
+
+        Args:
+            table_id: ID таблицы для удаления
+            user_id: ID пользователя
+
+        Raises:
+            HTTPException 404: Если таблица не найдена или нет доступа
+            HTTPException 500: Если не удалось удалить таблицу
+        """
         table: Optional[DataTable] = await self.table_repo.get_table_with_write_access(
             table_id, user_id
         )
+
         if not table:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Table not found or access denied",
             )
-        await self.table_repo.delete_table(table_id=table_id, user_id=user_id)
+
+        deleted = await self.table_repo.delete_table(table_id=table_id, user_id=user_id)
+
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete table",
+            )
+        # logger.info(f"User {user_id} deleted table {table_id} (name: {table.name})")
+
         return None

@@ -165,4 +165,4 @@ class DataRepository(Base):
             )
 
             result = await session.execute(stmt)
-            return result.rowcount > 1
+            return result.rowcount > 0

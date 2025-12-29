@@ -10,7 +10,10 @@ class TableRow(Base):
     __tablename__ = "table_rows"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    table_id: Mapped[int] = mapped_column(ForeignKey("data_tables.id"), nullable=False)
+    table_id: Mapped[int] = mapped_column(
+        ForeignKey("data_tables.id", ondelete="CASCADE"),
+        nullable=False,
+    )
 
     row_data: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
 

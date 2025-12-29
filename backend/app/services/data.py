@@ -334,19 +334,3 @@ class DataService:
     #
     async def delete_table_row(self, table_id: int, row_id: int, user_id: int) -> bool:
         pass
-
-    #     """Удалить строку таблицы"""
-    #     # Проверяем доступ на запись
-    #     table = await self.table_repo.get_table_with_write_access(table_id, user_id)
-    #     if not table:
-    #         raise AccessDeniedException("No write access to this table")
-    #
-    #     # Удаляем строку
-    #     success = await self.data_repo.delete_row(table_id, row_id)
-    #     if not success:
-    #         raise NotFoundException("Row not found")
-    #
-    #     logger.info(f"User {user_id} deleted row {row_id} from table {table_id}")
-    #     return True
-    #
-    #
