@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tablesAPI, DataTableResponse } from '../api/tables';
 import api from "../api/axiosInstance";
+import SidebarWithToggle from '../components/SidebarWithToggle';
+
 
 const TablesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -181,27 +183,29 @@ const TablesPage: React.FC = () => {
   }
 
   return (
-    <div style={styles.container}>
-      {/* Header */}
-      <header style={styles.header}>
-        <div style={styles.headerContent}>
-          <h1 style={styles.title}>Мои таблицы</h1>
-          <div style={styles.headerActions}>
-            <button
-              style={styles.createButton}
-              onClick={() => setShowCreateModal(true)}
-            >
-              + Новая таблица
-            </button>
-            <button
-              style={styles.logoutButton}
-              onClick={handleLogout}
-            >
-              Выйти
-            </button>
+      <div style={styles.container}>
+        <SidebarWithToggle />
+
+        {/* Header */}
+        <header style={styles.header}>
+          <div style={styles.headerContent}>
+            <h1 style={styles.title}>Мои таблицы</h1>
+            <div style={styles.headerActions}>
+              <button
+                  style={styles.createButton}
+                  onClick={() => setShowCreateModal(true)}
+              >
+                + Новая таблица
+              </button>
+              <button
+                  style={styles.logoutButton}
+                  onClick={handleLogout}
+              >
+                Выйти
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
       {/* Main Content */}
       <main style={styles.main}>
@@ -726,6 +730,15 @@ const styles: Record<string, React.CSSProperties> = {
     borderTop: '2px solid white',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
+  },
+  menuButton: {
+    background: 'transparent',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    padding: '8px',
+    lineHeight: 1,
+    color: '#333',
   },
 };
 
