@@ -7,11 +7,6 @@ LOG_FORMAT_DEFAULT = (
 )
 
 
-class AdminCredentials(BaseSettings):
-    email: str = "admin@example.com"
-    password: str = "admin_password"
-
-
 class LoggingConfig(BaseModel):
     log_level: Literal["debug", "info", "warning", "error", "critical"] = "info"
     log_format: str = LOG_FORMAT_DEFAULT
@@ -34,7 +29,6 @@ class Settings(BaseSettings):
     gunicorn: GunicornConfig = GunicornConfig()
     uvicorn: UvicornConfig = UvicornConfig()
     logging: LoggingConfig = LoggingConfig()
-    admin_credentials: AdminCredentials = AdminCredentials()
 
     DB_HOST: str = "0.0.0.0"
     DB_PORT: int = 7777

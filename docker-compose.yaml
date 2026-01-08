@@ -1,4 +1,23 @@
 services:
+  # API Gateway
+  api_gateway:
+    build:
+      context: ./api_gateway
+      dockerfile: Dockerfile
+    container_name: online_excel_gateway
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth_service
+      - backend
+    networks:
+      - app-network
+    volumes:
+      - ./api_gateway:/app
+
+
   db:
     container_name: online_excel_db
     image: postgres:16-alpine
