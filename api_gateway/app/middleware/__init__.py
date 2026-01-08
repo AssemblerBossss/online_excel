@@ -1,2 +1,7 @@
 from .auth import JWTAuthMiddleware
-from
+from .logging import RequestLoggingMiddleware
+
+__all__ = [
+    "RequestLoggingMiddleware",
+    "JWTAuthMiddleware",
+]

@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import HTTPException, status
 from jose import jwt, JWTError
 from pydantic import BaseModel
-from api_gateway.app.config import settings
+from app.config import settings
 
 
 class UserData(BaseModel):

@@ -5,15 +5,15 @@ services:
       context: ./api_gateway
       dockerfile: Dockerfile
     container_name: online_excel_gateway
-    env_file:
-      - .env
+#    env_file:
+#      - .env
     ports:
       - "8080:8080"
     depends_on:
-      - auth_service
+      #- auth_service
       - backend
     networks:
-      - app-network
+      - appnet
     volumes:
       - ./api_gateway:/app
 

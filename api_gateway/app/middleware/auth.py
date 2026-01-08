@@ -2,7 +2,7 @@ from fastapi import Request, HTTPException, status, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Callable
 
-from api_gateway.app.utils.jwt_handler import verify_jwt_token, extract_token_from_header
+from app.utils.jwt_handler import verify_jwt_token, extract_token_from_header
 
 
 class JWTAuthMiddleware(BaseHTTPMiddleware):
