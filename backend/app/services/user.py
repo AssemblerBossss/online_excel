@@ -30,5 +30,4 @@ class UserService:
         return SUserInfo.model_validate(user)
 
     async def get_all_users(self) -> list[SUserInfo]:
-        pass
         return [SUserInfo.model_validate(t) for t in (await self.user_repo.find_all())]

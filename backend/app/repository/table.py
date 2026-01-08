@@ -1,5 +1,5 @@
-from typing import Optional, Callable, Coroutine, Any
-from sqlalchemy import select
+from typing import Optional, Callable, Coroutine, Any, List
+from sqlalchemy import select, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
@@ -10,6 +10,19 @@ from backend.app.schemas import DataTableCreate
 
 
 class TableRepository(Base):
+    """Репозиторий для работы с таблицами данных (DataTable)."""
+
+    async def get_all_tables(self) -> List[DataTable]:
+        """
+        Получить список всех таблиц в базе данных.
+
+        Returns:
+            List[DataTable]: Список всех таблиц. Если таблиц нет — возвращает пустой список.
+        """
+        async with self._session_scope() as session:
+            stmt = select(DataTable)
+            tables: List[DataTable] = (await session.scalars(stmt)).all()
+            return tables
 
     async def _get_table_with_access_check(
         self,
@@ -52,7 +65,16 @@ class TableRepository(Base):
     async def get_table_with_read_access(
         self, table_id: int, user_id: int
     ) -> Optional[DataTable]:
-        """Получить таблицу с правами на чтение"""
+        """
+        Получить таблицу с проверкой прав на чтение.
+
+        Args:
+            table_id: ID таблицы
+            user_id: ID пользователя
+
+        Returns:
+            Optional[DataTable]: Таблица, если пользователь имеет доступ на чтение.
+        """
         return await self._get_table_with_access_check(
             table_id, user_id, self._check_read_access
         )
@@ -60,7 +82,16 @@ class TableRepository(Base):
     async def get_table_with_write_access(
         self, table_id: int, user_id: int
     ) -> Optional[DataTable]:
-        """Получить таблицу с правами на запись"""
+        """
+        Получить таблицу с проверкой прав на запись.
+
+        Args:
+            table_id: ID таблицы
+            user_id: ID пользователя
+
+        Returns:
+            Optional[DataTable]: Таблица, если пользователь имеет доступ на запись.
+        """
         return await self._get_table_with_access_check(
             table_id, user_id, self._check_write_access
         )
@@ -118,6 +149,16 @@ class TableRepository(Base):
     async def create_table(
         self, table_data: DataTableCreate, user_id: int
     ) -> DataTable:
+        """
+        Создать новую таблицу данных.
+
+        Args:
+            table_data: Данные для создания таблицы (имя, описание, схема и т.д.)
+            user_id: Идентификатор пользователя, создающего таблицу.
+
+        Returns:
+            DataTable: Созданная таблица с подгруженным владельцем.
+        """
         async with self._session_scope() as session:
             stmt = (
                 insert(DataTable)
@@ -134,3 +175,36 @@ class TableRepository(Base):
             table = (await session.scalars(stmt)).one_or_none()
             await session.refresh(table, ["created_by"])
             return table
+
+    async def delete_table(self, table_id: int, user_id: int) -> bool:
+        """
+        Удалить таблицу со всеми данными.
+
+        Благодаря cascade="all, delete-orphan" в модели DataTable,
+        при удалении таблицы автоматически удалятся:
+        - Все строки таблицы (TableRow)
+        - Все права доступа (TablePermission)
+
+        Args:
+            table_id: ID таблицы для удаления
+            user_id: ID пользователя (для проверки прав)
+
+        Returns:
+            bool: True если таблица удалена, False если не найдена
+
+        Raises:
+            AccessDeniedException: Если нет прав на удаление
+        """
+
+        table = await self.get_table_with_write_access(
+            table_id=table_id, user_id=user_id
+        )
+
+        if not table:
+            return False
+
+        async with self._session_scope() as session:
+            stmt = delete(DataTable).where(DataTable.id == table_id)
+            result = await session.execute(stmt)
+
+            return result.rowcount > 0

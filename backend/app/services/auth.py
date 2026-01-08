@@ -40,7 +40,6 @@ class AuthService:
         user_data_dict["hashed_password"] = hashed_password  # Заменяем на хеш
 
         await self.user_repo.add(user_data=SUserAddDB(**user_data_dict))
-        return {"message": "Вы успешно зарегистрированы!"}
 
     async def login_user(
         self, response: Response, user_data: SUserAuth
@@ -55,13 +54,10 @@ class AuthService:
             raise IncorrectEmailOrPasswordException
 
         set_tokens(response, user.id)
-        return {"ok": True, "message": "Авторизация успешна!"}
 
     async def logout(self, response: Response) -> Dict[str, Any]:
         response.delete_cookie("user_access_token")
         response.delete_cookie("user_refresh_token")
-        return {"message": "Пользователь успешно вышел из системы"}
 
     async def refresh_tokens(self, response: Response, user_id: int) -> Dict[str, Any]:
         set_tokens(response, user_id)
-        return {"message": "Токены успешно обновлены"}

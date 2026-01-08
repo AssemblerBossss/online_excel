@@ -10,21 +10,14 @@ from backend.app.api.endpoints import (
     tables_router,
     users_router,
 )
-from backend.app.utils import init_admin_user
-from backend.app.core import AsyncSessionFactory
+from backend.app.core.settings import app_settings
+from backend.app.middleware import FileSizeLimitMiddleware
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
     logger.info("Инициализация приложения...")
-
-    try:
-        async with AsyncSessionFactory() as session:
-            await init_admin_user(session)
-            logger.info("Admin user initialization completed")
-    except Exception as e:
-        logger.error(f"Failed to initialize admin user: {e}")
 
     yield
 
@@ -48,6 +41,10 @@ def create_app() -> FastAPI:
         ),
         version="1.0.0",
         lifespan=lifespan,
+    )
+
+    app.add_middleware(
+        FileSizeLimitMiddleware, max_file_size=app_settings.MAX_FILE_SIZE_BYTES
     )
 
     # Настройка CORS
@@ -75,7 +72,8 @@ def create_app() -> FastAPI:
 def register_routers(app: FastAPI) -> None:
     """Регистрация роутеров приложения."""
     # Корневой роутер
-    root_router = APIRouter()
+    API_PREFIX = "/api"
+    root_router = APIRouter(prefix=API_PREFIX, tags=["root"])
 
     @root_router.get("/", tags=["root"])
     def home_page():
@@ -85,12 +83,14 @@ def register_routers(app: FastAPI) -> None:
             "author": "Яковенко Алексей",
         }
 
-    # Подключение роутеров
-    app.include_router(root_router, tags=["root"])
-    app.include_router(auth_router, prefix="/auth", tags=["Auth"])
-    app.include_router(data_router, prefix="/data", tags=["Data"])
-    app.include_router(users_router, prefix="/users", tags=["Users"])
-    app.include_router(tables_router, prefix="/tables", tags=["Tables"])
+    # Подключение дочерних роутеров к корневому с префиксом /api
+    root_router.include_router(auth_router, prefix="/auth", tags=["Auth"])
+    root_router.include_router(data_router, prefix="/data", tags=["Data"])
+    root_router.include_router(users_router, prefix="/users", tags=["Users"])
+    root_router.include_router(tables_router, prefix="/tables", tags=["Tables"])
+
+    # Регистрируем корневой роутер в приложении
+    app.include_router(root_router)
 
 
 app = create_app()

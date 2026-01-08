@@ -1,13 +1,51 @@
 services:
-
   db:
-    container_name: online_excel
-    image: postgres:latest
+    container_name: online_excel_db
+    image: postgres:16-alpine
     shm_size: 128mb
-
-    ports:
-      - '7777:5432'
     environment:
       POSTGRES_PASSWORD: online_excel
       POSTGRES_USER: postgres
       POSTGRES_DB: online_excel
+    ports:
+      - "7777:5432"
+    networks:
+      - appnet
+    volumes:
+      - pgdata:/var/lib/postresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: online_excel_backend
+    environment:
+      EXCEL_APP__DB_HOST: db
+      EXCEL_APP__DB_PORT: 5432
+      EXCEL_APP__DB_USER: postgres
+      EXCEL_APP__DB_PASSWORD: online_excel
+      EXCEL_APP__DB_NAME: online_excel
+      EXCEL_APP__DB_DRIVER: postgresql+asyncpg
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    networks:
+      - appnet
+
+  frontend:
+    build: ./frontend
+    container_name: online_excel_frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    driver: bridge
+
+volumes:
+  pgdata:
