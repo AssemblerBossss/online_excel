@@ -6,7 +6,7 @@ from api_gateway.app.config import settings
 
 
 class UserData(BaseModel):
-    user_id: str
+    user_id: int
     email: str
     role: str
     is_active: bool
@@ -26,7 +26,7 @@ def verify_jwt_token(token: str) -> Optional[UserData]:
         payload = jwt.decode(
             token=token, key=settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
-        user_id: str = payload.get("user_id")
+        user_id: int = int(payload.get("user_id"))
         email: str = payload.get("email")
         role: str = payload.get("role")
         is_active: bool = payload.get("is_active")
