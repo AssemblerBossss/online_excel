@@ -1,15 +1,11 @@
 from fastapi import APIRouter, Request
-from app.config import settings
-from app.utils.proxy import proxy_request
+from api_gateway.app.config import settings
+from api_gateway.app.utils.proxy import proxy_request
 
 router = APIRouter()
 
 
-# ============================================
 # Auth Service Endpoints
-# ============================================
-
-
 @router.api_route(
     "/auth/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
@@ -17,12 +13,6 @@ router = APIRouter()
 async def proxy_auth(request: Request, path: str):
     """
     Проксирует /auth/* запросы к Auth Service
-
-    Примеры:
-    - POST /api/auth/register → Auth Service
-    - POST /api/auth/login → Auth Service
-    - POST /api/auth/refresh → Auth Service
-    - POST /api/auth/logout → Auth Service
     """
     user_data = None
     if hasattr(request.state, "user"):
@@ -60,9 +50,7 @@ async def proxy_users(request: Request, path: str):
     )
 
 
-# ============================================
 # Main Service Endpoints
-# ============================================
 
 
 @router.api_route(

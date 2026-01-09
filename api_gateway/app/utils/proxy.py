@@ -3,7 +3,7 @@ from fastapi import Request, Response, HTTPException
 from typing import Optional
 from loguru import logger
 
-from app.utils.http_client import get_http_client
+from api_gateway.app.utils.http_client import get_http_client
 
 
 async def proxy_request(

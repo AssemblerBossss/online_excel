@@ -5,12 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 # from slowapi import _rate_limit_exceeded_handler
 # from slowapi.errors import RateLimitExceeded
 
-from app.config import settings
-from app.middleware import JWTAuthMiddleware
-from app.middleware import RequestLoggingMiddleware
+from api_gateway.app.config import settings
+from api_gateway.app.middleware import JWTAuthMiddleware
+from api_gateway.app.middleware import RequestLoggingMiddleware
 
 # from api_gateway.app.middleware.rate_limit import limiter
-from app.routers import health_router, proxy_router
+from api_gateway.app.routers import health_router, proxy_router
 
 # Настройка логирования
 logging.basicConfig(

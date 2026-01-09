@@ -2,8 +2,8 @@ services:
   # API Gateway
   api_gateway:
     build:
-      context: ./api_gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api_gateway/Dockerfile
     container_name: online_excel_gateway
 #    env_file:
 #      - .env
@@ -15,7 +15,7 @@ services:
     networks:
       - appnet
     volumes:
-      - ./api_gateway:/app
+      - ./api_gateway:/app/api_gateway
 
 
   db:

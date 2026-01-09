@@ -2,7 +2,7 @@ from fastapi import Request, HTTPException, status, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Callable
 
-from app.utils.jwt_handler import verify_jwt_token, extract_token_from_header
+from api_gateway.app.utils.jwt_handler import verify_jwt_token, extract_token_from_header
 
 
 class JWTAuthMiddleware(BaseHTTPMiddleware):
@@ -27,7 +27,11 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
     PUBLIC_PATHS = {
         "/",
+        "/docs",
+        "/redoc",
         "/health",
+        "/openapi.json",
+        "/favicon.ico",
         "/api/v1/auth/register",
         "/api/v1/auth/login",
         "/api/v1/auth/refresh",
@@ -36,7 +40,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable) ->  Response:
         if request.url.path in self.PUBLIC_PATHS:
-            return call_next(request)
+            return await call_next(request)
 
         authorization_header = request.headers.get("Authorization")
         token = extract_token_from_header(authorization_header)
