@@ -32,10 +32,10 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/health",
         "/openapi.json",
         "/favicon.ico",
-        "/api/v1/auth/register",
-        "/api/v1/auth/login",
-        "/api/v1/auth/refresh",
-        "/api/v1/auth/logout",
+        "/api/auth/register",
+        "/api/auth/login",
+        "/api/auth/refresh",
+        "/api/auth/logout",
     }
 
     async def dispatch(self, request: Request, call_next: Callable) ->  Response:
