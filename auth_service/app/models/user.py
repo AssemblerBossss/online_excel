@@ -1,7 +1,7 @@
-from sqlalchemy import String, Integer, Boolean, DateTime, Enum, ForeignKey, text
+from sqlalchemy import String, Integer, Boolean, DateTime, Enum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from typing import Optional, List
+from typing import Optional
 import enum
 
 from auth_service.app.database import Base
@@ -32,6 +32,8 @@ class User(Base):
     updated_at: Mapped[Optional[DateTime]] = mapped_column(
         DateTime(timezone=True), onupdate=func.now()
     )
+
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
 
 
 class RefreshToken(Base):
