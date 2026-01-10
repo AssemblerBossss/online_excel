@@ -89,3 +89,18 @@ class TokenRepository:
 
         logger.debug("Refresh token {} валиден".format(token.id))
         return token
+
+    async def revoke_refresh_token(self, refresh_token: str) -> bool:
+        try:
+            token = await self.find_by_token(refresh_token)
+            if not token:
+                logger.warning("Токен для отзыва не найден")
+                return False
+            token.revoked = True
+            await self._session.flush()
+
+            logger.info("Refresh token {} отозван".format(token.id))
+            return True
+        except SQLAlchemyError as e:
+            logger.error("Ошибка при отзыве токена: {}".format(e))
+            raise
