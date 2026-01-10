@@ -104,3 +104,22 @@ class TokenRepository:
         except SQLAlchemyError as e:
             logger.error("Ошибка при отзыве токена: {}".format(e))
             raise
+
+    async def revoke_all_user_tokens(self, user_id: int, active_only) -> List[RefreshToken]:
+        try:
+            query = select(RefreshToken).where(RefreshToken.user_id == user_id)
+
+            if active_only:
+                query = query.where(
+                    RefreshToken.revoked == False,
+                    RefreshToken.expires_at > datetime.now(timezone.utc)
+                )
+
+            result = await self._session.execute(query)
+            tokens = result.scalars().all()
+
+            logger.debug("Найдено {} токенов для пользователя {}".format(len(tokens), user_id))
+            return list(tokens)
+        except SQLAlchemyError as e:
+            logger.error("Ошибка при получении токенов пользователя: {}".format(e))
+            raise
