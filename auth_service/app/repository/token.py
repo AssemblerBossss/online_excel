@@ -1,6 +1,7 @@
 from sqlalchemy import delete, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.engine import Result, CursorResult
 from typing import Optional, List
 from datetime import datetime, timezone
 
@@ -122,4 +123,46 @@ class TokenRepository:
             return list(tokens)
         except SQLAlchemyError as e:
             logger.error("Ошибка при получении токенов пользователя: {}".format(e))
+            raise
+
+    async def cleanup_expired_tokens(self) -> int:
+        try:
+            query = delete(RefreshToken).where(
+                RefreshToken.expires_at < datetime.now(timezone.utc)
+            )
+            result: CursorResult = await self._session.execute(query)
+            await self._session.flush()
+
+            deleted_count = result.rowcount
+            logger.info("Удалено {} истекших токенов".format(deleted_count))
+            return deleted_count
+        except SQLAlchemyError as e:
+            logger.error("Ошибка при отзыве токена: {}".format(e))
+            raise
+
+
+    async def delete_token(self, refresh_token: str) -> bool:
+        """
+        Удалить refresh token из БД
+
+        Args:
+            refresh_token: Строка токена
+
+        Returns:
+            True если токен удален, False если не найден
+        """
+        try:
+            query = delete(RefreshToken).filter_by(refresh_token=refresh_token)
+            result = await self._session.execute(query)
+            await self._session.flush()
+
+            deleted: CursorResult = result.rowcount > 0
+            if deleted:
+                logger.info("Refresh token удален из БД")
+            else:
+                logger.warning("Refresh token для удаления не найден")
+
+            return deleted
+        except SQLAlchemyError as e:
+            logger.error("Ошибка при удалении токена: {}".format(e))
             raise
