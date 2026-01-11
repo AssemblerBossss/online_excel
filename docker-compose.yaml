@@ -17,6 +17,21 @@ services:
     volumes:
       - ./api_gateway:/app/api_gateway
 
+  auth_db:
+    container_name: online_excel_auth_db
+    image: postgres:16-alpine
+    shm_size: 128mb
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: auth_db
+    ports:
+      - "8010:5432"
+    networks:
+      - appnet
+    volumes:
+      - auth_pgdata:/var/lib/postgresql/data
+
 
   db:
     container_name: online_excel_db
@@ -68,3 +83,4 @@ networks:
 
 volumes:
   pgdata:
+  auth_pgdata:
