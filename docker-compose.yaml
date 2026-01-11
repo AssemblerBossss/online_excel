@@ -10,12 +10,41 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      #- auth_service
+      - auth_service
       - backend
     networks:
       - appnet
     volumes:
       - ./api_gateway:/app/api_gateway
+
+  auth_service:
+    build:
+      context: .
+      dockerfile: auth_service/Dockerfile
+    container_name: online_excel_auth_service
+    ports:
+      - "8001:8001"
+    environment:
+      DB_HOST: auth_db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: auth_db
+      DB_DRIVER: postgresql+asyncpg
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+      SECRET_KEY: "secret"
+      ALGORITHM: "HS256"
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 30
+    restart: on-failure
+    depends_on:
+      auth_db:
+        condition: service_healthy
+    networks:
+      - appnet
 
   auth_db:
     container_name: online_excel_auth_db
@@ -25,6 +54,11 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
       POSTGRES_DB: auth_db
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     ports:
       - "8010:5432"
     networks:

@@ -71,9 +71,3 @@ ValidationException = HTTPException(
 NotFoundException = HTTPException(
     status_code=status.HTTP_404_NOT_FOUND, detail="Not Found"
 )
-
-# Ошибка создания таблицы
-CanNotCreateTableException = HTTPException(
-    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    detail="Не удалось создать таблицу",
-)

@@ -9,4 +9,4 @@ COPY auth_service ./auth_service
 
 ENV PYTHONPATH=/app
 
-CMD ["uvicorn", "auth_service.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "auth_service.app.main:app", "--host", "0.0.0.0", "--port", "8001"]

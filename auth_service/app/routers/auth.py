@@ -11,7 +11,7 @@ from auth_service.app.dependency import get_auth_service
 router = APIRouter()
 
 
-@router.post("/register/", status_code=status.HTTP_201_CREATED)
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(
     user_data: SUserRegister,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
@@ -20,7 +20,7 @@ async def register_user(
     return {"message": "Вы успешно зарегистрированы!"}
 
 
-@router.post("/login/", response_model=Token)
+@router.post("/login", response_model=Token)
 async def auth_user(
     request: Request,
     user_data: SUserAuth,
@@ -46,11 +46,19 @@ async def logout(
     return result
 
 
-@router.post("/refresh")
-async def process_refresh_token(
-    response: Response,
+@router.post("/refresh", response_model=Token)
+async def refresh_tokens(
+    request: Request,
+    token_data: TokenRefresh,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
-    user: User = Depends(check_refresh_token),
 ):
-    await auth_service.refresh_tokens(response=response, user_id=user.id)
-    return {"message": "Токены успешно обновлены"}
+    """Обновление токенов"""
+    user_agent = request.headers.get("User-Agent")
+    ip_address = request.client.host if request.client else None
+
+    tokens = await auth_service.refresh_tokens(
+        refresh_token=token_data.refresh_token,
+        user_agent=user_agent,
+        ip_address=ip_address,
+    )
+    return tokens

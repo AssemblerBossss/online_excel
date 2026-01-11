@@ -6,6 +6,8 @@ from jose import jwt, JWTError, ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_service.app.config import auth_service_settings
+from auth_service.app.repository import UserRepository
+from auth_service.app.exceptions import NoJwtException
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -55,31 +57,6 @@ def verify_access_token(token: str) -> dict:
     return payload
 
 
-#
-# async def check_refresh_token(
-#     token: str = Depends(get_refresh_token),
-#     session: AsyncSession = Depends(get_session_without_commit),
-# ) -> User:
-#     """Проверяем refresh_token и возвращаем пользователя."""
-#     try:
-#         payload = jwt.decode(
-#             token, app_settings.JWT_SECRET_KEY, algorithms=[app_settings.JWT_ALGORITHM]
-#         )
-#         user_id = payload.get("sub")
-#         if not user_id:
-#             raise NoJwtException
-#
-#         user = await UserRepository(session).find_one_or_none_by_id(
-#             user_id=int(user_id)
-#         )
-#         if not user:
-#             raise NoJwtException
-#
-#         return user
-#     except JWTError:
-#         raise NoJwtException
-#
-#
 # async def get_current_user(
 #     token: str = Depends(get_access_token),
 #     session: AsyncSession = Depends(get_session_without_commit),
