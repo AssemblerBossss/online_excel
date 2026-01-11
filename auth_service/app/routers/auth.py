@@ -5,14 +5,8 @@ from fastapi import status
 from auth_service.app.models import User
 from auth_service.app.schemas.user import SUserRegister, SUserAuth, Token, TokenRefresh
 
-# from auth_service.app.services import AuthService
-
-from auth_service.app.utils import (
-    get_password_hash,
-    verify_password,
-    create_access_token,
-    create_refresh_token,
-)
+from auth_service.app.services import AuthService
+from auth_service.app.dependency import get_auth_service
 
 router = APIRouter()
 

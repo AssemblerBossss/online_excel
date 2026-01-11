@@ -1,14 +1,15 @@
-import datetime
-from typing import Dict, Any
+from datetime import datetime, timedelta, UTC, timezone
+from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Request
+from fastapi import Request, Response
+from loguru import logger
 
 from auth_service.app.config import auth_service_settings
 from auth_service.app.exceptions import (
     UserAlreadyExistsException,
     IncorrectEmailOrPasswordException,
 )
-from auth_service.app.repository import UserRepository
+from auth_service.app.repository import UserRepository, TokenRepository
 from auth_service.app.schemas import (
     SUserRegister,
     SUserFilter,
@@ -16,6 +17,7 @@ from auth_service.app.schemas import (
     SUserInfo,
     SUserAuth,
     TokenData,
+    Token,
 )
 from auth_service.app.models import RefreshToken
 from auth_service.app.utils import (
@@ -23,6 +25,7 @@ from auth_service.app.utils import (
     authenticate_user,
     create_access_token,
     create_refresh_token,
+    verify_password,
 )
 
 
@@ -31,6 +34,7 @@ class AuthService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.user_repo = UserRepository(session)
+        self.token_repo = TokenRepository(session)
 
     async def register_user(self, user_data: SUserRegister) -> Dict[str, Any]:
         existing_user = await self.user_repo.find_one_or_none(
@@ -47,49 +51,128 @@ class AuthService:
         user_data_dict.pop("password", None)
         user_data_dict["hashed_password"] = hashed_password  # Заменяем на хеш
 
-        await self.user_repo.add(user_data=SUserAddDB(**user_data_dict))
+        return await self.user_repo.add(user_data=SUserAddDB(**user_data_dict))
 
     async def login_user(
-        self, request: Request, user_data: SUserAuth
-    ) -> Dict[str, Any]:
+        self,
+        request: Request,
+        user_data: SUserAuth,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
+    ) -> Token:
         user = await self.user_repo.find_one_or_none(
             filters=SUserFilter(email=user_data.email)
         )
 
-        if not (
-            user and await authenticate_user(user=user, password=user_data.password)
-        ):
+        if not user or not verify_password(user_data.password, user.hashed_password):
             raise IncorrectEmailOrPasswordException
 
-        token_data = TokenData.model_validate(user)
-        access_token = create_access_token(data=token_data.model)
+        token_data = {
+            "user_id": user.id,
+            "email": user.email,
+            "role": user.role,
+            "is_active": user.is_active,
+        }
+        access_token = create_access_token(data=token_data)
         refresh_token = create_refresh_token()
 
-        refresh_token_expires = datetime.utcnow() + datetime.timedelta(
+        refresh_token_expires = datetime.now(UTC) + timedelta(
             days=auth_service_settings.REFRESH_TOKEN_EXPIRE_DAYS
         )
 
-        refresh_token_db = RefreshToken(
-            token=refresh_token,
+        await self.token_repo.create_refresh_token(
+            refresh_token=refresh_token,
             user_id=user.id,
             expires_at=refresh_token_expires,
-            user_agent=request.headers.get("User-Agent") if request else None,
-            ip_address=request.client.host if request else None,
+            user_agent=user_agent,
+            ip_address=ip_address,
+        )
+        await self.session.commit()
+
+        logger.info("Пользователь {} успешно вошел в систему".format(user.email))
+
+        return Token(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="Bearer",
+            expires_in=auth_service_settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         )
 
-        db.add(refresh_token_db)
-        await db.commit()
+    async def refresh_tokens(
+        self,
+        refresh_token: str,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
+    ) -> Token:
+        """
+        Обновление токенов по refresh token
 
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token_value,
-            "token_type": "bearer",
-            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        Args:
+            refresh_token: Refresh token
+            user_agent: User agent клиента
+            ip_address: IP адрес клиента
+
+        Returns:
+            Token: Новые access token и refresh token
+
+        Raises:
+            HTTPException: Если refresh token невалиден
+        """
+        from fastapi import HTTPException
+
+        # Валидируем refresh token
+        token_record: RefreshToken = await self.token_repo.validate_refresh_token(
+            refresh_token
+        )
+        if not token_record:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+        user = await self.user_repo.find_one_or_none_by_id(user_id=token_record.user_id)
+        if not user or not user.is_active:
+            raise HTTPException(status_code=401, detail="User not found or inactive")
+
+        # Отзываем старый refresh token
+        await self.token_repo.revoke_refresh_token(refresh_token=refresh_token)
+
+        # Создаем новый access token
+        token_data = {
+            "user_id": user.id,
+            "email": user.email,
+            "role": user.role.value,
+            "is_active": user.is_active,
         }
+        new_access_token = create_access_token(data=token_data)
 
-    async def logout(self, response: Response) -> Dict[str, Any]:
-        response.delete_cookie("user_access_token")
-        response.delete_cookie("user_refresh_token")
+        # Создаем новый refresh token
+        new_refresh_token = create_refresh_token()
+        refresh_token_expires = datetime.now(timezone.utc) + timedelta(
+            days=auth_service_settings.REFRESH_TOKEN_EXPIRE_DAYS
+        )
 
-    async def refresh_tokens(self, response: Response, user_id: int) -> Dict[str, Any]:
-        set_tokens(response, user_id)
+        await self.token_repo.create_refresh_token(
+            refresh_token=new_refresh_token,
+            user_id=user.id,
+            expires_at=refresh_token_expires,
+            user_agent=user_agent,
+            ip_address=ip_address,
+        )
+        await self.session.commit()
+
+        logger.info(f"Токены обновлены для пользователя {user.email}")
+
+        return Token(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            token_type="Bearer",
+            expires_in=auth_service_settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        )
+
+    async def logout(self, refresh_token: str) -> Dict[str, str]:
+        await self.token_repo.revoke_refresh_token(refresh_token=refresh_token)
+        await self.session.commit()
+        return {"message": "Успешный выход из системы"}
+
+    async def logout_all_devices(self, user_id: int) -> Dict[str, str]:
+        count = self.token_repo.revoke_all_user_tokens(user_id=user_id)
+        await self.session.commit()
+        return {"message": f"Выход выполнен на {count} устройствах"}

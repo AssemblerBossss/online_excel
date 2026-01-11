@@ -106,7 +106,25 @@ class TokenRepository:
             logger.error("Ошибка при отзыве токена: {}".format(e))
             raise
 
-    async def revoke_all_user_tokens(self, user_id: int, active_only) -> List[RefreshToken]:
+
+    async def revoke_all_user_tokens(self, user_id: int) -> int:
+        try:
+            tokens = await self.get_user_tokens(user_id=user_id, active_only=True)
+
+            count = 0
+            for token in tokens:
+                count += 1
+                token.revoked = True
+
+            await self._session.flush()
+            logger.info("Отозвано {} токенов для пользователя {}".format(count, user_id))
+            return count
+        except SQLAlchemyError as e:
+            logger.error("Ошибка при отзыве всех токенов пользователя: {}".format(e))
+            raise
+
+
+    async def get_user_tokens(self, user_id: int, active_only: bool) -> List[RefreshToken]:
         try:
             query = select(RefreshToken).where(RefreshToken.user_id == user_id)
 
