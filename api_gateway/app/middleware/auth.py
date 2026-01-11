@@ -2,7 +2,7 @@ from fastapi import Request, HTTPException, status, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Callable
 
-from api_gateway.app.utils.jwt_handler import verify_jwt_token, extract_token_from_header
+from api_gateway.app.utils import verify_jwt_token, extract_token_from_header
 
 
 class JWTAuthMiddleware(BaseHTTPMiddleware):
@@ -12,9 +12,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
     Применяется ко ВСЕМ запросам, кроме публичных endpoints.
 
     Публичные endpoints (не требуют токен):
-    - POST /api/v1/auth/register
-    - POST /api/v1/auth/login
-    - POST /api/v1/auth/refresh
+    - POST /api/auth/register
+    - POST /api/auth/login
+    - POST /api/auth/refresh
     - GET /health
     - GET /
 

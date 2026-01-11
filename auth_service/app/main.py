@@ -38,7 +38,7 @@ app.add_middleware(
 )
 
 
-app.include_router(auth_router, prefix="/api", tags=["auth"])
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 
 
 @app.get("/health")

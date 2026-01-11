@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
 from api_gateway.app.config import settings
-from api_gateway.app.utils.proxy import proxy_request
+from api_gateway.app.utils import proxy_request
 
 router = APIRouter()
 
