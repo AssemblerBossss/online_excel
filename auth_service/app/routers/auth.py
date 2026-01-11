@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Response, Depends
+from fastapi import APIRouter, Response, Depends, Request
 from fastapi import status
 
 from auth_service.app.models import User
@@ -20,22 +20,30 @@ async def register_user(
     return {"message": "Вы успешно зарегистрированы!"}
 
 
-@router.post("/login/")
+@router.post("/login/", response_model=Token)
 async def auth_user(
-    response: Response,
+    request: Request,
     user_data: SUserAuth,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ):
-    await auth_service.login_user(response=response, user_data=user_data)
-    return {"ok": True, "message": "Авторизация успешна!"}
+    user_agent = request.headers.get("User-Agent")
+    ip_address = request.client.host if request.client else None
+
+    tokens = await auth_service.login_user(
+        user_data=user_data,
+        user_agent=user_agent,
+        ip_address=ip_address,
+    )
+    return tokens
 
 
 @router.post("/logout")
 async def logout(
-    response: Response, auth_service: Annotated[AuthService, Depends(get_auth_service)]
+    token_data: TokenRefresh,
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ):
-    await auth_service.logout(response=response)
-    return {"message": "Пользователь успешно вышел из системы"}
+    result = await auth_service.logout(refresh_token=token_data.refresh_token)
+    return result
 
 
 @router.post("/refresh")

@@ -55,7 +55,6 @@ class AuthService:
 
     async def login_user(
         self,
-        request: Request,
         user_data: SUserAuth,
         user_agent: Optional[str] = None,
         ip_address: Optional[str] = None,
