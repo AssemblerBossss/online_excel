@@ -4,7 +4,7 @@ from auth_service.app.config import auth_service_settings
 
 engine = create_async_engine(auth_service_settings.DATABASE_URL, echo=False)
 async_session_maker = sessionmaker(
-    engine=engine, class_=AsyncSession, expire_on_commit=False
+    bind=engine, class_=AsyncSession, expire_on_commit=False
 )
 
 Base = declarative_base()

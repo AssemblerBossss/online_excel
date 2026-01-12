@@ -1,7 +1,7 @@
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, UTC, timezone
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Request, Response
 from loguru import logger
 
 from auth_service.app.config import auth_service_settings
@@ -14,19 +14,27 @@ from auth_service.app.schemas import (
     SUserRegister,
     SUserFilter,
     SUserAddDB,
-    SUserInfo,
     SUserAuth,
-    TokenData,
     Token,
 )
 from auth_service.app.models import RefreshToken
 from auth_service.app.utils import (
     get_password_hash,
-    authenticate_user,
     create_access_token,
     create_refresh_token,
     verify_password,
 )
+
+
+@asynccontextmanager
+async def transaction(session: AsyncSession):
+    """Контекстный менеджер для транзакций"""
+    try:
+        yield
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
 
 
 class AuthService:
@@ -50,8 +58,10 @@ class AuthService:
         user_data_dict.pop("confirm_password", None)
         user_data_dict.pop("password", None)
         user_data_dict["hashed_password"] = hashed_password  # Заменяем на хеш
-
-        return await self.user_repo.add(user_data=SUserAddDB(**user_data_dict))
+        async with transaction(self.session):
+            new_user = await self.user_repo.add(user_data=SUserAddDB(**user_data_dict))
+            return new_user
+        # return await self.user_repo.add(user_data=SUserAddDB(**user_data_dict))
 
     async def login_user(
         self,
