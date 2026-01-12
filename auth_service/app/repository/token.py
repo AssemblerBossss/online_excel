@@ -60,6 +60,15 @@ class TokenRepository:
 
 
     async def find_by_token(self, refresh_token: str) ->Optional[RefreshToken]:
+        """
+        Найти refresh token по значению
+
+        Args:
+            refresh_token: Строка токена
+
+        Returns:
+            RefreshToken или None если не найден
+        """
         try:
             query = select(RefreshToken).where(RefreshToken.refresh_token == refresh_token)
             result = await self._session.execute(query)
@@ -76,6 +85,15 @@ class TokenRepository:
             raise
 
     async def validate_refresh_token(self, refresh_token: str) -> Optional[RefreshToken]:
+        """
+        Проверить валидность refresh token
+
+        Args:
+            refresh_token: Строка токена
+
+        Returns:
+            RefreshToken если валиден, None если невалиден
+        """
         token = await self.find_by_token(refresh_token)
 
         if not token:
@@ -92,6 +110,15 @@ class TokenRepository:
         return token
 
     async def revoke_refresh_token(self, refresh_token: str) -> bool:
+        """
+        Отозвать refresh token
+
+        Args:
+            refresh_token: Строка токена
+
+        Returns:
+            True если токен отозван, False если не найден
+        """
         try:
             token = await self.find_by_token(refresh_token)
             if not token:
@@ -108,6 +135,15 @@ class TokenRepository:
 
 
     async def revoke_all_user_tokens(self, user_id: int) -> int:
+        """
+        Отозвать все refresh токены пользователя
+
+        Args:
+            user_id: ID пользователя
+
+        Returns:
+            Количество отозванных токенов
+        """
         try:
             tokens = await self.get_user_tokens(user_id=user_id, active_only=True)
 
@@ -125,6 +161,16 @@ class TokenRepository:
 
 
     async def get_user_tokens(self, user_id: int, active_only: bool) -> List[RefreshToken]:
+        """
+        Получить все refresh токены пользователя
+
+        Args:
+            user_id: ID пользователя
+            active_only: Только активные токены (не отозванные и не истекшие)
+
+        Returns:
+            Список RefreshToken
+        """
         try:
             query = select(RefreshToken).where(RefreshToken.user_id == user_id)
 
@@ -144,6 +190,12 @@ class TokenRepository:
             raise
 
     async def cleanup_expired_tokens(self) -> int:
+        """
+        Удалить все истекшие refresh токены
+
+        Returns:
+            Количество удаленных токенов
+        """
         try:
             query = delete(RefreshToken).where(
                 RefreshToken.expires_at < datetime.now(timezone.utc)
@@ -184,3 +236,16 @@ class TokenRepository:
         except SQLAlchemyError as e:
             logger.error("Ошибка при удалении токена: {}".format(e))
             raise
+
+    async def count_active_user_tokens(self, user_id) -> int:
+        """
+        Подсчитать количество активных токенов пользователя
+
+        Args:
+            user_id: ID пользователя
+
+        Returns:
+            Количество активных токенов
+        """
+        tokens = await self.get_user_tokens(user_id=user_id, active_only=True)
+        return len(tokens)
