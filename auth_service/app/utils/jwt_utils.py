@@ -1,13 +1,9 @@
 import secrets
 from typing import Optional
-from fastapi import Request, Depends, HTTPException
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError, ExpiredSignatureError
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_service.app.config import auth_service_settings
-from auth_service.app.repository import UserRepository
-from auth_service.app.exceptions import NoJwtException
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

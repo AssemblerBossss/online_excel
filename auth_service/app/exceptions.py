@@ -61,12 +61,6 @@ AccessDeniedException = HTTPException(
     status_code=status.HTTP_403_FORBIDDEN, detail="Нет доступа к данной таблице"
 )
 
-# Некорректные данные для данной строки
-ValidationException = HTTPException(
-    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-    detail="Некорректные данные для данной строки",
-)
-
 # Не найдено
 NotFoundException = HTTPException(
     status_code=status.HTTP_404_NOT_FOUND, detail="Not Found"
