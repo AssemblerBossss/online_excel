@@ -24,7 +24,9 @@ def verify_jwt_token(token: str) -> Optional[UserData]:
 
     try:
         payload = jwt.decode(
-            token=token, key=settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            token=token,
+            key=settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
         )
         user_id: int = int(payload.get("user_id"))
         email: str = payload.get("email")

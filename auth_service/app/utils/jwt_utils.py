@@ -36,8 +36,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
     encoded_jwt = jwt.encode(
         to_encode,
-        key=auth_service_settings.SECRET_KEY,
-        algorithm=auth_service_settings.ALGORITHM,
+        key=auth_service_settings.JWT_SECRET_KEY,
+        algorithm=auth_service_settings.JWT_ALGORITHM,
     )
     return encoded_jwt
 
@@ -51,8 +51,8 @@ def verify_access_token(token: str) -> dict:
     """Проверяет и декодирует JWT Access Token"""
     payload = jwt.decode(
         token,
-        auth_service_settings.SECRET_KEY,
-        algorithms=[auth_service_settings.ALGORITHM],
+        auth_service_settings.JWT_SECRET_KEY,
+        algorithms=[auth_service_settings.JWT_ALGORITHM],
     )
     return payload
 
