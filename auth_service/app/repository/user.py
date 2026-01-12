@@ -3,13 +3,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
 from typing import Optional, List
-
-from backend.app.models import User
-from backend.app.schemas import SUserFilter, UserBase, SUserUpdate, SUserAddDB
-from backend.app.models import UserRole
-
-
 from loguru import logger
+
+from auth_service.app.models import User, UserRole
+from auth_service.app.schemas import SUserFilter, UserBase, SUserUpdate, SUserAddDB
 
 
 class UserRepository:

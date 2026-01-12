@@ -1,6 +1,6 @@
 import httpx
 from fastapi import APIRouter
-from api_gateway.app.utils.http_client import get_http_client
+from api_gateway.app.utils import get_http_client
 from api_gateway.app.config import settings
 
 router = APIRouter()

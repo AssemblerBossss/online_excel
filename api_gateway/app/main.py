@@ -1,13 +1,14 @@
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
 # from slowapi import _rate_limit_exceeded_handler
 # from slowapi.errors import RateLimitExceeded
 
 from api_gateway.app.config import settings
-from api_gateway.app.middleware import JWTAuthMiddleware
-from api_gateway.app.middleware import RequestLoggingMiddleware
+from api_gateway.app.middleware import JWTAuthMiddleware, RequestLoggingMiddleware
+from api_gateway.app.utils import init_http_client, close_http_client
 
 # from api_gateway.app.middleware.rate_limit import limiter
 from api_gateway.app.routers import health_router, proxy_router
@@ -17,10 +18,25 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ===== STARTUP =====
+    logging.info("Initializing HTTP client...")
+    await init_http_client()
+
+    yield
+
+    # ===== SHUTDOWN =====
+    logging.info("Closing HTTP client...")
+    await close_http_client()
+
+
 # Создание приложения
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
+    lifespan=lifespan,
     description="API Gateway for Online Excel Microservices",
 )
 

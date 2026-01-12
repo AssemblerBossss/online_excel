@@ -1,9 +1,7 @@
 import secrets
 from typing import Optional
-from fastapi import Request, Depends, HTTPException
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError, ExpiredSignatureError
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_service.app.config import auth_service_settings
 
@@ -34,8 +32,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
     encoded_jwt = jwt.encode(
         to_encode,
-        key=auth_service_settings.SECRET_KEY,
-        algorithm=auth_service_settings.ALGORITHM,
+        key=auth_service_settings.JWT_SECRET_KEY,
+        algorithm=auth_service_settings.JWT_ALGORITHM,
     )
     return encoded_jwt
 
@@ -49,37 +47,12 @@ def verify_access_token(token: str) -> dict:
     """Проверяет и декодирует JWT Access Token"""
     payload = jwt.decode(
         token,
-        auth_service_settings.SECRET_KEY,
-        algorithms=[auth_service_settings.ALGORITHM],
+        auth_service_settings.JWT_SECRET_KEY,
+        algorithms=[auth_service_settings.JWT_ALGORITHM],
     )
     return payload
 
 
-#
-# async def check_refresh_token(
-#     token: str = Depends(get_refresh_token),
-#     session: AsyncSession = Depends(get_session_without_commit),
-# ) -> User:
-#     """Проверяем refresh_token и возвращаем пользователя."""
-#     try:
-#         payload = jwt.decode(
-#             token, app_settings.JWT_SECRET_KEY, algorithms=[app_settings.JWT_ALGORITHM]
-#         )
-#         user_id = payload.get("sub")
-#         if not user_id:
-#             raise NoJwtException
-#
-#         user = await UserRepository(session).find_one_or_none_by_id(
-#             user_id=int(user_id)
-#         )
-#         if not user:
-#             raise NoJwtException
-#
-#         return user
-#     except JWTError:
-#         raise NoJwtException
-#
-#
 # async def get_current_user(
 #     token: str = Depends(get_access_token),
 #     session: AsyncSession = Depends(get_session_without_commit),

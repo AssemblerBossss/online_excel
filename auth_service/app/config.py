@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     DB_NAME: str = "auth_db"
     DB_DRIVER: str = "postgresql+asyncpg"
 
+    JWT_SECRET_KEY: str = "secret"
+    JWT_ALGORITHM: str = "HS256"
+
     RABBITMQ_HOST: str = "rabbitmq"
     RABBITMQ_PORT: int = 5672
     RABBITMQ_USER: str = "guest"

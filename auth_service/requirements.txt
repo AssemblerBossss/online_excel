@@ -1,0 +1,13 @@
+fastapi==0.119.1
+uvicorn[standard]==0.38.0
+pydantic[email]>=2.10.3,<3.0.0
+pydantic-settings==2.6.1
+sqlalchemy==2.0.36
+asyncpg==0.30.0
+alembic==1.17.0
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.20
+loguru==0.7.3
+aio-pika==9.5.3
+greenlet==3.1.1

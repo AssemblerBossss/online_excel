@@ -57,4 +57,4 @@ class RefreshToken(Base):
     ip_address: Mapped[str] = mapped_column(String(45), nullable=True)
 
     # Relationship
-    user = relationship("User", backref="refresh_tokens")
+    user = relationship("User", back_populates="refresh_tokens")
