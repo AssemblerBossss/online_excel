@@ -9,7 +9,6 @@ from table_service.app.api.endpoints import (
     tables_router,
 )
 from table_service.app.core.settings import app_settings
-from table_service.app.middleware import FileSizeLimitMiddleware
 
 
 @asynccontextmanager
@@ -41,9 +40,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    app.add_middleware(
-        FileSizeLimitMiddleware, max_file_size=app_settings.MAX_FILE_SIZE_BYTES
-    )
 
     # Настройка CORS
     app.add_middleware(
