@@ -1,8 +1,8 @@
 from typing import Any
 import pandas as pd
 
-from backend.app.repository import DataRepository
-from backend.app.schemas import DataTableCreate, TableRowCreate
+from table_service.app.repository import DataRepository
+from table_service.app.schemas import DataTableCreate, TableRowCreate
 
 
 # Маппинг pandas dtype на типы схемы

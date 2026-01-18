@@ -4,14 +4,12 @@ from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-from backend.app.api.endpoints import (
-    auth_router,
+from table_service.app.api.endpoints import (
     data_router,
     tables_router,
-    users_router,
 )
-from backend.app.core.settings import app_settings
-from backend.app.middleware import FileSizeLimitMiddleware
+from table_service.app.core.settings import app_settings
+from table_service.app.middleware import FileSizeLimitMiddleware
 
 
 @asynccontextmanager
@@ -84,9 +82,7 @@ def register_routers(app: FastAPI) -> None:
         }
 
     # Подключение дочерних роутеров к корневому с префиксом /api
-    root_router.include_router(auth_router, prefix="/auth", tags=["Auth"])
     root_router.include_router(data_router, prefix="/data", tags=["Data"])
-    root_router.include_router(users_router, prefix="/users", tags=["Users"])
     root_router.include_router(tables_router, prefix="/tables", tags=["Tables"])
 
     # Регистрируем корневой роутер в приложении

@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional, Literal, List, Any
 
-from backend.app.schemas import TableRowResponse, TableRowCreate, TableRowUpdate
-from backend.app.repository import DataRepository, TableRepository
-from backend.app.exceptions import (
+from table_service.app.schemas import TableRowResponse, TableRowCreate, TableRowUpdate
+from table_service.app.repository import DataRepository, TableRepository
+from table_service.app.exceptions import (
     AccessDeniedException,
     ValidationException,
     NotFoundException,

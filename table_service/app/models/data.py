@@ -3,7 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from typing import Optional, Dict, Any
 
-from backend.app.core.database import Base
+from table_service.app.core.database import Base
 
 
 class TableRow(Base):

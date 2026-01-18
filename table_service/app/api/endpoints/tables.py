@@ -1,10 +1,9 @@
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 
-from backend.app.api import get_admin_user, get_viewer_user
-from backend.app.schemas import DataTableCreate, DataTableResponse, TokenData
-from backend.app.services import DataService, TableService
-from backend.app.api.dependencies import get_table_service
+from table_service.app.schemas import DataTableCreate, DataTableResponse
+from table_service.app.services import DataService, TableService
+from table_service.app.api.dependencies import get_table_service
 
 
 router = APIRouter()

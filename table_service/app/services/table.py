@@ -2,10 +2,10 @@ from typing import List, Optional
 from fastapi import UploadFile, HTTPException, status
 import pandas as pd
 
-from backend.app.schemas import DataTableResponse, DataTableCreate
-from backend.app.repository import TableRepository, DataRepository
-from backend.app.models import DataTable
-from .excel_processor import (
+from table_service.app.schemas import DataTableResponse, DataTableCreate
+from table_service.app.repository import TableRepository, DataRepository
+from table_service.app.models import DataTable
+from table_service.app.services.excel_processor import (
     _generate_columns_schema_from_dataframe,
     _import_excel_data_to_table,
 )

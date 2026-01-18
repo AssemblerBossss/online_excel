@@ -3,7 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from typing import Optional, List, Dict, Any
 
-from backend.app.core import Base
+from table_service.app.core import Base
 
 
 class DataTable(Base):

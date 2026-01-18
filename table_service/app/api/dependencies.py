@@ -2,9 +2,9 @@ from fastapi import Depends
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.services import DataService, TableService
-from backend.app.repository import TableRepository, DataRepository
-from backend.app.core import AsyncSessionFactory
+from table_service.app.services import DataService, TableService
+from table_service.app.repository import TableRepository, DataRepository
+from table_service.app.core import AsyncSessionFactory
 
 
 async def get_session_with_commit() -> AsyncGenerator[AsyncSession, None]:

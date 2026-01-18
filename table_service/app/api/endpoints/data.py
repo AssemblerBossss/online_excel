@@ -1,16 +1,14 @@
 from typing import List, Optional, Literal, Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, Response
 
-from backend.app.api import get_viewer_user, get_editor_user
-from backend.app.schemas import (
+from table_service.app.api import get_viewer_user, get_editor_user
+from table_service.app.schemas import (
     TableRowResponse,
     TableRowCreate,
     TableRowUpdate,
-    TokenData,
 )
-from backend.app.services import DataService
-from backend.app.api.dependencies import get_data_service
-
+from table_service.app.services import DataService
+from table_service.app.api.dependencies import get_data_service
 
 
 router = APIRouter()

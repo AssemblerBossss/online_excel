@@ -3,10 +3,10 @@ from sqlalchemy import select, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
-from backend.app.repository.base import Base
-from backend.app.models import DataTable, User, UserRole
-from backend.app.exceptions import AccessDeniedException
-from backend.app.schemas import DataTableCreate
+from table_service.app.repository.base import Base
+from table_service.app.models import DataTable
+from table_service.app.exceptions import AccessDeniedException
+from table_service.app.schemas import DataTableCreate
 
 
 class TableRepository(Base):

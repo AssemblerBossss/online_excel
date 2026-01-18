@@ -1,9 +1,9 @@
 from sqlalchemy import select, update, delete, insert, asc, desc
 from typing import Any, Optional, List
 
-from backend.app.models import TableRow, DataTable
-from backend.app.repository.base import Base
-from backend.app.schemas import TableRowCreate, TableRowUpdate
+from table_service.app.models import TableRow, DataTable
+from table_service.app.repository.base import Base
+from table_service.app.schemas import TableRowCreate, TableRowUpdate
 
 
 class DataRepository(Base):
