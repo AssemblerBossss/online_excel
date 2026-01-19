@@ -103,13 +103,15 @@ class TableRepository(Base):
         """
         return user_id is not None
 
-    async def _check_write_access(self, table: DataTable, user_id: int) -> bool:
+    async def _check_write_access(
+        self, table: DataTable, user_id: int, user_role: str = None
+    ) -> bool:
         """
         Проверить права на запись для пользователя в указанной таблице.
 
         Иерархия проверки прав (в порядке приоритета):
         1. Владелец таблицы (created_by) - всегда имеет полный доступ
-        2. Администратор системы (UserRole.ADMIN) - всегда имеет полный доступ
+        2. Администратор системы (ADMIN) - всегда имеет полный доступ
         3. Пользователь с явными правами в table_permissions (can_write или can_manage)
         4. Публичные таблицы (is_public=True) - запись запрещена (только чтение)
         5. Во всех остальных случаях - доступ запрещен
@@ -117,6 +119,7 @@ class TableRepository(Base):
         Args:
             table: Объект таблицы DataTable с загруженными permissions
             user_id: Идентификатор пользователя для проверки прав
+            user_role: Роль пользователя
 
         Returns:
             bool: True если пользователь имеет права на запись, иначе False
@@ -129,22 +132,17 @@ class TableRepository(Base):
         if table.created_by_id == user_id:
             return True
 
-        async with self._session_scope() as session:
-            stmt = select(User).where(User.id == user_id)
-            user: Optional[User] = (await session.scalars(stmt)).one_or_none()
+        if user_role and user_role.upper() == "ADMIN":
+            return True
 
-            if user and user.role == UserRole.ADMIN:
-                return True
-
-            for permission in table.permissions:
-                if permission.user_id == user_id:
-                    if permission.can_write or permission.can_manage:
-                        return True
-
-            if table.is_public:
-                return False
-
+        for permission in table.permissions:
+            if permission.user_id == user_id:
+                if permission.can_write or permission.can_manage:
+                    return True
+        if table.is_public:
             return False
+
+        return False
 
     async def create_table(
         self, table_data: DataTableCreate, user_id: int
