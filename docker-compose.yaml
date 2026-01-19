@@ -85,8 +85,8 @@ services:
   backend:
     build:
       context: .
-      dockerfile: backend/Dockerfile
-    container_name: online_excel_backend
+      dockerfile: table_service/Dockerfile
+    container_name: table_service
     environment:
       EXCEL_APP__DB_HOST: db
       EXCEL_APP__DB_PORT: 5432

@@ -1,8 +1,16 @@
 from typing import Annotated, List
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import (
+    APIRouter,
+    Depends,
+    status,
+    UploadFile,
+    File,
+    Form,
+    Header,
+)
 
 from table_service.app.schemas import DataTableCreate, DataTableResponse
-from table_service.app.services import DataService, TableService
+from table_service.app.services import TableService
 from table_service.app.api.dependencies import get_table_service
 
 
@@ -12,7 +20,10 @@ router = APIRouter()
 @router.get("/", response_model=List[DataTableResponse])
 async def get_tables(
     table_service: Annotated[TableService, Depends(get_table_service)],
-    user: Annotated[TokenData, Depends(get_viewer_user)],
+    x_user_id: int = Header(None, alias="X-User-ID"),
+    x_user_email: str = Header(None, alias="X-User-Email"),
+    x_user_role: str = Header(None, alias="X-User-Role"),
+    x_user_active: str = Header(None, alias="X-User-Active"),
 ) -> List[DataTableResponse]:
 
     return await table_service.get_all_tables()
@@ -23,11 +34,14 @@ async def get_tables(
 )
 async def create_table(
     table_data: DataTableCreate,
-    user: Annotated[TokenData, Depends(get_admin_user)],
     table_service: Annotated[TableService, Depends(get_table_service)],
+    x_user_id: int = Header(None, alias="X-User-ID"),
+    x_user_email: str = Header(None, alias="X-User-Email"),
+    x_user_role: str = Header(None, alias="X-User-Role"),
+    x_user_active: str = Header(None, alias="X-User-Active"),
 ) -> DataTableResponse:
 
-    return await table_service.create_table(table_data=table_data, user_id=user.id)
+    return await table_service.create_table(table_data=table_data, user_id=x_user_id)
 
 
 @router.post(
@@ -36,15 +50,21 @@ async def create_table(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_table_from_excel(
-    user: Annotated[TokenData, Depends(get_admin_user)],
     table_service: Annotated[TableService, Depends(get_table_service)],
+    x_user_id: int = Header(None, alias="X-User-ID"),
+    x_user_email: str = Header(None, alias="X-User-Email"),
+    x_user_role: str = Header(None, alias="X-User-Role"),
+    x_user_active: str = Header(None, alias="X-User-Active"),
     table_name: str = Form(...),
     description: str = Form(None),  # Добавьте опциональное поле
     file: UploadFile = File(..., description="Excel file to process"),
 ) -> DataTableResponse:
 
     return await table_service.create_table_from_excel_file(
-        excel_file=file, user_id=user.id, table_name=table_name, description=description
+        excel_file=file,
+        user_id=x_user_id,
+        table_name=table_name,
+        description=description,
     )
 
 
@@ -54,8 +74,11 @@ async def create_table_from_excel(
 )
 async def delete_table(
     table_id: int,
-    user: Annotated[TokenData, Depends(get_admin_user)],
     table_service: Annotated[TableService, Depends(get_table_service)],
+    x_user_id: int = Header(None, alias="X-User-ID"),
+    x_user_email: str = Header(None, alias="X-User-Email"),
+    x_user_role: str = Header(None, alias="X-User-Role"),
+    x_user_active: str = Header(None, alias="X-User-Active"),
 ):
-    await table_service.delete_table(table_id=table_id, user_id=user.id)
+    await table_service.delete_table(table_id=table_id, user_id=x_user_id)
     return None

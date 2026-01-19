@@ -30,8 +30,8 @@ class Settings(BaseSettings):
     uvicorn: UvicornConfig = UvicornConfig()
     logging: LoggingConfig = LoggingConfig()
 
-    DB_HOST: str = "0.0.0.0"
-    DB_PORT: int = 7777
+    DB_HOST: str = "online_excel_db"
+    DB_PORT: int = 5432
     DB_USER: str = "postgres"
     DB_PASSWORD: str = "online_excel"
     DB_NAME: str = "online_excel"

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # Backend Services URLs
     AUTH_SERVICE_URL: str = "http://auth_service:8001"
-    MAIN_SERVICE_URL: str = "http://backend:8000"
+    MAIN_SERVICE_URL: str = "http://table_service:8000"
 
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = True
