@@ -32,22 +32,34 @@ async def get_session_without_commit() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-def get_table_repository() -> TableRepository:
+def get_table_repository(
+    session: AsyncSession = Depends(get_session_with_commit),
+) -> TableRepository:
     """
     Retrieves an instance of the table repository.
+
+    Args:
+        session: AsyncSession with automatic commit
+
     Returns:
         TableRepository: An instance of the table repository.
     """
-    return TableRepository()
+    return TableRepository(session=session)
 
 
-def get_data_repository() -> DataRepository:
+def get_data_repository(
+    session: AsyncSession = Depends(get_session_with_commit),
+) -> DataRepository:
     """
     Retrieves an instance of the data repository.
+
+    Args:
+        session: AsyncSession with automatic commit
+
     Returns:
         DataRepository: An instance of the data repository.
     """
-    return DataRepository()
+    return DataRepository(session=session)
 
 
 def get_table_service(

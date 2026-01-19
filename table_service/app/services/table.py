@@ -139,20 +139,21 @@ class TableService:
         except Exception as e:
             raise HTTPException(500, f"Ошибка обработки Excel файла: {str(e)}")
 
-    async def delete_table(self, table_id: int, user_id: int) -> bool:
+    async def delete_table(self, table_id: int, user_id: int, user_role: str) -> bool:
         """
         Удалить таблицу.
 
         Args:
             table_id: ID таблицы для удаления
             user_id: ID пользователя
+            user_role: Роль пользователя
 
         Raises:
             HTTPException 404: Если таблица не найдена или нет доступа
             HTTPException 500: Если не удалось удалить таблицу
         """
         table: Optional[DataTable] = await self.table_repo.get_table_with_write_access(
-            table_id, user_id
+            table_id, user_id, user_role=user_role
         )
 
         if not table:

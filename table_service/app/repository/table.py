@@ -19,16 +19,17 @@ class TableRepository(Base):
         Returns:
             List[DataTable]: Список всех таблиц. Если таблиц нет — возвращает пустой список.
         """
-        async with self._session_scope() as session:
-            stmt = select(DataTable)
-            tables: List[DataTable] = (await session.scalars(stmt)).all()
-            return tables
+        stmt = select(DataTable)
+        result = await self._session.execute(stmt)
+        tables = result.scalars().all()
+        return list(tables)
 
     async def _get_table_with_access_check(
         self,
         table_id: int,
         user_id: int,
-        access_checker: Callable[[DataTable, int], Coroutine[Any, Any, bool]],
+        user_role: str,
+        access_checker: Callable[[DataTable, int, str], Coroutine[Any, Any, bool]],
     ) -> Optional[DataTable]:
         """
         Базовая логика получения таблицы с проверкой прав доступа.
@@ -44,26 +45,27 @@ class TableRepository(Base):
         Raises:
             AccessDeniedException: Если нет прав доступа
         """
-        async with self._session_scope() as session:
-            stmt = (
-                select(DataTable)
-                .options(selectinload(DataTable.permissions))
-                .where(DataTable.id == table_id)
-            )
+        stmt = (
+            select(DataTable)
+            .options(selectinload(DataTable.permissions))
+            .where(DataTable.id == table_id)
+        )
 
-            table = (await session.scalars(stmt)).one_or_none()
+        result = await self._session.execute(stmt)
+        table = result.scalar_one_or_none()
 
-            if not table:
-                return None
+        if not table:
+            return None
 
-            has_access = await access_checker(table, user_id)
+        has_access = await access_checker(table, user_id, user_role)
 
-            if not has_access:
-                raise AccessDeniedException
-            return table
+        if not has_access:
+            raise AccessDeniedException
+
+        return table
 
     async def get_table_with_read_access(
-        self, table_id: int, user_id: int
+        self, table_id: int, user_id: int, user_role: str
     ) -> Optional[DataTable]:
         """
         Получить таблицу с проверкой прав на чтение.
@@ -76,11 +78,11 @@ class TableRepository(Base):
             Optional[DataTable]: Таблица, если пользователь имеет доступ на чтение.
         """
         return await self._get_table_with_access_check(
-            table_id, user_id, self._check_read_access
+            table_id, user_id, user_role, self._check_read_access
         )
 
     async def get_table_with_write_access(
-        self, table_id: int, user_id: int
+        self, table_id: int, user_id: int, user_role: str = None
     ) -> Optional[DataTable]:
         """
         Получить таблицу с проверкой прав на запись.
@@ -93,10 +95,12 @@ class TableRepository(Base):
             Optional[DataTable]: Таблица, если пользователь имеет доступ на запись.
         """
         return await self._get_table_with_access_check(
-            table_id, user_id, self._check_write_access
+            table_id, user_id, user_role, self._check_write_access
         )
 
-    async def _check_read_access(self, table: DataTable, user_id: int) -> bool:
+    async def _check_read_access(
+        self, table: DataTable, user_id: int, user_role: str = None
+    ) -> bool:
         """
         Упрощенная проверка прав на чтение:
         - Любой аутентифицированный пользователь может читать любую таблицу
@@ -157,24 +161,25 @@ class TableRepository(Base):
         Returns:
             DataTable: Созданная таблица с подгруженным владельцем.
         """
-        async with self._session_scope() as session:
-            stmt = (
-                insert(DataTable)
-                .values(
-                    name=table_data.name,
-                    description=table_data.description,
-                    is_public=table_data.is_public,
-                    columns_schema=table_data.columns_schema,
-                    created_by_id=user_id,
-                )
-                .returning(DataTable)
+        stmt = (
+            insert(DataTable)
+            .values(
+                name=table_data.name,
+                description=table_data.description,
+                is_public=table_data.is_public,
+                columns_schema=table_data.columns_schema,
+                created_by_id=user_id,
             )
+            .returning(DataTable)
+        )
 
-            table = (await session.scalars(stmt)).one_or_none()
-            await session.refresh(table)
-            return table
+        result = await self._session.execute(stmt)
+        table = result.scalar_one()
+        await self._session.refresh(table)
 
-    async def delete_table(self, table_id: int, user_id: int) -> bool:
+        return table
+
+    async def delete_table(self, table_id: int, user_id: int, user_role: str) -> bool:
         """
         Удалить таблицу со всеми данными.
 
@@ -186,6 +191,7 @@ class TableRepository(Base):
         Args:
             table_id: ID таблицы для удаления
             user_id: ID пользователя (для проверки прав)
+            user_role: Роль пользователя
 
         Returns:
             bool: True если таблица удалена, False если не найдена
@@ -195,14 +201,13 @@ class TableRepository(Base):
         """
 
         table = await self.get_table_with_write_access(
-            table_id=table_id, user_id=user_id
+            table_id=table_id, user_id=user_id, user_role=user_role
         )
 
         if not table:
             return False
 
-        async with self._session_scope() as session:
-            stmt = delete(DataTable).where(DataTable.id == table_id)
-            result = await session.execute(stmt)
+        stmt = delete(DataTable).where(DataTable.id == table_id)
+        result = await self._session.execute(stmt)
 
-            return result.rowcount > 0
+        return result.rowcount > 0

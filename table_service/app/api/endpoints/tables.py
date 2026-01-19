@@ -66,9 +66,10 @@ async def delete_table(
     table_id: int,
     table_service: Annotated[TableService, Depends(get_table_service)],
     x_user_id: int = Header(None, alias="X-User-ID"),
-    x_user_email: str = Header(None, alias="X-User-Email"),
     x_user_role: str = Header(None, alias="X-User-Role"),
     x_user_active: str = Header(None, alias="X-User-Active"),
 ):
-    await table_service.delete_table(table_id=table_id, user_id=x_user_id)
+    await table_service.delete_table(
+        table_id=table_id, user_id=x_user_id, user_role=x_user_role
+    )
     return None
