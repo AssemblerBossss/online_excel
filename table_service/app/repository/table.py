@@ -173,7 +173,7 @@ class TableRepository(Base):
             )
 
             table = (await session.scalars(stmt)).one_or_none()
-            await session.refresh(table, ["created_by"])
+            await session.refresh(table)
             return table
 
     async def delete_table(self, table_id: int, user_id: int) -> bool:

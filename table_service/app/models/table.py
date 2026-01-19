@@ -15,7 +15,7 @@ class DataTable(Base):
 
     columns_schema: Mapped[List[Dict[str, Any]]] = mapped_column(JSON, nullable=False)
 
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_by_id: Mapped[int] = mapped_column(Integer, nullable=False)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -24,8 +24,6 @@ class DataTable(Base):
         DateTime(timezone=True), onupdate=func.now()
     )
 
-    # Relationships
-    created_by: Mapped["User"] = relationship("User", back_populates="created_tables")
     permissions: Mapped[List["TablePermission"]] = relationship(
         "TablePermission", back_populates="table", cascade="all, delete-orphan"
     )
@@ -38,7 +36,7 @@ class TablePermission(Base):
     __tablename__ = "table_permissions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
     table_id: Mapped[int] = mapped_column(
         ForeignKey("data_tables.id", ondelete="CASCADE"),  # ← Добавить ondelete
         nullable=False,
@@ -52,5 +50,4 @@ class TablePermission(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    user: Mapped["User"] = relationship("User", back_populates="table_permissions")
     table: Mapped["DataTable"] = relationship("DataTable", back_populates="permissions")

@@ -41,7 +41,7 @@ class TableService:
 
     async def get_all_tables(self) -> List[DataTableResponse]:
         """
-        Получить список всtх таблиц
+        Получить список всех таблиц
         Returns:
             List[DataTableResponse]: Список таблиц
         """
@@ -85,9 +85,11 @@ class TableService:
             excel_file: Excel файл для создания таблицы
             user_id: ID пользователя-создателя
             table_name: Название таблицы (если None - используется имя файла)
+            description: Описание таблицы
 
         Returns:
             DataTableResponse: Созданная таблица
+
         """
         # Валидация файла
         if not excel_file.filename.endswith((".xlsx", ".xls")):

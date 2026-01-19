@@ -8,6 +8,7 @@ from table_service.app.api.endpoints import (
     data_router,
     tables_router,
 )
+from table_service.app.core import init_db
 from table_service.app.core.settings import app_settings
 
 
@@ -16,6 +17,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
     logger.info("Инициализация приложения...")
 
+    await init_db()
     yield
 
     logger.info("Завершение работы приложения...")

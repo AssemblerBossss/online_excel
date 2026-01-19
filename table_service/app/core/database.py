@@ -21,6 +21,12 @@ async def get_db_session() -> AsyncSession:
         yield async_session
 
 
+async def init_db():
+    """Создание таблиц при старте"""
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models"""
 
