@@ -105,7 +105,7 @@ services:
     build: ./frontend
     container_name: online_excel_frontend
     depends_on:
-      - backend
+      - api_gateway
     ports:
       - "3000:80"
     networks:

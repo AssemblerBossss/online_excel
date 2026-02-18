@@ -39,7 +39,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
     }
 
     async def dispatch(self, request: Request, call_next: Callable) ->  Response:
-        if request.url.path in self.PUBLIC_PATHS:
+        normalized_path =request.url.path.rstrip('/')
+
+        if normalized_path in self.PUBLIC_PATHS:
             return await call_next(request)
 
         authorization_header = request.headers.get("Authorization")
