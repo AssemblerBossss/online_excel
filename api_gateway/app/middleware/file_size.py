@@ -8,6 +8,12 @@ logger = logging.getLogger(__name__)
 
 
 class FileSizeLimitMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware для ограничения размера загружаемых файлов.
+
+    Проверяет заголовок Content-Length для POST, PUT и PATCH запросов.
+    Если размер файла превышает максимально допустимый, возвращает ошибку 413.
+    """
 
     def __init__(self, app: FastAPI, max_file_size: int):
         super().__init__(app)
