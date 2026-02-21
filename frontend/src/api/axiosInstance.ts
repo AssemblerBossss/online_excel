@@ -1,11 +1,23 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-// В проде идём через /api (Nginx проксирует на бэк); можно переопределить переменной окружения
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:3000/api';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // для работы с cookies
+  withCredentials: true,
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  const tokenType = localStorage.getItem('token_type') || 'Bearer';
+
+  console.log('Request to:', config.url, 'Token:', token ? 'present' : 'missing'); // Для отладки
+
+  if (token && config.headers) {
+    config.headers.Authorization = `${tokenType} ${token}`;
+  }
+
+  return config;
 });
 
 // Флаг для предотвращения множественных одновременных refresh запросов
@@ -26,15 +38,12 @@ const processQueue = (error: any = null) => {
   failedQueue = [];
 };
 
-api.interceptors.request.use((config) => config);
-
-// Response interceptor для автоматического обновления токена
+// Response interceptor
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // Если ошибка 401 и это не запрос на refresh/login/logout
     if (
       error.response?.status === 401 &&
       originalRequest &&
@@ -43,8 +52,14 @@ api.interceptors.response.use(
       !originalRequest.url?.includes('/auth/register') &&
       !originalRequest.url?.includes('/auth/logout')
     ) {
+      // Проверяем наличие refresh token
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
-        // Если уже идет refresh, добавляем запрос в очередь
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
@@ -60,17 +75,32 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Пытаемся обновить токен
-        await api.post('/auth/refresh');
+        // Отправляем refresh token в теле запроса
+        const refreshResponse = await api.post('/auth/refresh', {
+          refresh_token: refreshToken
+        });
+
+        if (refreshResponse.data.access_token) {
+          localStorage.setItem('access_token', refreshResponse.data.access_token);
+          if (refreshResponse.data.token_type) {
+            localStorage.setItem('token_type', refreshResponse.data.token_type);
+          }
+
+          // Обновляем заголовок для оригинального запроса
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization =
+              `${refreshResponse.data.token_type || 'Bearer'} ${refreshResponse.data.access_token}`;
+          }
+        }
+
         processQueue(null);
-        // Повторяем оригинальный запрос
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        // Если refresh не удался, редиректим на логин
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('token_type');
+        window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

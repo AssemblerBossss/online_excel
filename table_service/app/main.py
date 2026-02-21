@@ -9,13 +9,14 @@ from table_service.app.api.endpoints import (
     tables_router,
 )
 from table_service.app.core import init_db
-from table_service.app.core.settings import app_settings
+from table_service.app.core import user_validator_instance
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
     logger.info("Инициализация приложения...")
+    await user_validator_instance.connect()
 
     await init_db()
     yield

@@ -7,12 +7,12 @@ export const registerUser = async (data: {
     last_name: string;
     first_name: string;
   }) => {
-  const res = await api.post("/auth/register/", data);
+  const res = await api.post("/auth/register", data);
   return res.data;
 };
 
 export const loginUser = async (data: { email: string; password: string }) => {
-  const res = await api.post("/auth/login/", data);
+  const res = await api.post("/auth/login", data);
   return res.data;
 }; 
 

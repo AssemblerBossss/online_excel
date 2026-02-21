@@ -1,5 +1,6 @@
 from fastapi import Request, HTTPException, status, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.datastructures import URL
 from typing import Callable
 
 from api_gateway.app.utils import verify_jwt_token, extract_token_from_header
@@ -39,8 +40,22 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
     }
 
     async def dispatch(self, request: Request, call_next: Callable) ->  Response:
-        normalized_path =request.url.path.rstrip('/')
+        original_path = request.url.path
+        normalized_path = original_path.rstrip('/')
 
+        # Если путь изменился - создаем новый request с нормализованным путем
+        if original_path != normalized_path and normalized_path:  # normalized_path не пустой
+            # Создаем новый URL с нормализованным путем
+            new_url = str(request.url).replace(original_path, normalized_path, 1)
+            request.scope["path"] = normalized_path
+            request.scope["raw_path"] = normalized_path.encode()
+            request._url = URL(new_url)
+
+            # Обновляем путь в scope для дальнейшей обработки
+            request.scope["path"] = normalized_path
+            request.scope["raw_path"] = normalized_path.encode()
+
+        # Проверка публичных путей (используем нормализованный)
         if normalized_path in self.PUBLIC_PATHS:
             return await call_next(request)
 
@@ -71,4 +86,3 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
         return response
-

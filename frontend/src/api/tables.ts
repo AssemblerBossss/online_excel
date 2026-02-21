@@ -27,7 +27,7 @@ export interface CreateTableRequest {
 export const tablesAPI = {
   // Получить все таблицы
   getAllTables: async (): Promise<DataTableResponse[]> => {
-    const response = await api.get('/tables/');
+    const response = await api.get('/tables');
     return response.data;
   },
 

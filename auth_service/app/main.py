@@ -11,7 +11,7 @@ from auth_service.app.routers import auth_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Управление жизненным циклом приложения"""
-    logger.info("🚀 Starting Auth Service...")
+    logger.info("Starting Auth Service...")
 
     # Инициализация БД
     await init_db()
@@ -26,6 +26,7 @@ app = FastAPI(
     title=auth_service_settings.PROJECT_NAME,
     version=auth_service_settings.VERSION,
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 # CORS

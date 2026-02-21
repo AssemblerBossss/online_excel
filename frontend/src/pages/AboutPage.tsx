@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import {useNavigate} from 'react-router-dom';
 import SidebarWithToggle from '../components/SidebarWithToggle';
 
 const AboutPage: React.FC = () => {
@@ -7,7 +7,7 @@ const AboutPage: React.FC = () => {
 
     return (
         <div style={styles.container}>
-            <SidebarWithToggle />
+            <SidebarWithToggle/>
 
             <div style={styles.header}>
                 <h1 style={styles.headerTitle}>О нас</h1>

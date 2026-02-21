@@ -12,7 +12,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
     const handleLogout = async () => {
         try {
-            await api.post('/auth/logout/');
+            await api.post('/auth/logout');
             navigate('/login');
         } catch (err) {
             console.error('Logout error:', err);

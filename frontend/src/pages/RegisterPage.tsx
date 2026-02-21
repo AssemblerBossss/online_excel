@@ -21,12 +21,12 @@ const RegisterPage: React.FC = () => {
     }
 
     try {
-      await api.post("/auth/register/", {
-        email,
-        first_name: firstName,
-        last_name: lastName,
-        password,
-        confirm_password: confirmPassword,
+        await registerUser({
+            email,
+            first_name: firstName,
+            last_name: lastName,
+            password,
+            confirm_password: confirmPassword,
       });
       navigate("/login");
     } catch (err: any) {

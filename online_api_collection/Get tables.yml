@@ -8,7 +8,7 @@ http:
   url: http://localhost:8080/api/tables
   auth:
     type: bearer
-    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJlbWFpbCI6Im5hemFyb3ZtaXNhMzBAbWFpbC5ydSIsInJvbGUiOiJ2aWV3ZXIiLCJpc19hY3RpdmUiOnRydWUsImV4cCI6MTc2ODgzNzk2OSwiaWF0IjoxNzY4ODM2MTY5LCJzdWIiOiIxIiwidG9rZW5fdHlwZSI6ImFjY2VzcyJ9.3SSqv4qbqRLRShKVnaq1F7LCEuxmcAbXgeCIbv6vm80
+    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJlbWFpbCI6Im5hemFyb3ZtaXNhMzBAbWFpbC5ydSIsInJvbGUiOiJ2aWV3ZXIiLCJpc19hY3RpdmUiOnRydWUsImV4cCI6MTc2ODg0MzQyMiwiaWF0IjoxNzY4ODQxNjIyLCJzdWIiOiIxIiwidG9rZW5fdHlwZSI6ImFjY2VzcyJ9.8l4aedrfTVNJMmgIOqmPYm77q_DE6lih6hevvd-Pmd8
 
 settings:
   encodeUrl: true

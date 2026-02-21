@@ -35,6 +35,7 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: guest
       RABBITMQ_PASSWORD: guest
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       JWT_SECRET_KEY: "secret"
       JWT_ALGORITHM: "HS256"
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
@@ -45,6 +46,8 @@ services:
         condition: service_healthy
     networks:
       - appnet
+    volumes:
+      - ./auth_service:/app/auth_service
 
   auth_db:
     container_name: online_excel_auth_db
@@ -66,7 +69,6 @@ services:
     volumes:
       - auth_pgdata:/var/lib/postgresql/data
 
-
   db:
     container_name: online_excel_db
     image: postgres:16-alpine
@@ -77,10 +79,15 @@ services:
       POSTGRES_DB: online_excel
     ports:
       - "7777:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - appnet
     volumes:
-      - pgdata:/var/lib/postresql/data
+      - pgdata:/var/lib/postgresql/data
 
   backend:
     build:
@@ -94,22 +101,55 @@ services:
       EXCEL_APP__DB_PASSWORD: online_excel
       EXCEL_APP__DB_NAME: online_excel
       EXCEL_APP__DB_DRIVER: postgresql+asyncpg
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "8000:8000"
     networks:
       - appnet
+
+  rabbitmq:
+    image: rabbitmq:4.2.4-alpine
+    container_name: online_excel_rabbitmq
+    ports:
+      - "5672:5672"      # AMQP protocol
+      - "15672:15672"    # Management UI
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - appnet
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
     container_name: online_excel_frontend
     depends_on:
       - api_gateway
+    environment:
+      VITE_API_URL: http://localhost:3000/api
     ports:
       - "3000:80"
     networks:
       - appnet
+    volumes:
+      - ./table_service:/app/table_service
 
 networks:
   appnet:
@@ -118,3 +158,4 @@ networks:
 volumes:
   pgdata:
   auth_pgdata:
+  rabbitmq_data:
