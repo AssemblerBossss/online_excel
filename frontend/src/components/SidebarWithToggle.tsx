@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import Sidebar from './Sidebar';
 
 const SidebarWithToggle: React.FC = () => {
@@ -6,7 +6,7 @@ const SidebarWithToggle: React.FC = () => {
 
     return (
         <>
-            <Sidebar isOpen={isOpen} onClose={() => setIsOpen(false)} />
+            <Sidebar isOpen={isOpen} onClose={() => setIsOpen(false)}/>
 
             {/* Кнопка открытия - всегда видна в левом верхнем углу */}
             {!isOpen && (
@@ -15,9 +15,9 @@ const SidebarWithToggle: React.FC = () => {
                     onClick={() => setIsOpen(true)}
                     aria-label="Открыть меню"
                 >
-                    <div style={{ ...styles.line, top: 6 }} />
-                    <div style={{ ...styles.line, top: 13 }} />
-                    <div style={{ ...styles.line, top: 20 }} />
+                    <div style={{...styles.line, top: 6}}/>
+                    <div style={{...styles.line, top: 13}}/>
+                    <div style={{...styles.line, top: 20}}/>
                 </button>
             )}
         </>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import {useNavigate} from 'react-router-dom';
 import api from '../api/axiosInstance';
 
 interface SidebarProps {
@@ -7,7 +7,7 @@ interface SidebarProps {
     onClose: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({isOpen, onClose}) => {
     const navigate = useNavigate();
 
     const handleLogout = async () => {
@@ -21,17 +21,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     };
 
     const menuItems = [
-        { label: 'Мои таблицы', path: '/tables', icon: '📊' },
-        { label: 'Аккаунт', path: '/profile', icon: '👤' },
-        { label: 'О нас', path: '/about', icon: 'ℹ️' },
-        { label: 'Выйти', action: handleLogout, icon: '🚪' },
+        {label: 'Мои таблицы', path: '/tables', icon: '📊'},
+        {label: 'Аккаунт', path: '/profile', icon: '👤'},
+        {label: 'О нас', path: '/about', icon: 'ℹ️'},
+        {label: 'Выйти', action: handleLogout, icon: '🚪'},
     ];
 
     return (
         <>
             {/* Затемненный фон при открытом меню */}
             {isOpen && (
-                <div style={styles.overlay} onClick={onClose} />
+                <div style={styles.overlay} onClick={onClose}/>
             )}
 
             {/* Боковое меню */}
@@ -49,17 +49,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                         ...styles.line,
                         transform: isOpen ? 'rotate(45deg)' : 'rotate(0)',
                         top: isOpen ? '13px' : '6px',
-                    }} />
+                    }}/>
                     <div style={{
                         ...styles.line,
                         opacity: isOpen ? 0 : 1,
                         top: '13px',
-                    }} />
+                    }}/>
                     <div style={{
                         ...styles.line,
                         transform: isOpen ? 'rotate(-45deg)' : 'rotate(0)',
                         top: isOpen ? '13px' : '20px',
-                    }} />
+                    }}/>
                 </button>
 
                 <div style={styles.content}>

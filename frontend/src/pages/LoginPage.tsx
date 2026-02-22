@@ -1,7 +1,7 @@
 import React, {useState} from "react";
 import {useNavigate} from "react-router-dom";
 import api from "../api/axiosInstance";
-import { loginUser } from "../api/auth";
+import {loginUser} from "../api/auth";
 
 
 const LoginPage: React.FC = () => {
