@@ -1,5 +1,5 @@
 from sqlalchemy import select, update, delete, insert, asc, desc
-from typing import Any, Optional, List
+from typing import Optional, List
 
 from table_service.app.models import TableRow, DataTable
 from table_service.app.repository.base import Base
@@ -32,25 +32,26 @@ class DataRepository(Base):
         Raises:
             SQLAlchemyError: При ошибках выполнения запроса к базе данных
         """
-        async with self._session_scope() as session:
-            if sort_order.lower() == "asc":
-                stmt = (
-                    select(TableRow)
-                    .where(TableRow.table_id == table_id)
-                    .limit(limit)
-                    .offset(skip)
-                    .order_by(asc(sort_by))
-                )
-            else:
-                stmt = (
-                    select(TableRow)
-                    .where(TableRow.table_id == table_id)
-                    .limit(limit)
-                    .offset(skip)
-                    .order_by(desc(sort_by))
-                )
 
-            return (await session.scalars(stmt)).all()
+        if sort_order.lower() == "asc":
+            stmt = (
+                select(TableRow)
+                .where(TableRow.table_id == table_id)
+                .limit(limit)
+                .offset(skip)
+                .order_by(asc(sort_by))
+            )
+        else:
+            stmt = (
+                select(TableRow)
+                .where(TableRow.table_id == table_id)
+                .limit(limit)
+                .offset(skip)
+                .order_by(desc(sort_by))
+            )
+
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
 
     async def create_table_row(
         self, table_id: int, row_data: TableRowCreate
@@ -71,13 +72,11 @@ class DataRepository(Base):
             else row_data.model_dump()
         )
 
-        async with self._session_scope() as session:
-            stmt = (
-                insert(TableRow)
-                .values(table_id=table_id, row_data=row_data_dict)
-                .returning(TableRow)
-            )
-            return (await session.scalars(stmt)).one_or_none()
+        new_row = TableRow(table_id=table_id, row_data=row_data_dict)
+        self._session.add(new_row)
+        await self._session.flush()
+        await self._session.refresh(new_row)
+        return new_row
 
     async def bulk_create_table_row(
         self, table_id: int, rows_data: List[TableRowCreate]
@@ -95,20 +94,16 @@ class DataRepository(Base):
         if not rows_data:
             return 0
 
-        async with self._session_scope() as session:
-            values_to_insert = [
-                {
-                    "table_id": table_id,
-                    "row_data": (
-                        row.row_data if hasattr(row, "row_data") else row.model_dump()
-                    ),
-                }
-                for row in rows_data
-            ]
+        rows_to_insert = []
+        for row in rows_data:
+            row_data_dict = (
+                row.row_data if hasattr(row, "row_data") else row.model_dump()
+            )
+            rows_to_insert.append(TableRow(table_id=table_id, row_data=row_data_dict))
 
-            stmt = insert(TableRow).values(values_to_insert)
-            result = await session.execute(stmt)
-            return result.rowcount
+        self._session.add_all(rows_to_insert)
+        await self._session.flush()
+        return len(rows_to_insert)
 
     async def update_table_row(
         self,
@@ -127,21 +122,20 @@ class DataRepository(Base):
         Returns:
             Optional[TableRow]: Обновленная строка таблицы или None при ошибке
         """
-        async with self._session_scope() as session:
-            row_data_dict = (
-                row_data.row_data
-                if hasattr(row_data, "row_data")
-                else row_data.model_dump()
-            )
+        row_data_dict = (
+            row_data.row_data
+            if hasattr(row_data, "row_data")
+            else row_data.model_dump()
+        )
 
-            stmt = (
-                update(TableRow)
-                .where(TableRow.table_id == table_id, TableRow.id == row_id)
-                .values(row_data=row_data_dict)
-                .returning(TableRow)
-            )
+        stmt = (
+            update(TableRow)
+            .where(TableRow.table_id == table_id, TableRow.id == row_id)
+            .values(row_data=row_data_dict)
+            .returning(TableRow)
+        )
 
-            return (await session.scalars(stmt)).one_or_none()
+        return (await self._session.scalars(stmt)).one_or_none()
 
     async def delete_table_row(
         self,
@@ -159,10 +153,9 @@ class DataRepository(Base):
             bool: True если строка была удалена, False если не найдена
         """
 
-        async with self._session_scope() as session:
-            stmt = delete(TableRow).where(
-                TableRow.table_id == table_id, TableRow.id == row_id
-            )
+        stmt = delete(TableRow).where(
+            TableRow.table_id == table_id, TableRow.id == row_id
+        )
 
-            result = await session.execute(stmt)
-            return result.rowcount > 0
+        result = await self._session.execute(stmt)
+        return result.rowcount > 0

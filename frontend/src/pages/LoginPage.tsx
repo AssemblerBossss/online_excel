@@ -1,12 +1,15 @@
 import React, {useState} from "react";
 import {useNavigate} from "react-router-dom";
 import api from "../api/axiosInstance";
+import { loginUser } from "../api/auth";
+
 
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
 
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -15,7 +18,6 @@ const LoginPage: React.FC = () => {
         setIsLoading(true);
 
         try {
-            // Используем готовую функцию loginUser
             const data = await loginUser({email, password});
 
             // Сохраняем токены из ответа

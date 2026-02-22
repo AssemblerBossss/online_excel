@@ -1,7 +1,4 @@
-from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from table_service.app.core.database import AsyncSessionFactory
 
 
 class Base:

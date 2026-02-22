@@ -11,7 +11,7 @@ services:
       - "8080:8080"
     depends_on:
       - auth_service
-      - backend
+      - table_service
     networks:
       - appnet
     volumes:
@@ -89,11 +89,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  backend:
+  table_service:
     build:
       context: .
       dockerfile: table_service/Dockerfile
-    container_name: table_service
+    container_name: online_excel_table_service
     environment:
       EXCEL_APP__DB_HOST: db
       EXCEL_APP__DB_PORT: 5432

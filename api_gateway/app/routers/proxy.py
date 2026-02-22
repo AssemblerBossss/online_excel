@@ -54,10 +54,14 @@ async def proxy_users(request: Request, path: str):
 
 
 @router.api_route(
+    "/tables",
+    methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+)
+@router.api_route(
     "/tables/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
 )
-async def proxy_tables(request: Request, path: str):
+async def proxy_tables(request: Request, path: str = ""):
     """
     Проксирует /tables/* запросы к Main Service
     """

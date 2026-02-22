@@ -11,7 +11,14 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
   const tokenType = localStorage.getItem('token_type') || 'Bearer';
 
-  console.log('Request to:', config.url, 'Token:', token ? 'present' : 'missing'); // Для отладки
+  console.log('🔵 Request Details:', {
+    url: config.url,
+    fullURL: `${API_BASE_URL}${config.url}`,
+    method: config.method,
+    token: token ? 'present' : 'missing',
+    headers: config.headers
+  });
+
 
   if (token && config.headers) {
     config.headers.Authorization = `${tokenType} ${token}`;
