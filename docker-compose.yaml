@@ -115,6 +115,8 @@ services:
       - "8000:8000"
     networks:
       - appnet
+    volumes:
+      - ./table_service:/app/table_service
 
   rabbitmq:
     image: rabbitmq:4.2.4-alpine

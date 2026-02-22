@@ -213,6 +213,7 @@ class DataService:
         self,
         table_id: int,
         user_id: int,
+        user_role: str,
         skip: int = 0,
         limit: int = 100,
         sort_by: Optional[str] = None,
@@ -221,7 +222,7 @@ class DataService:
         """Получить строки таблицы"""
 
         table = await self.table_repo.get_table_with_read_access(
-            table_id=table_id, user_id=user_id
+            table_id=table_id, user_id=user_id, user_role=user_role
         )
 
         if not table:

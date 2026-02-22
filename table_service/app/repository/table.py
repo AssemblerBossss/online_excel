@@ -73,6 +73,7 @@ class TableRepository(Base):
         Args:
             table_id: ID таблицы
             user_id: ID пользователя
+            user_role: Роль пользователя
 
         Returns:
             Optional[DataTable]: Таблица, если пользователь имеет доступ на чтение.
@@ -90,7 +91,7 @@ class TableRepository(Base):
         Args:
             table_id: ID таблицы
             user_id: ID пользователя
-
+            user_role: Роль пользователя
         Returns:
             Optional[DataTable]: Таблица, если пользователь имеет доступ на запись.
         """

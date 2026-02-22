@@ -95,3 +95,23 @@ async def proxy_categories(request: Request, path: str):
         path=f"/api/categories/{path}",
         user_data=user_data,
     )
+
+
+@router.api_route(
+    "/data/{path:path}",
+    methods=["GET", "POST", "PUT", "DELETE"],
+)
+async def proxy_categories(request: Request, path: str):
+    """
+    Проксирует /data/* запросы к Main Service
+    """
+    user_data = None
+    if hasattr(request.state, "user"):
+        user_data = request.state.user
+
+    return await proxy_request(
+        request=request,
+        target_url=settings.MAIN_SERVICE_URL,
+        path=f"/api/data/{path}",
+        user_data=user_data,
+    )

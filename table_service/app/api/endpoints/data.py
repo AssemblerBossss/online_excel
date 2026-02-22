@@ -38,6 +38,7 @@ async def list_table_rows(
     result: list[TableRowResponse] = await data_service.get_table_rows(
         table_id=table_id,
         user_id=x_user_id,
+        user_role=x_user_role,
         skip=skip,
         limit=limit,
         sort_by=sort_by,
