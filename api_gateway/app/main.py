@@ -9,14 +9,12 @@ from contextlib import asynccontextmanager
 from api_gateway.app.config import settings
 from api_gateway.app.middleware import JWTAuthMiddleware, RequestLoggingMiddleware
 from api_gateway.app.utils import init_http_client, close_http_client
-
-# from api_gateway.app.middleware.rate_limit import limiter
 from api_gateway.app.routers import health_router, proxy_router
+from api_gateway.app.core import setup_logging
 
 # Настройка логирования
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
