@@ -1,8 +1,8 @@
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
-from loguru import logger
 
 from table_service.app.api.endpoints import (
     data_router,
@@ -10,12 +10,16 @@ from table_service.app.api.endpoints import (
 )
 from table_service.app.core import init_db
 from table_service.app.core import user_validator_instance
+from table_service.app.core import setup_service_logging
+
+setup_service_logging()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
-    logger.info("Инициализация приложения...")
+    logger.info("API Gateway started", extra={"event": "startup"})
     await user_validator_instance.connect()
 
     await init_db()

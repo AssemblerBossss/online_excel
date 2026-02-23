@@ -1,9 +1,11 @@
+import logging
 import httpx
 from fastapi import Request, Response, HTTPException
 from typing import Optional
-from loguru import logger
 
 from api_gateway.app.utils.http_client import get_http_client
+
+logger = logging.getLogger(__name__)
 
 
 async def proxy_request(

@@ -1,26 +1,24 @@
-import sys
 import logging
-from typing import Any
-from datetime import datetime, UTC
+import sys
 import json
+from datetime import datetime
 
 
-class CustomJsonFormatter(logging.Formatter):
-    """Кастомный JSON форматер для логов"""
+class ServiceJsonFormatter(logging.Formatter):
+    def __init__(self, service_name: str):
+        super().__init__()
+        self.service_name = service_name
 
     def format(self, record: logging.LogRecord) -> str:
-        log_record: dict[str, Any] = {
-            "timestamp": datetime.now(UTC).isoformat() + "Z",
+        log_record = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
             "level": record.levelname,
-            "service": "api_gateway",
+            "service": self.service_name,
             "module": record.module,
             "function": record.funcName,
             "line": record.lineno,
             "message": record.getMessage(),
         }
-
-        if hasattr(record, "request_id"):
-            log_record["request_id"] = record.request_id
 
         if record.exc_info:
             log_record["exception"] = self.formatException(record.exc_info)
@@ -28,15 +26,12 @@ class CustomJsonFormatter(logging.Formatter):
         return json.dumps(log_record, ensure_ascii=False)
 
 
-import sys
-import logging
-
-
-def setup_logging():
+def setup_service_logging():
     """Настройка JSON-логирования для API Gateway"""
 
+    service_formatter_instance = ServiceJsonFormatter("table_service")
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(CustomJsonFormatter())
+    handler.setFormatter(service_formatter_instance)
 
     # --- Root logger ---
     root_logger = logging.getLogger()
@@ -57,9 +52,4 @@ def setup_logging():
     access_logger.handlers.clear()
     access_logger.propagate = False
     access_logger.disabled = True
-
-    # --- Убираем спам от httpx ---
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-
     return root_logger

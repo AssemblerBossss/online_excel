@@ -8,7 +8,7 @@ from auth_service.app.database import init_db
 from auth_service.app.routers import auth_router
 from auth_service.app.logging_config import setup_service_logging
 
-setup_service_logging("auth_service")
+setup_service_logging()
 logger = logging.getLogger(__name__)
 
 
