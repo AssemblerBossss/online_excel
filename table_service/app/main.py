@@ -19,13 +19,9 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
-    logger.info("API Gateway started", extra={"event": "startup"})
     await user_validator_instance.connect()
-
     await init_db()
     yield
-
-    logger.info("Завершение работы приложения...")
 
 
 def create_app() -> FastAPI:
@@ -36,15 +32,13 @@ def create_app() -> FastAPI:
         Сконфигурированное приложение FastAPI
     """
     app = FastAPI(
-        title="Стартовая сборка FastAPI",
-        description=(
-            "Стартовая сборка с интегрированной SQLAlchemy 2 для разработки FastAPI приложений с продвинутой "
-            "архитектурой, включающей авторизацию, аутентификацию и управление ролями пользователей.\n\n"
-            "**Автор проекта**: Яковенко Алексей\n"
-            "**Telegram**: https://t.me/PythonPathMaster"
-        ),
+        title="Table Service",
+        description="Сервис для управления таблицами и данными",
         version="1.0.0",
         lifespan=lifespan,
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
+        openapi_url="/api/openapi.json",
     )
 
     # Настройка CORS
@@ -56,13 +50,6 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Монтирование статических файлов
-    # app.mount(
-    #     '/static',
-    #     StaticFiles(directory='app/static'),
-    #     name='static'
-    # )
-
     # Регистрация роутеров
     register_routers(app)
 
@@ -73,21 +60,29 @@ def register_routers(app: FastAPI) -> None:
     """Регистрация роутеров приложения."""
     # Корневой роутер
     API_PREFIX = "/api"
-    root_router = APIRouter(prefix=API_PREFIX, tags=["root"])
+    root_router = APIRouter(prefix=API_PREFIX)
 
     @root_router.get("/", tags=["root"])
-    def home_page():
+    async def home_page():
         return {
-            "message": "Добро пожаловать! Проект создан для сообщества 'Легкий путь в Python'.",
-            "community": "https://t.me/PythonPathMaster",
-            "author": "Яковенко Алексей",
+            "name": "Table Service",
+            "version": "1.0.0",
+            "description": "Сервис для управления таблицами и данными",
+            "endpoints": {
+                "tables": "/api/tables",
+                "data": "/api/data",
+                "docs": "/api/docs",
+            },
         }
 
-    # Подключение дочерних роутеров к корневому с префиксом /api
-    root_router.include_router(data_router, prefix="/data", tags=["Data"])
-    root_router.include_router(tables_router, prefix="/tables", tags=["Tables"])
+    # Подключение дочерних роутеров
+    routers = [
+        (data_router, "/data", "Data"),
+        (tables_router, "/tables", "Tables"),
+    ]
+    for router, prefix, tag in routers:
+        root_router.include_router(router, prefix=prefix, tags=[tag])
 
-    # Регистрируем корневой роутер в приложении
     app.include_router(root_router)
 
 

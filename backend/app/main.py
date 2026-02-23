@@ -43,10 +43,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    app.add_middleware(
-        FileSizeLimitMiddleware, max_file_size=app_settings.MAX_FILE_SIZE_BYTES
-    )
-
     # Настройка CORS
     app.add_middleware(
         CORSMiddleware,
@@ -56,12 +52,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Монтирование статических файлов
-    # app.mount(
-    #     '/static',
-    #     StaticFiles(directory='app/static'),
-    #     name='static'
-    # )
+    app.add_middleware(
+        FileSizeLimitMiddleware, max_file_size=app_settings.MAX_FILE_SIZE_BYTES
+    )
 
     # Регистрация роутеров
     register_routers(app)
@@ -71,25 +64,30 @@ def create_app() -> FastAPI:
 
 def register_routers(app: FastAPI) -> None:
     """Регистрация роутеров приложения."""
-    # Корневой роутер
-    API_PREFIX = "/api"
-    root_router = APIRouter(prefix=API_PREFIX, tags=["root"])
+
+    # Корневой роутер с префиксом /api
+    root_router = APIRouter(prefix="/api")
 
     @root_router.get("/", tags=["root"])
-    def home_page():
+    async def home_page():
         return {
-            "message": "Добро пожаловать! Проект создан для сообщества 'Легкий путь в Python'.",
-            "community": "https://t.me/PythonPathMaster",
-            "author": "Яковенко Алексей",
+            "message": "Table Service API",
+            "version": "1.0.0",
+            "docs": "/api/docs",
         }
 
-    # Подключение дочерних роутеров к корневому с префиксом /api
-    root_router.include_router(auth_router, prefix="/auth", tags=["Auth"])
-    root_router.include_router(data_router, prefix="/data", tags=["Data"])
-    root_router.include_router(users_router, prefix="/users", tags=["Users"])
-    root_router.include_router(tables_router, prefix="/tables", tags=["Tables"])
+    # Подключение дочерних роутеров
+    routers = [
+        (auth_router, "/auth", "Auth"),
+        (data_router, "/data", "Data"),
+        (users_router, "/users", "Users"),
+        (tables_router, "/tables", "Tables"),
+    ]
 
-    # Регистрируем корневой роутер в приложении
+    for router, prefix, tag in routers:
+        root_router.include_router(router, prefix=prefix, tags=[tag])
+        logger.debug(f"Зарегистрирован роутер {tag} с префиксом /api{prefix}")
+
     app.include_router(root_router)
 
 
