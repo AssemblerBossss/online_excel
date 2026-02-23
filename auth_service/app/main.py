@@ -1,11 +1,15 @@
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from loguru import logger
 
 from auth_service.app.config import auth_service_settings
 from auth_service.app.database import init_db
 from auth_service.app.routers import auth_router
+from auth_service.app.logging_config import setup_service_logging
+
+setup_service_logging("auth_service")
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager

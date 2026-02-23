@@ -1,12 +1,14 @@
+import logging
 from sqlalchemy import delete, func, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
 from typing import Optional, List
-from loguru import logger
 
 from auth_service.app.models import User, UserRole
 from auth_service.app.schemas import SUserFilter, UserBase, SUserUpdate, SUserAddDB
+
+logger = logging.getLogger(__name__)
 
 
 class UserRepository:

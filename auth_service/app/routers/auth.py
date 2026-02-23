@@ -3,7 +3,6 @@ from fastapi import APIRouter, Response, Depends, Request
 from fastapi import status
 
 from auth_service.app.schemas.user import SUserRegister, SUserAuth, Token, TokenRefresh
-
 from auth_service.app.services import AuthService
 from auth_service.app.dependency import get_auth_service
 

@@ -1,3 +1,4 @@
+import logging
 from sqlalchemy import delete, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,7 +7,8 @@ from typing import Optional, List
 from datetime import datetime, timezone
 
 from auth_service.app.models import RefreshToken
-from loguru import logger
+
+logger = logging.getLogger(__name__)
 
 
 class TokenRepository:
@@ -44,22 +46,23 @@ class TokenRepository:
                 expires_at=expires_at,
                 user_agent=user_agent,
                 ip_address=ip_address,
-                revoked=False
+                revoked=False,
             )
 
             self._session.add(token_record)
             await self._session.flush()
 
             logger.info(
-                "Создан refresh token для пользователя {} с ID {}".format(user_id, token_record.id)
+                "Создан refresh token для пользователя {} с ID {}".format(
+                    user_id, token_record.id
+                )
             )
             return token_record
 
         except SQLAlchemyError as e:
             logger.error("Ошибка при создании refresh token: {}".format(e))
 
-
-    async def find_by_token(self, refresh_token: str) ->Optional[RefreshToken]:
+    async def find_by_token(self, refresh_token: str) -> Optional[RefreshToken]:
         """
         Найти refresh token по значению
 
@@ -70,7 +73,9 @@ class TokenRepository:
             RefreshToken или None если не найден
         """
         try:
-            query = select(RefreshToken).where(RefreshToken.refresh_token == refresh_token)
+            query = select(RefreshToken).where(
+                RefreshToken.refresh_token == refresh_token
+            )
             result = await self._session.execute(query)
             token = result.scalar_one_or_none()
 
@@ -84,7 +89,9 @@ class TokenRepository:
             logger.error("Ошибка при поиске refresh token: {}".format(e))
             raise
 
-    async def validate_refresh_token(self, refresh_token: str) -> Optional[RefreshToken]:
+    async def validate_refresh_token(
+        self, refresh_token: str
+    ) -> Optional[RefreshToken]:
         """
         Проверить валидность refresh token
 
@@ -133,7 +140,6 @@ class TokenRepository:
             logger.error("Ошибка при отзыве токена: {}".format(e))
             raise
 
-
     async def revoke_all_user_tokens(self, user_id: int) -> int:
         """
         Отозвать все refresh токены пользователя
@@ -153,14 +159,17 @@ class TokenRepository:
                 token.revoked = True
 
             await self._session.flush()
-            logger.info("Отозвано {} токенов для пользователя {}".format(count, user_id))
+            logger.info(
+                "Отозвано {} токенов для пользователя {}".format(count, user_id)
+            )
             return count
         except SQLAlchemyError as e:
             logger.error("Ошибка при отзыве всех токенов пользователя: {}".format(e))
             raise
 
-
-    async def get_user_tokens(self, user_id: int, active_only: bool) -> List[RefreshToken]:
+    async def get_user_tokens(
+        self, user_id: int, active_only: bool
+    ) -> List[RefreshToken]:
         """
         Получить все refresh токены пользователя
 
@@ -177,13 +186,15 @@ class TokenRepository:
             if active_only:
                 query = query.where(
                     RefreshToken.revoked == False,
-                    RefreshToken.expires_at > datetime.now(timezone.utc)
+                    RefreshToken.expires_at > datetime.now(timezone.utc),
                 )
 
             result = await self._session.execute(query)
             tokens = result.scalars().all()
 
-            logger.debug("Найдено {} токенов для пользователя {}".format(len(tokens), user_id))
+            logger.debug(
+                "Найдено {} токенов для пользователя {}".format(len(tokens), user_id)
+            )
             return list(tokens)
         except SQLAlchemyError as e:
             logger.error("Ошибка при получении токенов пользователя: {}".format(e))
@@ -209,7 +220,6 @@ class TokenRepository:
         except SQLAlchemyError as e:
             logger.error("Ошибка при отзыве токена: {}".format(e))
             raise
-
 
     async def delete_token(self, refresh_token: str) -> bool:
         """

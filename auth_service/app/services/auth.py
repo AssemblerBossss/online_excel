@@ -1,8 +1,8 @@
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, UTC, timezone
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from loguru import logger
 
 from auth_service.app.config import auth_service_settings
 from auth_service.app.exceptions import (
@@ -24,6 +24,8 @@ from auth_service.app.utils import (
     create_refresh_token,
     verify_password,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
