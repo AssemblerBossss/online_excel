@@ -1,5 +1,6 @@
 import time
 import logging
+import uuid
 from fastapi import Request
 from h11 import Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -14,19 +15,54 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        start_time = time.time()
+        # Генерируем request_id для отслеживания
+        request_id = str(uuid.uuid4())[:8]
 
-        logger.info("[RequestLoggingMiddleware] Incoming {} {}".format(request.method, request.url))
-
-        response = await call_next(request)
-
-        process_time = time.time() - start_time
+        # Логируем входящий запрос
         logger.info(
-            f"Completed: {request.method} {request.url.path} "
-            f"Status: {response.status_code} Time: {process_time:.3f}s"
+            f"Incoming request",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "client_host": request.client.host if request.client else None,
+                "event": "request_start",
+            },
         )
 
-        # Добавляем header с временем обработки
-        response.headers["X-Process-Time"] = str(process_time)
+        start_time = time.time()
 
-        return response
+        try:
+            response = await call_next(request)
+            process_time = (time.time() - start_time) * 1000
+
+            # Логируем завершение запроса
+            logger.info(
+                f"Request completed",
+                extra={
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": response.status_code,
+                    "process_time_ms": round(process_time, 2),
+                    "event": "request_end",
+                },
+            )
+
+            return response
+
+        except Exception as e:
+            process_time = (time.time() - start_time) * 1000
+            logger.error(
+                f"Request failed",
+                extra={
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "error": str(e),
+                    "process_time_ms": round(process_time, 2),
+                    "event": "request_error",
+                },
+                exc_info=True,
+            )
+            raise
