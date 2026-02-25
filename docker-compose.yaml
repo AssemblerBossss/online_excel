@@ -66,8 +66,11 @@ services:
       - "8010:5432"
     networks:
       - appnet
+
     volumes:
       - auth_pgdata:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
 
   db:
     container_name: online_excel_db
@@ -88,6 +91,8 @@ services:
       - appnet
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
 
   table_service:
     build:
