@@ -30,7 +30,7 @@ app = FastAPI(
     title=auth_service_settings.PROJECT_NAME,
     version=auth_service_settings.VERSION,
     lifespan=lifespan,
-    redirect_slashes=False,
+    # redirect_slashes=False,
 )
 
 # CORS
@@ -43,7 +43,7 @@ app.add_middleware(
 )
 
 
-app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
 
 
 @app.get("/health")

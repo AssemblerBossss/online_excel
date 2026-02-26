@@ -21,7 +21,7 @@ async def proxy_auth(request: Request, path: str):
     return await proxy_request(
         request=request,
         target_url=settings.AUTH_SERVICE_URL,
-        path=f"/api/auth/{path}",
+        path=f"/auth/{path}",
         user_data=user_data,
     )
 
@@ -45,7 +45,7 @@ async def proxy_users(request: Request, path: str):
     return await proxy_request(
         request=request,
         target_url=settings.AUTH_SERVICE_URL,
-        path=f"/api/users/{path}",
+        path=f"/users/{path}",
         user_data=user_data,
     )
 
@@ -72,7 +72,7 @@ async def proxy_tables(request: Request, path: str = ""):
     return await proxy_request(
         request=request,
         target_url=settings.MAIN_SERVICE_URL,
-        path=f"/api/tables/{path}",
+        path=f"/tables/{path}",
         user_data=user_data,
     )
 
@@ -92,7 +92,7 @@ async def proxy_categories(request: Request, path: str):
     return await proxy_request(
         request=request,
         target_url=settings.MAIN_SERVICE_URL,
-        path=f"/api/categories/{path}",
+        path=f"/categories/{path}",
         user_data=user_data,
     )
 
@@ -112,6 +112,6 @@ async def proxy_categories(request: Request, path: str):
     return await proxy_request(
         request=request,
         target_url=settings.MAIN_SERVICE_URL,
-        path=f"/api/data/{path}",
+        path=f"/data/{path}",
         user_data=user_data,
     )

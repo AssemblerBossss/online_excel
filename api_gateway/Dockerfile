@@ -9,4 +9,4 @@ COPY api_gateway ./api_gateway
 
 ENV PYTHONPATH=/app
 
-CMD ["uvicorn", "api_gateway.app.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload", "--log-config=None"]
+CMD ["uvicorn", "api_gateway.app.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]

@@ -93,19 +93,23 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/health",
         "/openapi.json",
         "/favicon.ico",
-        "/api/auth/register",
-        "/api/auth/login",
-        "/api/auth/refresh",
-        "/api/auth/logout",
+        "/auth/register",
+        "/auth/login",
+        "/auth/refresh",
+        "/auth/logout",
     }
 
-    async def dispatch(self, request: Request, call_next: Callable) ->  Response:
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         original_path = request.url.path
-        normalized_path = original_path.rstrip('/')
+        normalized_path = original_path.rstrip("/")
 
         # Если путь изменился - создаем новый request с нормализованным путем
         if original_path != normalized_path and normalized_path:
-            _normalize_path(request=request, original_path=original_path, normalized_path=normalized_path)
+            _normalize_path(
+                request=request,
+                original_path=original_path,
+                normalized_path=normalized_path,
+            )
 
         # Проверка публичных путей
         if normalized_path in self.PUBLIC_PATHS:

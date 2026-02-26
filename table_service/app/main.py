@@ -59,8 +59,7 @@ def create_app() -> FastAPI:
 def register_routers(app: FastAPI) -> None:
     """Регистрация роутеров приложения."""
     # Корневой роутер
-    API_PREFIX = "/api"
-    root_router = APIRouter(prefix=API_PREFIX)
+    root_router = APIRouter()
 
     @root_router.get("/", tags=["root"])
     async def home_page():
