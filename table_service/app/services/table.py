@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional
 from fastapi import UploadFile, HTTPException, status
 import pandas as pd
@@ -10,6 +11,7 @@ from table_service.app.services.excel_processor import (
     _import_excel_data_to_table,
 )
 
+logger = logging.getLogger(__name__)
 
 ALLOWED_EXCEL_MIME_TYPES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -162,13 +164,15 @@ class TableService:
                 detail="Table not found or access denied",
             )
 
-        deleted = await self.table_repo.delete_table(table_id=table_id, user_id=user_id)
+        deleted = await self.table_repo.delete_table(
+            table_id=table_id, user_id=user_id, user_role=user_role
+        )
 
         if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to delete table",
             )
-        # logger.info(f"User {user_id} deleted table {table_id} (name: {table.name})")
+        logger.info(f"User {user_id} deleted table {table_id} (name: {table.name})")
 
         return None
