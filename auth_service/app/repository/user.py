@@ -1,4 +1,5 @@
 import logging
+from pydantic import EmailStr
 from sqlalchemy import delete, func, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,7 +74,7 @@ class UserRepository:
             )
             raise
 
-    async def find_by_email(self, email: str) -> Optional["User"]:
+    async def find_by_email(self, email: str | EmailStr) -> Optional["User"]:
         """
         Найти пользователя по email
 

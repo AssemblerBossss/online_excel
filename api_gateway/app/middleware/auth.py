@@ -73,9 +73,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
     Применяется ко ВСЕМ запросам, кроме публичных endpoints.
 
     Публичные endpoints (не требуют токен):
-    - POST /api/auth/register
-    - POST /api/auth/login
-    - POST /api/auth/refresh
+    - POST /auth/register
+    - POST /auth/login
+    - POST /auth/refresh
     - GET /health
     - GET /
 

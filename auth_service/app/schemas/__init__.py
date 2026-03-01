@@ -12,6 +12,7 @@ from .user import (
     Token,
     TokenRefresh,
 )
+from .events import UserRegisterEvent, UserUpdateEvent, UserDeletedEvent
 
 __all__ = [
     "UserBase",
@@ -25,4 +26,7 @@ __all__ = [
     "TokenData",
     "Token",
     "TokenRefresh",
+    "UserRegisterEvent",
+    "UserUpdateEvent",
+    "UserDeletedEvent",
 ]

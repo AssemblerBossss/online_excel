@@ -22,6 +22,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     await user_validator_instance.connect()
     await init_db()
     yield
+    await user_validator_instance.close()
 
 
 def create_app() -> FastAPI:
