@@ -7,6 +7,7 @@ from auth_service.app.config import auth_service_settings
 from auth_service.app.database import init_db
 from auth_service.app.routers import auth_router
 from auth_service.app.logging_config import setup_service_logging
+from auth_service.app.events import event_publisher
 
 setup_service_logging()
 logger = logging.getLogger(__name__)
@@ -21,9 +22,13 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("✅ Database initialized")
 
+    await event_publisher.connect()
+    logger.info("✅ Event publisher connected")
+
     yield
 
     logger.info("🛑 Shutting down Auth Service...")
+    await event_publisher.disconnect()
 
 
 app = FastAPI(

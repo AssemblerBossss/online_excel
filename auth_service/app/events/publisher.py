@@ -22,7 +22,7 @@ class EventPublisher:
 
     async def publish(self, event: BaseModel):
         message = Message(
-            body=event.model_dump().encode(),
+            body=event.model_dump_json().encode(),
             delivery_mode=DeliveryMode.PERSISTENT,
             content_type="application/json",
             type=event.event_type,

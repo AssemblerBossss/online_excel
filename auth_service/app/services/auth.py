@@ -1,5 +1,4 @@
 import logging
-from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, UTC, timezone
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +12,7 @@ from auth_service.app.exceptions import (
 from auth_service.app.schemas import UserRegisterEvent
 from auth_service.app.unit_of_work import UnitOfWork
 from auth_service.app.events import event_publisher
-from auth_service.app.models import User
+from auth_service.app.models import User, RefreshToken
 from auth_service.app.repository import UserRepository, TokenRepository
 from auth_service.app.schemas import (
     SUserRegister,
@@ -22,7 +21,6 @@ from auth_service.app.schemas import (
     SUserAuth,
     Token,
 )
-from auth_service.app.models import RefreshToken
 from auth_service.app.utils import (
     get_password_hash,
     create_access_token,
@@ -41,6 +39,31 @@ class AuthService:
         self.token_repo = TokenRepository(session)
         self.event_publisher = event_publisher
 
+    def _build_token_data(self, user: User) -> dict:
+        return {
+            "user_id": user.id,
+            "email": user.email,
+            "role": user.role.value,
+            "is_active": user.is_active,
+        }
+
+    def _create_refresh_token_data(self) -> tuple[str, datetime]:
+        """Создать пару (refresh_token, expires_at)."""
+        refresh_token = create_refresh_token()
+        expires = datetime.now(timezone.utc) + timedelta(
+            days=auth_service_settings.REFRESH_TOKEN_EXPIRE_DAYS
+        )
+        return refresh_token, expires
+
+    def _build_token_response(self, access_token: str, refresh_token: str) -> Token:
+        """Создать ответ с токенами."""
+        return Token(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="Bearer",
+            expires_in=auth_service_settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        )
+
     async def register_user(self, user_data: SUserRegister) -> User:
         """Регистрирует нового пользователя."""
         async with UnitOfWork(self.session):
@@ -53,9 +76,9 @@ class AuthService:
             user = User(
                 email=user_data.email,
                 hashed_password=hashed_password,
-                role=user_data.role,
+                first_name=user_data.first_name,
+                last_name=user_data.last_name,
             )
-
             await self.user_repo.add(user)
 
         event = UserRegisterEvent(
@@ -66,7 +89,6 @@ class AuthService:
         )
         await self.event_publisher.publish(event)
         logger.info("Событие user.registered опубликовано для {}".format(user.email))
-
         return user
 
     async def login_user(
@@ -81,39 +103,23 @@ class AuthService:
         if not user or not verify_password(user_data.password, user.hashed_password):
             raise IncorrectEmailOrPasswordException
 
-        token_data = {
-            "user_id": user.id,
-            "email": user.email,
-            "role": user.role,
-            "is_active": user.is_active,
-        }
-
-        access_token = create_access_token(data=token_data)
-        refresh_token = create_refresh_token()
-
-        refresh_token_expires = datetime.now(UTC) + timedelta(
-            days=auth_service_settings.REFRESH_TOKEN_EXPIRE_DAYS
-        )
+        access_token = create_access_token(data=self._build_token_data(user))
+        refresh_token, refresh_token_expires = self._create_refresh_token_data()
 
         async with UnitOfWork(self.session):
-            await self.token_repo.create_refresh_token(
+            token = RefreshToken(
                 refresh_token=refresh_token,
                 user_id=user.id,
                 expires_at=refresh_token_expires,
                 user_agent=user_agent,
                 ip_address=ip_address,
             )
+            await self.token_repo.add(token=token)
 
-            logger.info("Refresh token создан для {}".format(user.email))
+            logger.info("Refresh token создан для %s", user.email)
 
-        logger.info("Пользователь {} успешно вошел в систему".format(user.email))
-
-        return Token(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_type="Bearer",
-            expires_in=auth_service_settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        )
+        logger.info("Пользователь %s успешно вошел в систему", user.email)
+        return self._build_token_response(access_token, refresh_token)
 
     async def refresh_tokens(
         self,
@@ -135,62 +141,49 @@ class AuthService:
         Raises:
             HTTPException: Если refresh token невалиден
         """
-
-        # Валидируем refresh token
-        token_record: RefreshToken = await self.token_repo.validate_refresh_token(
-            refresh_token
-        )
-        if not token_record:
-            raise HTTPException(status_code=401, detail="Invalid refresh token")
-
-        user = await self.user_repo.find_one_or_none_by_id(user_id=token_record.user_id)
-        if not user or not user.is_active:
-            raise HTTPException(status_code=401, detail="User not found or inactive")
-
-        # Отзываем старый refresh token
-        await self.token_repo.revoke_refresh_token(refresh_token=refresh_token)
-
-        new_access_token = create_access_token(
-            data={
-                "user_id": user.id,
-                "email": user.email,
-                "role": user.role.value,
-                "is_active": user.is_active,
-            }
-        )
-
-        # Создаем новый refresh token
-        new_refresh_token = create_refresh_token()
-        refresh_token_expires = datetime.now(timezone.utc) + timedelta(
-            days=auth_service_settings.REFRESH_TOKEN_EXPIRE_DAYS
-        )
-
         async with UnitOfWork(self.session):
+            token_record: RefreshToken = await self.token_repo.find_by_token(
+                refresh_token=refresh_token
+            )
+            if (
+                not token_record
+                or token_record.revoked
+                or token_record.expires_at < datetime.now(timezone.utc)
+            ):
+                raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-            await self.token_repo.revoke_refresh_token(refresh_token=refresh_token)
+            user = await self.user_repo.find_one_or_none_by_id(
+                user_id=token_record.user_id
+            )
+            if not user or not user.is_active:
+                raise HTTPException(
+                    status_code=401, detail="User not found or inactive"
+                )
 
-            await self.token_repo.create_refresh_token(
+            new_access_token = create_access_token(data=self._build_token_data(user))
+            new_refresh_token, refresh_token_expires = self._create_refresh_token_data()
+
+            await self.token_repo.update(
+                filters={"refresh_token": refresh_token}, values={"revoked": True}
+            )
+
+            token = RefreshToken(
                 refresh_token=new_refresh_token,
                 user_id=user.id,
                 expires_at=refresh_token_expires,
                 user_agent=user_agent,
                 ip_address=ip_address,
             )
+            await self.token_repo.add(token=token)
+            logger.info("Refresh token обновлен для %s", user.email)
 
-            logger.info(f"Refresh token обновлен для {user.email}")
-
-        return Token(
-            access_token=new_access_token,
-            refresh_token=new_refresh_token,
-            token_type="Bearer",
-            expires_in=auth_service_settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        )
+        return self._build_token_response(new_access_token, new_refresh_token)
 
     async def logout(self, refresh_token: str) -> Dict[str, str]:
-
         async with UnitOfWork(self.session):
-            await self.token_repo.revoke_refresh_token(refresh_token=refresh_token)
-
+            await self.token_repo.update(
+                filters={"refresh_token": refresh_token}, values={"revoked": True}
+            )
             logger.info("Пользователь вышел из системы")
 
         return {"message": "Успешный выход из системы"}
@@ -200,8 +193,6 @@ class AuthService:
         async with UnitOfWork(self.session):
             count = await self.token_repo.revoke_all_user_tokens(user_id=user_id)
 
-            logger.info(
-                "Пользователь {} вышел со всех устройств ({})".format(user_id, count)
-            )
+            logger.info("Пользователь %s вышел со всех устройств (%s)", user_id, count)
 
         return {"message": f"Выход выполнен на {count} устройствах"}
