@@ -1,13 +1,12 @@
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from auth_service.app.config import auth_service_settings
+from auth_service.app.models import Base
+from .unit_of_work import UnitOfWork
 
 engine = create_async_engine(auth_service_settings.DATABASE_URL, echo=False)
-async_session_maker = sessionmaker(
-    bind=engine, class_=AsyncSession, expire_on_commit=False
-)
-
-Base = declarative_base()
+async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
+uow = UnitOfWork(async_session_maker)
 
 
 async def get_db():
@@ -19,3 +18,7 @@ async def init_db():
     """Создание таблиц при старте"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+async def get_async_uow_session() -> AsyncGenerator[UnitOfWork, None]:
+    yield uow

@@ -35,30 +35,6 @@ class TokenRepository:
         await self._session.flush()
         return result.rowcount
 
-    #
-    # async def create_refresh_token(
-    #     self,
-    #     refresh_token: str,
-    #     user_id: int,
-    #     expires_at: datetime,
-    #     user_agent: Optional[str] = None,
-    #     ip_address: Optional[str] = None,
-    # ) -> Optional[RefreshToken]:get_user_tokens
-    #
-    #     token_record = RefreshToken(
-    #         refresh_token=refresh_token,
-    #         user_id=user_id,
-    #         expires_at=expires_at,
-    #         user_agent=user_agent,
-    #         ip_address=ip_address,
-    #         revoked=False,
-    #     )
-    #
-    #     self._session.add(token_record)
-    #     await self._session.flush()
-    #
-    #     return token_record
-
     async def find_by_token(self, refresh_token: str) -> RefreshToken | None:
         """Найти refresh token по значению"""
         query = select(RefreshToken).where(RefreshToken.refresh_token == refresh_token)
@@ -82,39 +58,6 @@ class TokenRepository:
         )
         result = await self._session.execute(query)
         return result.scalars().all()
-
-    # async def validate_refresh_token(
-    #     self, refresh_token: str
-    # ) -> Optional[RefreshToken]:
-    #     """
-    #     Проверить валидность refresh token
-    #
-    #     Args:
-    #         refresh_token: Строка токена
-    #
-    #     Returns:
-    #         RefreshToken если валиден, None если невалиден
-    #     """
-    #     token = await self.find_by_token(refresh_token)
-    #
-    #     if not token:
-    #         return None
-    #     if token.revoked:
-    #         return None
-    #     if token.expires_at < datetime.now(timezone.utc):
-    #         return None
-    #
-    #     return token
-
-    # async def revoke_refresh_token(self, refresh_token: str) -> bool:
-    #     """Отозвать refresh token"""
-    #     token = await self.find_by_token(refresh_token)
-    #     if not token:
-    #         return False
-    #     token.revoked = True
-    #     await self._session.flush()
-    #
-    #     return True
 
     async def revoke_all_user_tokens(self, user_id: int) -> int:
         """Отозвать все refresh токены пользователя"""

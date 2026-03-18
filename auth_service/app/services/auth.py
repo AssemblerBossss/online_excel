@@ -1,6 +1,6 @@
 import logging
-from datetime import datetime, timedelta, UTC, timezone
-from typing import Dict, Any, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
@@ -10,14 +10,12 @@ from auth_service.app.exceptions import (
     IncorrectEmailOrPasswordException,
 )
 from auth_service.app.schemas import UserRegisterEvent
-from auth_service.app.unit_of_work import UnitOfWork
+from auth_service.app.сore.unit_of_work import UnitOfWork
 from auth_service.app.events import event_publisher
 from auth_service.app.models import User, RefreshToken
 from auth_service.app.repository import UserRepository, TokenRepository
 from auth_service.app.schemas import (
     SUserRegister,
-    SUserFilter,
-    SUserAddDB,
     SUserAuth,
     Token,
 )
@@ -34,9 +32,6 @@ logger = logging.getLogger(__name__)
 class AuthService:
 
     def __init__(self, session: AsyncSession):
-        self.session = session
-        self.user_repo = UserRepository(session)
-        self.token_repo = TokenRepository(session)
         self.event_publisher = event_publisher
 
     def _build_token_data(self, user: User) -> dict:
@@ -64,11 +59,13 @@ class AuthService:
             expires_in=auth_service_settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         )
 
-    async def register_user(self, user_data: SUserRegister) -> User:
+    async def register_user(
+        self, user_data: SUserRegister, uow_session: UnitOfWork
+    ) -> User:
         """Регистрирует нового пользователя."""
-        async with UnitOfWork(self.session):
+        async with uow_session.start():
 
-            if await self.user_repo.find_by_email(email=user_data.email):
+            if await uow_session.user.find_by_email(email=user_data.email):
                 raise UserAlreadyExistsException
 
             hashed_password = get_password_hash(user_data.password)
@@ -94,19 +91,22 @@ class AuthService:
     async def login_user(
         self,
         user_data: SUserAuth,
+        uow_session: UnitOfWork,
         user_agent: Optional[str] = None,
         ip_address: Optional[str] = None,
     ) -> Token:
         """Аутентифицирует пользователя и возвращает токены."""
-        user = await self.user_repo.find_by_email(email=user_data.email)
+        async with uow_session.start():
+            user = await uow_session.user.find_by_email(email=user_data.email)
 
-        if not user or not verify_password(user_data.password, user.hashed_password):
-            raise IncorrectEmailOrPasswordException
+            if not user or not verify_password(
+                user_data.password, user.hashed_password
+            ):
+                raise IncorrectEmailOrPasswordException
 
-        access_token = create_access_token(data=self._build_token_data(user))
-        refresh_token, refresh_token_expires = self._create_refresh_token_data()
+            access_token = create_access_token(data=self._build_token_data(user))
+            refresh_token, refresh_token_expires = self._create_refresh_token_data()
 
-        async with UnitOfWork(self.session):
             token = RefreshToken(
                 refresh_token=refresh_token,
                 user_id=user.id,
@@ -114,16 +114,17 @@ class AuthService:
                 user_agent=user_agent,
                 ip_address=ip_address,
             )
-            await self.token_repo.add(token=token)
+            await uow_session.token.add(token=token)
 
             logger.info("Refresh token создан для %s", user.email)
 
-        logger.info("Пользователь %s успешно вошел в систему", user.email)
-        return self._build_token_response(access_token, refresh_token)
+            logger.info("Пользователь %s успешно вошел в систему", user.email)
+            return self._build_token_response(access_token, refresh_token)
 
     async def refresh_tokens(
         self,
         refresh_token: str,
+        uow_session: UnitOfWork,
         user_agent: Optional[str] = None,
         ip_address: Optional[str] = None,
     ) -> Token:
@@ -134,6 +135,7 @@ class AuthService:
             refresh_token: Refresh token
             user_agent: User agent клиента
             ip_address: IP адрес клиента
+            uow_session:
 
         Returns:
             Token: Новые access token и refresh token
@@ -141,8 +143,8 @@ class AuthService:
         Raises:
             HTTPException: Если refresh token невалиден
         """
-        async with UnitOfWork(self.session):
-            token_record: RefreshToken = await self.token_repo.find_by_token(
+        async with uow_session.start():
+            token_record: RefreshToken = await uow_session.token.find_by_token(
                 refresh_token=refresh_token
             )
             if (
@@ -152,7 +154,7 @@ class AuthService:
             ):
                 raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-            user = await self.user_repo.find_one_or_none_by_id(
+            user = await uow_session.user.find_one_or_none_by_id(
                 user_id=token_record.user_id
             )
             if not user or not user.is_active:
@@ -163,7 +165,7 @@ class AuthService:
             new_access_token = create_access_token(data=self._build_token_data(user))
             new_refresh_token, refresh_token_expires = self._create_refresh_token_data()
 
-            await self.token_repo.update(
+            await uow_session.token.update(
                 filters={"refresh_token": refresh_token}, values={"revoked": True}
             )
 
@@ -174,24 +176,28 @@ class AuthService:
                 user_agent=user_agent,
                 ip_address=ip_address,
             )
-            await self.token_repo.add(token=token)
+            await uow_session.token.add(token=token)
             logger.info("Refresh token обновлен для %s", user.email)
 
         return self._build_token_response(new_access_token, new_refresh_token)
 
-    async def logout(self, refresh_token: str) -> Dict[str, str]:
-        async with UnitOfWork(self.session):
-            await self.token_repo.update(
+    async def logout(
+        self, refresh_token: str, uow_session: UnitOfWork
+    ) -> Dict[str, str]:
+        async with uow_session.start():
+            await uow_session.token.update(
                 filters={"refresh_token": refresh_token}, values={"revoked": True}
             )
             logger.info("Пользователь вышел из системы")
 
         return {"message": "Успешный выход из системы"}
 
-    async def logout_all_devices(self, user_id: int) -> Dict[str, str]:
+    async def logout_all_devices(
+        self, user_id: int, uow_session: UnitOfWork
+    ) -> Dict[str, str]:
 
-        async with UnitOfWork(self.session):
-            count = await self.token_repo.revoke_all_user_tokens(user_id=user_id)
+        async with uow_session.start():
+            count = await uow_session.token.revoke_all_user_tokens(user_id=user_id)
 
             logger.info("Пользователь %s вышел со всех устройств (%s)", user_id, count)
 

@@ -2,9 +2,10 @@ from typing import Annotated
 from fastapi import APIRouter, Response, Depends, Request
 from fastapi import status
 
-from auth_service.app.schemas.user import SUserRegister, SUserAuth, Token, TokenRefresh
+from auth_service.app.schemas import SUserRegister, SUserAuth, Token, TokenRefresh
 from auth_service.app.services import AuthService
 from auth_service.app.dependency import get_auth_service
+from auth_service.app.сore import UnitOfWork, get_async_uow_session
 
 router = APIRouter()
 
@@ -23,6 +24,7 @@ async def auth_user(
     request: Request,
     user_data: SUserAuth,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ):
     user_agent = request.headers.get("User-Agent")
     ip_address = request.client.host if request.client else None
@@ -31,6 +33,7 @@ async def auth_user(
         user_data=user_data,
         user_agent=user_agent,
         ip_address=ip_address,
+        uow_session=uow_session,
     )
     return tokens
 

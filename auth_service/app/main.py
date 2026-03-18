@@ -4,9 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from auth_service.app.config import auth_service_settings
-from auth_service.app.database import init_db
+from auth_service.app.сore import init_db, setup_service_logging
 from auth_service.app.routers import auth_router
-from auth_service.app.logging_config import setup_service_logging
 from auth_service.app.events import event_publisher
 
 setup_service_logging()
