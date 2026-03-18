@@ -1,12 +1,10 @@
 from fastapi import Request, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from auth_service.app.services import AuthService
-from auth_service.app.сore.database import get_db
-
 from typing import Annotated
-from auth_service.app.сore import UnitOfWork
+from auth_service.app.сore import UnitOfWork, get_async_uow_session, get_db
 from auth_service.app.models import User as UserORM
 from auth_service.app.schemas import SUserInfo, SUserFilter
+from auth_service.app.services import AuthService
 
 
 async def get_current_user(request: Request) -> SUserFilter:
