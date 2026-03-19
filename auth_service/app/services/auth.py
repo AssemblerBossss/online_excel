@@ -1,19 +1,18 @@
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 
 from auth_service.app.config import auth_service_settings
 from auth_service.app.exceptions import (
     UserAlreadyExistsException,
     IncorrectEmailOrPasswordException,
+    InvalidRefreshTokenException,
+    UserInactiveException,
 )
 from auth_service.app.schemas import UserRegisterEvent
 from auth_service.app.сore.unit_of_work import UnitOfWork
 from auth_service.app.events import event_publisher
 from auth_service.app.models import User, RefreshToken
-from auth_service.app.repository import UserRepository, TokenRepository
 from auth_service.app.schemas import (
     SUserRegister,
     SUserAuth,
@@ -31,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 class AuthService:
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self):
         self.event_publisher = event_publisher
 
     def _build_token_data(self, user: User) -> dict:
@@ -152,15 +151,13 @@ class AuthService:
                 or token_record.revoked
                 or token_record.expires_at < datetime.now(timezone.utc)
             ):
-                raise HTTPException(status_code=401, detail="Invalid refresh token")
+                raise InvalidRefreshTokenException()
 
             user = await uow_session.user.find_one_or_none_by_id(
                 user_id=token_record.user_id
             )
             if not user or not user.is_active:
-                raise HTTPException(
-                    status_code=401, detail="User not found or inactive"
-                )
+                raise UserInactiveException()
 
             new_access_token = create_access_token(data=self._build_token_data(user))
             new_refresh_token, refresh_token_expires = self._create_refresh_token_data()

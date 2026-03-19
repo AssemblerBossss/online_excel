@@ -1,10 +1,9 @@
 from fastapi import Request, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 from auth_service.app.сore import UnitOfWork, get_async_uow_session, get_db
 from auth_service.app.models import User as UserORM
 from auth_service.app.schemas import SUserInfo, SUserFilter
-from auth_service.app.services import AuthService
+from auth_service.app.services import AuthService, UserService
 
 
 async def get_current_user(request: Request) -> SUserFilter:
@@ -27,6 +26,10 @@ async def get_current_active_user(
         return SUserInfo.model_validate(user)
 
 
-def get_auth_service(session: Annotated[AsyncSession, Depends(get_db)]) -> AuthService:
+def get_auth_service() -> AuthService:
     """Dependency для получения AuthService"""
-    return AuthService(session)
+    return AuthService()
+
+
+def get_user_service() -> UserService:
+    return UserService()
