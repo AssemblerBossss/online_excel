@@ -54,8 +54,8 @@ api.interceptors.response.use(
             !originalRequest.url?.includes('/auth/logout')
         ) {
             // Проверяем наличие refresh token
-            const refreshToken = localStorage.getItem('refresh_token');
-            if (!refreshToken) {
+            const storedRefreshToken = localStorage.getItem('refresh_token');
+            if (!storedRefreshToken) {
                 // window.location.href = '/login';
                 return Promise.reject(error);
             }
@@ -77,7 +77,7 @@ api.interceptors.response.use(
 
             try {
                 // Отправляем refresh token в теле запроса
-                const refreshResponse = await refreshToken(refreshToken);
+                const refreshResponse = await refreshToken(storedRefreshToken);
 
                 if (refreshResponse.data.access_token) {
                     localStorage.setItem('access_token', refreshResponse.data.access_token);

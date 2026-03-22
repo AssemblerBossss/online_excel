@@ -11,9 +11,14 @@ from table_service.app.api.endpoints import (
     data_router,
     tables_router,
 )
-from table_service.app.core import init_db, app_settings
-from table_service.app.core import user_validator_instance
-from table_service.app.core import setup_service_logging
+from table_service.app.core import (
+    init_db,
+    app_settings,
+    user_event_consumer,
+    user_validator_instance,
+    setup_service_logging,
+)
+
 
 setup_service_logging()
 logger = logging.getLogger(__name__)
@@ -34,8 +39,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     )
     FastAPICache.init(RedisBackend(redis), prefix="table_service")
 
+    await user_event_consumer.connect()
+    logger.info("UserEventConsumer started")
+
     yield
     await user_validator_instance.close()
+    await user_event_consumer.close()
+    await redis.close()
 
 
 def create_app() -> FastAPI:

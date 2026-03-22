@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     DB_NAME: str = "online_excel"
     DB_DRIVER: str = "postgresql+asyncpg"
 
-    CACHE_HOST: str = "0.0.0.0"
+    CACHE_HOST: str = "redis"
     CACHE_PORT: int = 14000
     CACHE_DB: int = 0
 
