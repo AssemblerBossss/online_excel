@@ -106,6 +106,9 @@ services:
       EXCEL_APP__DB_PASSWORD: online_excel
       EXCEL_APP__DB_NAME: online_excel
       EXCEL_APP__DB_DRIVER: postgresql+asyncpg
+      EXCEL_APP__CACHE_HOST: redis
+      EXCEL_APP__CACHE_PORT: 6379
+      EXCEL_APP__CACHE_DB: 0
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: guest
@@ -115,6 +118,8 @@ services:
       db:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "8000:8000"
@@ -144,6 +149,19 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: online_excel_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - appnet
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   frontend:
     build: ./frontend

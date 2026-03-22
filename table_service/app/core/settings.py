@@ -7,11 +7,6 @@ LOG_FORMAT_DEFAULT = (
 )
 
 
-class LoggingConfig(BaseModel):
-    log_level: Literal["debug", "info", "warning", "error", "critical"] = "info"
-    log_format: str = LOG_FORMAT_DEFAULT
-
-
 class UvicornConfig(BaseSettings):
     APP_PORT: int = 8080
     APP_HOST: str = "0.0.0.0"
@@ -28,7 +23,6 @@ class Settings(BaseSettings):
 
     gunicorn: GunicornConfig = GunicornConfig()
     uvicorn: UvicornConfig = UvicornConfig()
-    logging: LoggingConfig = LoggingConfig()
 
     DB_HOST: str = "online_excel_db"
     DB_PORT: int = 5432

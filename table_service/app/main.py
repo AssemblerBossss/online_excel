@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
 
 from table_service.app.api.endpoints import (
     data_router,
@@ -21,6 +23,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
     await user_validator_instance.connect()
     await init_db()
+
+    redis = Redis(
+        host=app_settings.CACHE_HOST,
+        port=app_settings.CACHE_PORT,
+        db=app_settings.CACHE_DB,
+        encoding="utf8",
+        decode_responses=False,
+    )
+    FastAPICache.init(RedisBackend(redis), prefix="table_service")
+
     yield
     await user_validator_instance.close()
 

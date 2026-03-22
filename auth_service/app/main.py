@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from auth_service.app.config import auth_service_settings
 from auth_service.app.сore import init_db, setup_service_logging
-from auth_service.app.routers import auth_router
+from auth_service.app.routers import auth_router, user_router
 from auth_service.app.events import event_publisher
 from auth_service.app.exceptions import AppException
 
@@ -50,6 +50,7 @@ app.add_middleware(
 
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(user_router, prefix="/user", tags=["user"])
 
 
 # Exception handlers

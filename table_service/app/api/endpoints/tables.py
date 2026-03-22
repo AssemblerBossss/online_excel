@@ -8,6 +8,8 @@ from fastapi import (
     Form,
     Header,
 )
+from fastapi_cache import FastAPICache
+from fastapi_cache.decorator import cache
 
 from table_service.app.schemas import DataTableCreate, DataTableResponse
 from table_service.app.services import TableService
@@ -18,10 +20,10 @@ router = APIRouter()
 
 
 @router.get("/", response_model=List[DataTableResponse])
+@cache(expire=120, namespace="tables")
 async def get_tables(
     table_service: Annotated[TableService, Depends(get_table_service)],
 ) -> List[DataTableResponse]:
-
     return await table_service.get_all_tables()
 
 
@@ -33,8 +35,9 @@ async def create_table(
     table_service: Annotated[TableService, Depends(get_table_service)],
     x_user_id: int = Header(None, alias="X-User-ID"),
 ) -> DataTableResponse:
-
-    return await table_service.create_table(table_data=table_data, user_id=x_user_id)
+    result = await table_service.create_table(table_data=table_data, user_id=x_user_id)
+    await FastAPICache.clear(namespace="tables")
+    return result
 
 
 @router.post(
@@ -46,16 +49,17 @@ async def create_table_from_excel(
     table_service: Annotated[TableService, Depends(get_table_service)],
     x_user_id: int = Header(None, alias="X-User-ID"),
     table_name: str = Form(...),
-    description: str = Form(None),  # Добавьте опциональное поле
+    description: str = Form(None),
     file: UploadFile = File(..., description="Excel file to process"),
 ) -> DataTableResponse:
-
-    return await table_service.create_table_from_excel_file(
+    result = await table_service.create_table_from_excel_file(
         excel_file=file,
         user_id=x_user_id,
         table_name=table_name,
         description=description,
     )
+    await FastAPICache.clear(namespace="tables")
+    return result
 
 
 @router.delete(
@@ -72,4 +76,6 @@ async def delete_table(
     await table_service.delete_table(
         table_id=table_id, user_id=x_user_id, user_role=x_user_role
     )
+    await FastAPICache.clear(namespace="tables")
+    await FastAPICache.clear(namespace="rows")
     return None

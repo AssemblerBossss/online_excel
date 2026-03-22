@@ -2,13 +2,13 @@ from typing import List, Optional, Literal, Annotated
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     status,
     Query,
     Path,
-    Response,
     Header,
 )
+from fastapi_cache.decorator import cache
+from fastapi_cache import FastAPICache
 
 from table_service.app.schemas import (
     TableRowResponse,
@@ -23,6 +23,7 @@ router = APIRouter()
 
 
 @router.get("/{table_id}/rows", response_model=List[TableRowResponse])
+@cache(expire=60, namespace="rows")
 async def list_table_rows(
     data_service: Annotated[DataService, Depends(get_data_service)],
     x_user_id: int = Header(None, alias="X-User-ID"),
@@ -48,6 +49,7 @@ async def list_table_rows(
 
 
 @router.get("/{table_id}/rows/{row_id}", response_model=TableRowResponse)
+@cache(expire=120, namespace="rows")
 async def get_row(
     data_service: Annotated[DataService, Depends(get_data_service)],
     x_user_id: int = Header(None, alias="X-User-ID"),
@@ -86,6 +88,7 @@ async def create_table_row(
         user_id=x_user_id,
         row_data=row_data,
     )
+    await FastAPICache.clear(namespace="rows")
     return result
 
 
@@ -107,6 +110,7 @@ async def update_row(
         user_id=x_user_id,
         row_data=row_data,
     )
+    await FastAPICache.clear(namespace="rows")
     return result
 
 
@@ -126,3 +130,4 @@ async def delete_row(
         row_id=row_id,
         user_id=x_user_id,
     )
+    await FastAPICache.clear(namespace="rows")
