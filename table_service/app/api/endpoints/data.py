@@ -1,11 +1,10 @@
-from typing import List, Optional, Literal, Annotated
+from typing import Annotated, Literal
 from fastapi import (
     APIRouter,
     Depends,
     status,
     Query,
     Path,
-    Header,
 )
 from fastapi_cache.decorator import cache
 from fastapi_cache import FastAPICache
@@ -14,59 +13,50 @@ from table_service.app.schemas import (
     TableRowResponse,
     TableRowCreate,
     TableRowUpdate,
+    SCurrentUser,
 )
 from table_service.app.services import DataService
-from table_service.app.api.dependencies import get_data_service
-
+from table_service.app.api.dependencies import get_data_service, get_current_active_user
 
 router = APIRouter()
 
 
-@router.get("/{table_id}/rows", response_model=List[TableRowResponse])
+@router.get("/{table_id}/rows", response_model=list[TableRowResponse])
 @cache(expire=60, namespace="rows")
 async def list_table_rows(
     data_service: Annotated[DataService, Depends(get_data_service)],
-    x_user_id: int = Header(None, alias="X-User-ID"),
-    x_user_email: str = Header(None, alias="X-User-Email"),
-    x_user_role: str = Header(None, alias="X-User-Role"),
-    x_user_active: str = Header(None, alias="X-User-Active"),
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     skip: int = Query(0, description="Количество пропускаемых строк", ge=0),
     limit: int = Query(100, description="Максимальное количество строк", ge=1, le=1000),
-    sort_by: Optional[str] = Query(None),
+    sort_by: str | None = Query(None),
     sort_order: Literal["asc", "desc"] = Query(default="asc"),
     table_id: int = Path(..., description="ID таблицы", ge=1),
 ):
-    result: list[TableRowResponse] = await data_service.get_table_rows(
+    return await data_service.get_table_rows(
         table_id=table_id,
-        user_id=x_user_id,
-        user_role=x_user_role,
+        user_id=current_user.user_id,
+        user_role=current_user.role,
         skip=skip,
         limit=limit,
         sort_by=sort_by,
         sort_order=sort_order,
     )
-    return result
 
 
 @router.get("/{table_id}/rows/{row_id}", response_model=TableRowResponse)
 @cache(expire=120, namespace="rows")
 async def get_row(
     data_service: Annotated[DataService, Depends(get_data_service)],
-    x_user_id: int = Header(None, alias="X-User-ID"),
-    x_user_email: str = Header(None, alias="X-User-Email"),
-    x_user_role: str = Header(None, alias="X-User-Role"),
-    x_user_active: str = Header(None, alias="X-User-Active"),
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     table_id: int = Path(..., description="ID таблицы", ge=1),
     row_id: int = Path(..., description="ID строки", ge=1),
-):
+) -> list[TableRowResponse]:
     """Получить строку по ID"""
-    result = await data_service.get_table_row(
+    return await data_service.get_table_row(
         table_id=table_id,
-        user_id=x_user_id,
+        user_id=current_user.user_id,
         row_id=row_id,
     )
-
-    return result
 
 
 @router.post(
@@ -77,15 +67,13 @@ async def get_row(
 async def create_table_row(
     row_data: TableRowCreate,
     data_service: Annotated[DataService, Depends(get_data_service)],
-    x_user_id: int = Header(None, alias="X-User-ID"),
-    x_user_email: str = Header(None, alias="X-User-Email"),
-    x_user_role: str = Header(None, alias="X-User-Role"),
-    x_user_active: str = Header(None, alias="X-User-Active"),
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     table_id: int = Path(description="ID таблицы", ge=1),
-):
+) -> TableRowResponse:
+    """Создать строку таблицы"""
     result = await data_service.create_table_row(
         table_id=table_id,
-        user_id=x_user_id,
+        user_id=current_user.user_id,
         row_data=row_data,
     )
     await FastAPICache.clear(namespace="rows")
@@ -96,18 +84,15 @@ async def create_table_row(
 async def update_row(
     row_data: TableRowUpdate,
     data_service: Annotated[DataService, Depends(get_data_service)],
-    x_user_id: int = Header(None, alias="X-User-ID"),
-    x_user_email: str = Header(None, alias="X-User-Email"),
-    x_user_role: str = Header(None, alias="X-User-Role"),
-    x_user_active: str = Header(None, alias="X-User-Active"),
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     table_id: int = Path(..., description="ID таблицы", ge=1),
     row_id: int = Path(..., description="ID строки", ge=1),
-):
+) -> TableRowResponse | None:
     """Обновить строку таблицы"""
     result = await data_service.update_table_row(
         table_id=table_id,
         row_id=row_id,
-        user_id=x_user_id,
+        user_id=current_user.user_id,
         row_data=row_data,
     )
     await FastAPICache.clear(namespace="rows")
@@ -117,10 +102,7 @@ async def update_row(
 @router.delete("/{table_id}/rows/{row_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_row(
     data_service: Annotated[DataService, Depends(get_data_service)],
-    x_user_id: int = Header(None, alias="X-User-ID"),
-    x_user_email: str = Header(None, alias="X-User-Email"),
-    x_user_role: str = Header(None, alias="X-User-Role"),
-    x_user_active: str = Header(None, alias="X-User-Active"),
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     table_id: int = Path(..., description="ID таблицы", ge=1),
     row_id: int = Path(..., description="ID строки", ge=1),
 ):
@@ -128,6 +110,6 @@ async def delete_row(
     await data_service.delete_table_row(
         table_id=table_id,
         row_id=row_id,
-        user_id=x_user_id,
+        user_id=current_user.user_id,
     )
     await FastAPICache.clear(namespace="rows")

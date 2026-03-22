@@ -1,5 +1,6 @@
 from .data import TableRowCreate, TableRowResponse, TableRowUpdate, TableRowInDB
 from .table import DataTableCreate, DataTableResponse
+from .user import SCurrentUser, SUserFilter
 
 
 __all__ = [
@@ -9,4 +10,6 @@ __all__ = [
     "TableRowInDB",
     "DataTableCreate",
     "DataTableResponse",
+    "SCurrentUser",
+    "SUserFilter",
 ]
