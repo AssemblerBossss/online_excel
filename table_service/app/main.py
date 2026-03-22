@@ -5,12 +5,13 @@ from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
+from redis import Redis
 
 from table_service.app.api.endpoints import (
     data_router,
     tables_router,
 )
-from table_service.app.core import init_db
+from table_service.app.core import init_db, app_settings
 from table_service.app.core import user_validator_instance
 from table_service.app.core import setup_service_logging
 
