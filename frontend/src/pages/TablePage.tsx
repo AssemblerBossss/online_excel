@@ -90,11 +90,7 @@ const TablesPage: React.FC = () => {
             }
 
             // Используем axios для загрузки файла
-            const response = await api.post('/tables/process_excel', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
+            const response = await api.post('/tables/process_excel', formData);
 
             const newTable = response.data;
 

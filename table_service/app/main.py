@@ -5,7 +5,7 @@ from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
-from redis import Redis
+from redis.asyncio import Redis
 
 from table_service.app.api.endpoints import (
     data_router,

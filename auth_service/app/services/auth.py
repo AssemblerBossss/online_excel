@@ -75,7 +75,7 @@ class AuthService:
                 first_name=user_data.first_name,
                 last_name=user_data.last_name,
             )
-            await self.user_repo.add(user)
+            await uow_session.user.add(user)
 
         event = UserRegisterEvent(
             user_id=str(user.id),

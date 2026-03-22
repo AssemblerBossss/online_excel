@@ -14,8 +14,12 @@ router = APIRouter()
 async def register_user(
     user_data: SUserRegister,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ):
-    await auth_service.register_user(user_data)
+    await auth_service.register_user(
+        user_data,
+        uow_session=uow_session,
+    )
     return {"message": "Вы успешно зарегистрированы!"}
 
 
@@ -42,8 +46,11 @@ async def auth_user(
 async def logout(
     token_data: TokenRefresh,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ):
-    result = await auth_service.logout(refresh_token=token_data.refresh_token)
+    result = await auth_service.logout(
+        refresh_token=token_data.refresh_token, uow_session=uow_session
+    )
     return result
 
 
@@ -52,6 +59,7 @@ async def refresh_tokens(
     request: Request,
     token_data: TokenRefresh,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ):
     """Обновление токенов"""
     user_agent = request.headers.get("User-Agent")
@@ -61,5 +69,6 @@ async def refresh_tokens(
         refresh_token=token_data.refresh_token,
         user_agent=user_agent,
         ip_address=ip_address,
+        uow_session=uow_session,
     )
     return tokens

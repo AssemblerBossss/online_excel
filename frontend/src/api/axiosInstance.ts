@@ -11,14 +11,8 @@ api.interceptors.request.use((config) => {
     const token = localStorage.getItem('access_token');
     const tokenType = localStorage.getItem('token_type') || 'Bearer';
 
-    console.log('🔵 Request Details:', {
-        url: config.url,
-        fullURL: `${API_BASE_URL}${config.url}`,
-        method: config.method,
-        token: token ? 'present' : 'missing',
-        headers: config.headers
-    });
-
+    console.log('TOKEN FROM STORAGE:', token?.substring(0, 20));  // ← добавь
+    console.log('AUTH HEADER:', config.headers.Authorization);     // ← добавь
 
     if (token && config.headers) {
         config.headers.Authorization = `${tokenType} ${token}`;
@@ -62,7 +56,7 @@ api.interceptors.response.use(
             // Проверяем наличие refresh token
             const refreshToken = localStorage.getItem('refresh_token');
             if (!refreshToken) {
-                window.location.href = '/login';
+                // window.location.href = '/login';
                 return Promise.reject(error);
             }
 
@@ -83,16 +77,16 @@ api.interceptors.response.use(
 
             try {
                 // Отправляем refresh token в теле запроса
-                const refreshResponse = await api.post('/auth/refresh', {
-                    refresh_token: refreshToken
-                });
+                const refreshResponse = await refreshToken(refreshToken);
 
                 if (refreshResponse.data.access_token) {
                     localStorage.setItem('access_token', refreshResponse.data.access_token);
                     if (refreshResponse.data.token_type) {
                         localStorage.setItem('token_type', refreshResponse.data.token_type);
                     }
-
+                    if (refreshResponse.data.refresh_token) {
+                        localStorage.setItem('refresh_token', refreshResponse.data.refresh_token);
+                    }
                     // Обновляем заголовок для оригинального запроса
                     if (originalRequest.headers) {
                         originalRequest.headers.Authorization =
@@ -107,7 +101,7 @@ api.interceptors.response.use(
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
                 localStorage.removeItem('token_type');
-                window.location.href = '/login';
+                // window.location.href = '/login';
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;

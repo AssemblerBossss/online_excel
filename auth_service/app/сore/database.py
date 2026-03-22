@@ -6,7 +6,6 @@ from .unit_of_work import UnitOfWork
 
 engine = create_async_engine(auth_service_settings.DATABASE_URL, echo=False)
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
-uow = UnitOfWork(async_session_maker)
 
 
 async def get_db():
@@ -21,4 +20,4 @@ async def init_db():
 
 
 async def get_async_uow_session() -> AsyncGenerator[UnitOfWork, None]:
-    yield uow
+    yield UnitOfWork(async_session_maker)

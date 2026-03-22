@@ -126,10 +126,19 @@ def get_data_service(
 
 async def get_current_user(request: Request) -> SUserFilter:
     """Извлекает данные пользователя из request.state (заполняется JWT middleware)."""
-    payload = getattr(request.state, "user", None)
-    if payload is None:
+    user_id = request.headers.get("X-User-ID")
+    email = request.headers.get("X-User-Email")
+    role = request.headers.get("X-User-Role")
+    is_active = request.headers.get("X-User-Active")
+    if not user_id or not email:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return SUserFilter(**payload)
+
+    return SUserFilter(
+        user_id=int(user_id),
+        email=email,
+        role=role,
+        is_active=is_active.lower() == "true" if is_active else False,
+    )
 
 
 async def get_current_active_user(
