@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
@@ -6,24 +6,25 @@ from fastapi import (
     UploadFile,
     File,
     Form,
-    Header,
 )
 from fastapi_cache import FastAPICache
 from fastapi_cache.decorator import cache
 
-from table_service.app.schemas import DataTableCreate, DataTableResponse
+from table_service.app.schemas import DataTableCreate, DataTableResponse, SCurrentUser
 from table_service.app.services import TableService
-from table_service.app.api.dependencies import get_table_service
-
+from table_service.app.api.dependencies import (
+    get_table_service,
+    get_current_active_user,
+)
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[DataTableResponse])
+@router.get("/", response_model=list[DataTableResponse])
 @cache(expire=120, namespace="tables")
 async def get_tables(
     table_service: Annotated[TableService, Depends(get_table_service)],
-) -> List[DataTableResponse]:
+) -> list[DataTableResponse]:
     return await table_service.get_all_tables()
 
 
@@ -33,9 +34,11 @@ async def get_tables(
 async def create_table(
     table_data: DataTableCreate,
     table_service: Annotated[TableService, Depends(get_table_service)],
-    x_user_id: int = Header(None, alias="X-User-ID"),
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
 ) -> DataTableResponse:
-    result = await table_service.create_table(table_data=table_data, user_id=x_user_id)
+    result = await table_service.create_table(
+        table_data=table_data, user_id=current_user.user_id
+    )
     await FastAPICache.clear(namespace="tables")
     return result
 
@@ -47,14 +50,14 @@ async def create_table(
 )
 async def create_table_from_excel(
     table_service: Annotated[TableService, Depends(get_table_service)],
-    x_user_id: int = Header(None, alias="X-User-ID"),
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     table_name: str = Form(...),
     description: str = Form(None),
     file: UploadFile = File(..., description="Excel file to process"),
 ) -> DataTableResponse:
     result = await table_service.create_table_from_excel_file(
         excel_file=file,
-        user_id=x_user_id,
+        user_id=current_user.user_id,
         table_name=table_name,
         description=description,
     )
@@ -69,12 +72,12 @@ async def create_table_from_excel(
 async def delete_table(
     table_id: int,
     table_service: Annotated[TableService, Depends(get_table_service)],
-    x_user_id: int = Header(None, alias="X-User-ID"),
-    x_user_role: str = Header(None, alias="X-User-Role"),
-    x_user_active: str = Header(None, alias="X-User-Active"),
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
 ):
     await table_service.delete_table(
-        table_id=table_id, user_id=x_user_id, user_role=x_user_role
+        table_id=table_id,
+        user_id=current_user.user_id,
+        user_role=current_user.role,
     )
     await FastAPICache.clear(namespace="tables")
     await FastAPICache.clear(namespace="rows")

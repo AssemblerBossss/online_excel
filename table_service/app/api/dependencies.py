@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from table_service.app.services import DataService, TableService
 from table_service.app.repository import TableRepository, DataRepository, UserRepository
 from table_service.app.core import AsyncSessionFactory
-from table_service.app.schemas import SUserInfo, SUserFilter, SCurrentUser
+from table_service.app.schemas import SCurrentUser, SUserFilter
 
 
 async def get_session_with_commit() -> AsyncGenerator[AsyncSession, None]:
