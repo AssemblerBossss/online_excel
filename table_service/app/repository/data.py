@@ -1,6 +1,4 @@
-from sqlalchemy import select, update, delete, insert, asc, desc
-from typing import Optional, List
-
+from sqlalchemy import select, update, delete, insert, asc, desc, Sequence
 from table_service.app.models import TableRow, DataTable
 from table_service.app.repository.base import Base
 from table_service.app.schemas import TableRowCreate, TableRowUpdate
@@ -13,9 +11,9 @@ class DataRepository(Base):
         table_id: int,
         skip: int = 0,
         limit: int = 100,
-        sort_by: Optional[str] = None,
-        sort_order: Optional[str] = "asc",
-    ) -> List[TableRow]:
+        sort_by: str | None = None,
+        sort_order: str | None = "asc",
+    ) -> Sequence[TableRow]:
         """
         Получить строки таблицы с пагинацией и сортировкой.
 
@@ -27,7 +25,7 @@ class DataRepository(Base):
             sort_order: Порядок сортировки - "asc" (по возрастанию) или "desc" (по убыванию)
 
         Returns:
-            List[TableRow]: Список строк таблицы
+            Sequence[TableRow]: Список строк таблицы
 
         Raises:
             SQLAlchemyError: При ошибках выполнения запроса к базе данных
@@ -51,11 +49,20 @@ class DataRepository(Base):
             )
 
         result = await self._session.execute(stmt)
-        return list(result.scalars().all())
+        return result.scalars().all()
+
+    async def get_row_by_id(self, table_id: int, row_id: int) -> TableRow | None:
+        """Получить строку по ID."""
+        stmt = select(TableRow).where(
+            TableRow.id == row_id,
+            TableRow.table_id == table_id,
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def create_table_row(
         self, table_id: int, row_data: TableRowCreate
-    ) -> Optional[TableRow]:
+    ) -> TableRow | None:
         """
         Создать новую строку в указанной таблице.
 
@@ -79,7 +86,7 @@ class DataRepository(Base):
         return new_row
 
     async def bulk_create_table_row(
-        self, table_id: int, rows_data: List[TableRowCreate]
+        self, table_id: int, rows_data: list[TableRowCreate]
     ) -> int:
         """
         Массовое создание строк в таблице.
@@ -110,7 +117,7 @@ class DataRepository(Base):
         table_id: int,
         row_id: int,
         row_data: TableRowUpdate,
-    ) -> Optional[TableRow]:
+    ) -> TableRow | None:
         """
         Обновить строку в указанной таблице.
 
@@ -118,9 +125,6 @@ class DataRepository(Base):
             table_id: ID таблицы, в которую добавляется строка
             row_id: ID строки
             row_data: Данные строки в формате JSON/dict. Должны соответствовать схеме таблицы.
-
-        Returns:
-            Optional[TableRow]: Обновленная строка таблицы или None при ошибке
         """
         row_data_dict = (
             row_data.row_data
@@ -144,11 +148,6 @@ class DataRepository(Base):
     ) -> bool:
         """
         Удалить строку из таблицы.
-
-        Args:
-            table_id: ID таблицы
-            row_id: ID строки для удаления
-
         Returns:
             bool: True если строка была удалена, False если не найдена
         """

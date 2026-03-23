@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated, Literal
 from fastapi import (
     APIRouter,
@@ -18,6 +19,7 @@ from table_service.app.schemas import (
 from table_service.app.services import DataService
 from table_service.app.api.dependencies import get_data_service, get_current_active_user
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -50,7 +52,7 @@ async def get_row(
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     table_id: int = Path(..., description="ID таблицы", ge=1),
     row_id: int = Path(..., description="ID строки", ge=1),
-) -> list[TableRowResponse]:
+) -> TableRowResponse | None:
     """Получить строку по ID"""
     return await data_service.get_table_row(
         table_id=table_id,
@@ -113,3 +115,5 @@ async def delete_row(
         user_id=current_user.user_id,
     )
     await FastAPICache.clear(namespace="rows")
+    logger.info("Cache cleared for namespace 'rows', table_id=%s", table_id)
+

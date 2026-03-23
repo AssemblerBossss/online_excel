@@ -69,7 +69,10 @@ async def proxy_request(
             detail=f"Bad gateway: Error communicating with {target_url}",
         )
 
-    # Возвращаем ответ от backend
+    response_headers = dict(response.headers)
+    response_headers["cache-control"] = "no-store"
+    response_headers.pop("etag", None)
+
     return Response(
         content=response.content,
         status_code=response.status_code,

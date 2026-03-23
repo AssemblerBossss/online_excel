@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Literal, List, Any
+from typing import Literal, Any
 
 from table_service.app.schemas import TableRowResponse, TableRowCreate, TableRowUpdate
 from table_service.app.repository import DataRepository, TableRepository
@@ -8,6 +8,7 @@ from table_service.app.exceptions import (
     ValidationException,
     NotFoundException,
 )
+from table_service.app.models import TableRow
 
 
 class DataService:
@@ -15,6 +16,16 @@ class DataService:
     def __init__(self, data_repo: DataRepository, table_repo: TableRepository):
         self.data_repo = data_repo
         self.table_repo = table_repo
+
+    @staticmethod
+    def _to_row_response(row: TableRow) -> TableRowResponse:
+        return TableRowResponse(
+            id=row.id,
+            table_id=row.table_id,
+            row_data=row.row_data,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
 
     def _validate_row_data_with_schema(
         self,
@@ -111,9 +122,7 @@ class DataService:
         return errors
 
     @staticmethod
-    def _validate_date_field(
-        value: Any, col_name: str, col_schema: dict
-    ) -> Optional[str]:
+    def _validate_date_field(value: Any, col_name: str, col_schema: dict) -> str | None:
         """Валидация поля типа 'date'"""
         if isinstance(value, str):
             try:
@@ -158,7 +167,7 @@ class DataService:
     @staticmethod
     def _validate_datetime_field(
         value: Any, col_name: str, col_schema: dict
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Валидация поля типа 'datetime'
         """
@@ -216,9 +225,9 @@ class DataService:
         user_role: str,
         skip: int = 0,
         limit: int = 100,
-        sort_by: Optional[str] = None,
+        sort_by: str | None = None,
         sort_order: Literal["asc", "desc"] = "asc",
-    ) -> List[TableRowResponse]:
+    ) -> list[TableRowResponse]:
         """Получить строки таблицы"""
 
         table = await self.table_repo.get_table_with_read_access(
@@ -239,53 +248,33 @@ class DataService:
             sort_order=sort_order,
         )
 
-        return [
-            TableRowResponse(
-                id=row.id,
-                table_id=row.table_id,
-                row_data=row.row_data,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
-            )
-            for row in rows
-        ]
+        return [self._to_row_response(row) for row in rows]
 
     async def get_table_row(
         self, table_id: int, user_id: int, row_id: int
-    ) -> List[TableRowResponse]:
+    ) -> TableRowResponse | None:
         """Получить строку таблицы"""
 
-        pass
-        # table = await self.table_repo.get_table_with_access(
-        #     table_id=table_id, user_id=user_id
-        # )
-        #
-        # if not table:
-        #     raise AccessDeniedException
-        #
-        # rows = await self.data_repo.get_rows_by_table_id(
-        #     table_id, skip, limit, sort_by, sort_order
-        # )
-        #
-        # return [
-        #     TableRowResponse(
-        #         id=row.id,
-        #         table_id=row.table_id,
-        #         row_data=row.row_data,
-        #         created_at=row.created_at,
-        #         updated_at=row.updated_at,
-        #     )
-        #     for row in rows
-        # ]
+        table = await self.table_repo.get_table_with_read_access(
+            table_id=table_id, user_id=user_id, user_role=None
+        )
+
+        if not table:
+            raise AccessDeniedException()
+
+        row = await self.data_repo.get_row_by_id(table_id=table_id, row_id=row_id)
+        if not row:
+            raise NotFoundException()
+
+        return self._to_row_response(row)
 
     async def create_table_row(
         self, table_id: int, user_id: int, row_data: TableRowCreate
     ) -> TableRowResponse:
         """Создать новую строку в таблице"""
-
         table = await self.table_repo.get_table_with_write_access(table_id, user_id)
         if not table:
-            raise AccessDeniedException("No write access to this table")
+            raise AccessDeniedException()
 
         validation_errors = self._validate_row_data_with_schema(
             table.columns_schema, row_data
@@ -295,18 +284,11 @@ class DataService:
 
         row = await self.data_repo.create_table_row(table_id, row_data)
 
-        return TableRowResponse(
-            id=row.id,
-            table_id=row.table_id,
-            row_data=row.row_data,
-            created_at=row.created_at,
-            updated_at=row.updated_at,
-        )
+        return self._to_row_response(row)
 
-    #
     async def update_table_row(
         self, table_id: int, row_id: int, user_id: int, row_data: TableRowUpdate
-    ) -> Optional[TableRowResponse]:
+    ) -> TableRowResponse | None:
         """Обновить строку таблицы"""
 
         table = await self.table_repo.get_table_with_write_access(table_id, user_id)
@@ -321,16 +303,18 @@ class DataService:
 
         row = await self.data_repo.update_table_row(table_id, row_id, row_data)
         if not row:
-            raise NotFoundException
+            raise NotFoundException()
 
-        return TableRowResponse(
-            id=row.id,
-            table_id=row.table_id,
-            row_data=row.row_data,
-            created_at=row.created_at,
-            updated_at=row.updated_at,
+        return self._to_row_response(row)
+
+    async def delete_table_row(self, table_id: int, row_id: int, user_id: int) -> None:
+        """Удалить строку таблицы"""
+        table = await self.table_repo.get_table_with_write_access(
+            table_id=table_id, user_id=user_id
         )
-
-    #
-    async def delete_table_row(self, table_id: int, row_id: int, user_id: int) -> bool:
-        pass
+        if not table:
+            raise AccessDeniedException()
+        row = await self.data_repo.get_row_by_id(table_id=table_id, row_id=row_id)
+        if not row:
+            raise NotFoundException()
+        await self.data_repo.delete_table_row(table_id=table_id, row_id=row_id)
