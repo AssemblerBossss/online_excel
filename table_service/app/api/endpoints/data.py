@@ -116,4 +116,3 @@ async def delete_row(
     )
     await FastAPICache.clear(namespace="rows")
     logger.info("Cache cleared for namespace 'rows', table_id=%s", table_id)
-

@@ -69,6 +69,9 @@ class TableService:
             table_id=table_id, user_id=user_id, user_role=user_role
         )
         if not table:
+            logger.warning(
+                "Table %s not found or access denied for user %s", table_id, user_id
+            )
             raise NotFoundException("Table not found or access denied")
         return self._to_response(table)
 
@@ -79,7 +82,14 @@ class TableService:
 
         table = await self.table_repo.create_table(table_data, user_id)
         if not table:
+            logger.error(
+                "Failed to create table '%s' for user %s", table_data.name, user_id
+            )
             raise CanNotCreateTableException()
+
+        logger.info(
+            "User %s created table %s (name: '%s')", user_id, table.id, table.name
+        )
         return self._to_response(table)
 
     async def create_table_from_excel_file(
@@ -100,11 +110,22 @@ class TableService:
         """
         # Валидация файла
         if not excel_file.filename.endswith((".xlsx", ".xls")):
+            logger.warning(
+                "User %s uploaded file with invalid format: '%s'",
+                user_id,
+                excel_file.filename,
+            )
+
             raise InvalidFileFormatException(
                 "Файл должен быть в формате Excel (.xlsx или .xls)"
             )
 
         if excel_file.content_type not in ALLOWED_EXCEL_MIME_TYPES:
+            logger.warning(
+                "User %s uploaded file with unsupported MIME type: '%s'",
+                user_id,
+                excel_file.content_type,
+            )
             raise InvalidFileMimeTypeException(
                 f"Unsupported file type: '{excel_file.content_type}'. "
                 f"Only {', '.join(ALLOWED_EXCEL_MIME_TYPES)} are allowed."
@@ -133,14 +154,35 @@ class TableService:
             table = await self.table_repo.create_table(table_data, user_id)
 
             if not table:
+                logger.error(
+                    "Failed to create table from Excel '%s' for user %s",
+                    excel_file.filename,
+                    user_id,
+                )
                 raise CanNotCreateTableException()
 
             await _import_excel_data_to_table(self.data_repo, table.id, df)
+            logger.info(
+                "User %s created table %s from Excel '%s' (%s rows, %s columns)",
+                user_id,
+                table.id,
+                excel_file.filename,
+                len(df),
+                len(df.columns),
+            )
             return self._to_response(table)
 
         except pd.errors.EmptyDataError:
+            logger.warning(
+                "User %s uploaded empty Excel file '%s'", user_id, excel_file.filename
+            )
             raise EmptyFileException("Excel файл пустой")
         except pd.errors.ParserError:
+            logger.warning(
+                "User %s uploaded unparseable Excel file '%s'",
+                user_id,
+                excel_file.filename,
+            )
             raise FileParseException("Ошибка парсинга Excel файла")
 
     async def delete_table(self, table_id: int, user_id: int, user_role: str) -> None:
@@ -150,6 +192,12 @@ class TableService:
         )
 
         if not table:
+            logger.warning(
+                "User %s (role: %s) denied write access to table %s",
+                user_id,
+                user_role,
+                table_id,
+            )
             raise NotFoundException("Table not found or access denied")
 
         deleted = await self.table_repo.delete_table(
@@ -157,6 +205,12 @@ class TableService:
         )
 
         if not deleted:
+            logger.error(
+                "Failed to delete table %s (name: '%s') by user %s",
+                table_id,
+                table.name,
+                user_id,
+            )
             raise CanNotDeleteTableException()
         logger.info(
             "User %s deleted table %s (name: %s)", user_id, table_id, table.name
