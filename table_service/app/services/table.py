@@ -1,5 +1,4 @@
 import logging
-from typing import List, Optional
 from fastapi import UploadFile, HTTPException, status
 import pandas as pd
 
@@ -41,7 +40,7 @@ class TableService:
             updated_at=table.updated_at,
         )
 
-    async def get_all_tables(self) -> List[DataTableResponse]:
+    async def get_all_tables(self) -> list[DataTableResponse]:
         """
         Получить список всех таблиц
         Returns:
@@ -51,6 +50,33 @@ class TableService:
         if not tables:
             return []
         return [self._to_response(table) for table in tables]
+
+    async def get_table_by_id(
+        self, table_id: int, user_id: int, user_role: str
+    ) -> DataTableResponse:
+        """
+        Получить таблицу по ID с проверкой прав на чтение.
+
+        Args:
+            table_id: ID таблицы
+            user_id: ID пользователя
+            user_role: Роль пользователя
+
+        Returns:
+            DataTableResponse: Таблица
+
+        Raises:
+            HTTPException 404: Если таблица не найдена или нет доступа
+        """
+        table = await self.table_repo.get_table_with_read_access(
+            table_id=table_id, user_id=user_id, user_role=user_role
+        )
+        if not table:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Table not found or access denied",
+            )
+        return self._to_response(table)
 
     async def create_table(
         self, table_data: DataTableCreate, user_id: int
@@ -154,7 +180,7 @@ class TableService:
             HTTPException 404: Если таблица не найдена или нет доступа
             HTTPException 500: Если не удалось удалить таблицу
         """
-        table: Optional[DataTable] = await self.table_repo.get_table_with_write_access(
+        table: DataTable | None = await self.table_repo.get_table_with_write_access(
             table_id, user_id, user_role=user_role
         )
 

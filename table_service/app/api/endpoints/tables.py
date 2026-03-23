@@ -28,6 +28,19 @@ async def get_tables(
     return await table_service.get_all_tables()
 
 
+@router.get("/{table_id}", response_model=DataTableResponse)
+async def get_table(
+    table_id: int,
+    table_service: Annotated[TableService, Depends(get_table_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+) -> DataTableResponse:
+    return await table_service.get_table_by_id(
+        table_id=table_id,
+        user_id=current_user.user_id,
+        user_role=current_user.role,
+    )
+
+
 @router.post(
     "/create", response_model=DataTableResponse, status_code=status.HTTP_201_CREATED
 )
