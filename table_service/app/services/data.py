@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Literal, Any
 
@@ -9,6 +10,8 @@ from table_service.app.exceptions import (
     NotFoundException,
 )
 from table_service.app.models import TableRow
+
+logger = logging.getLogger(__name__)
 
 
 class DataService:
@@ -235,7 +238,13 @@ class DataService:
         )
 
         if not table:
-            raise AccessDeniedException
+            logger.warning(
+                "User %s (role: %s) denied read access to table %s",
+                user_id,
+                user_role,
+                table_id,
+            )
+            raise AccessDeniedException()
 
         if not sort_by:
             sort_by = "id"
@@ -260,10 +269,17 @@ class DataService:
         )
 
         if not table:
+            logger.warning("User %s denied read access to table %s", user_id, table_id)
             raise AccessDeniedException()
 
         row = await self.data_repo.get_row_by_id(table_id=table_id, row_id=row_id)
         if not row:
+            logger.warning(
+                "Row %s not found in table %s (requested by user %s)",
+                row_id,
+                table_id,
+                user_id,
+            )
             raise NotFoundException()
 
         return self._to_row_response(row)
@@ -274,15 +290,23 @@ class DataService:
         """Создать новую строку в таблице"""
         table = await self.table_repo.get_table_with_write_access(table_id, user_id)
         if not table:
+            logger.warning("User %s denied write access to table %s", user_id, table_id)
             raise AccessDeniedException()
 
         validation_errors = self._validate_row_data_with_schema(
             table.columns_schema, row_data
         )
         if validation_errors:
+            logger.warning(
+                "Row validation failed for table %s by user %s: %s",
+                table_id,
+                user_id,
+                "; ".join(validation_errors),
+            )
             raise ValidationException("; ".join(validation_errors))
 
         row = await self.data_repo.create_table_row(table_id, row_data)
+        logger.info("User %s created row %s in table %s", user_id, row.id, table_id)
 
         return self._to_row_response(row)
 
@@ -293,18 +317,34 @@ class DataService:
 
         table = await self.table_repo.get_table_with_write_access(table_id, user_id)
         if not table:
-            raise AccessDeniedException
+            logger.warning("User %s denied write access to table %s", user_id, table_id)
+
+            raise AccessDeniedException()
 
         validation_errors = self._validate_row_data_with_schema(
             table.columns_schema, row_data
         )
         if validation_errors:
+            logger.warning(
+                "Row %s validation failed for table %s by user %s: %s",
+                row_id,
+                table_id,
+                user_id,
+                "; ".join(validation_errors),
+            )
             raise ValidationException("; ".join(validation_errors))
 
         row = await self.data_repo.update_table_row(table_id, row_id, row_data)
         if not row:
+            logger.warning(
+                "Row %s not found in table %s during update by user %s",
+                row_id,
+                table_id,
+                user_id,
+            )
             raise NotFoundException()
 
+        logger.info("User %s updated row %s in table %s", user_id, row_id, table_id)
         return self._to_row_response(row)
 
     async def delete_table_row(self, table_id: int, row_id: int, user_id: int) -> None:
@@ -313,8 +353,16 @@ class DataService:
             table_id=table_id, user_id=user_id
         )
         if not table:
+            logger.warning("User %s denied write access to table %s", user_id, table_id)
             raise AccessDeniedException()
         row = await self.data_repo.get_row_by_id(table_id=table_id, row_id=row_id)
         if not row:
+            logger.warning(
+                "Row %s not found in table %s during delete by user %s",
+                row_id,
+                table_id,
+                user_id,
+            )
             raise NotFoundException()
         await self.data_repo.delete_table_row(table_id=table_id, row_id=row_id)
+        logger.info("User %s deleted row %s from table %s", user_id, row_id, table_id)
