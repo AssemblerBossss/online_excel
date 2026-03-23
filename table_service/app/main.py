@@ -1,7 +1,8 @@
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
@@ -18,10 +19,66 @@ from table_service.app.core import (
     user_validator_instance,
     setup_service_logging,
 )
-
+from table_service.app.exceptions import (
+    AccessDeniedException,
+    ValidationException,
+    NotFoundException,
+    CanNotCreateTableException,
+    ForbiddenException,
+    InvalidFileFormatException,
+    InvalidFileMimeTypeException,
+    EmptyFileException,
+    FileParseException,
+    AppException,
+)
 
 setup_service_logging()
 logger = logging.getLogger(__name__)
+
+
+def register_exception_handlers(app: FastAPI) -> None:
+
+    @app.exception_handler(AccessDeniedException)
+    async def access_denied_handler(request: Request, exc: AccessDeniedException):
+        return JSONResponse(status_code=403, content={"detail": exc.detail})
+
+    @app.exception_handler(ValidationException)
+    async def validation_handler(request: Request, exc: ValidationException):
+        return JSONResponse(status_code=422, content={"detail": exc.detail})
+
+    @app.exception_handler(NotFoundException)
+    async def not_found_handler(request: Request, exc: NotFoundException):
+        return JSONResponse(status_code=404, content={"detail": exc.detail})
+
+    @app.exception_handler(CanNotCreateTableException)
+    async def cant_create_handler(request: Request, exc: CanNotCreateTableException):
+        return JSONResponse(status_code=500, content={"detail": exc.detail})
+
+    @app.exception_handler(ForbiddenException)
+    async def forbidden_handler(request: Request, exc: ForbiddenException):
+        return JSONResponse(status_code=403, content={"detail": exc.detail})
+
+    @app.exception_handler(InvalidFileFormatException)
+    async def invalid_file_format_handler(
+        request: Request, exc: InvalidFileFormatException
+    ):
+        return JSONResponse(status_code=400, content={"detail": exc.detail})
+
+    @app.exception_handler(InvalidFileMimeTypeException)
+    async def invalid_mime_handler(request: Request, exc: InvalidFileMimeTypeException):
+        return JSONResponse(status_code=415, content={"detail": exc.detail})
+
+    @app.exception_handler(EmptyFileException)
+    async def empty_file_handler(request: Request, exc: EmptyFileException):
+        return JSONResponse(status_code=400, content={"detail": exc.detail})
+
+    @app.exception_handler(FileParseException)
+    async def file_parse_handler(request: Request, exc: FileParseException):
+        return JSONResponse(status_code=400, content={"detail": exc.detail})
+
+    @app.exception_handler(AppException)
+    async def app_exception_handler(request: Request, exc: AppException):
+        return JSONResponse(status_code=500, content={"detail": exc.detail})
 
 
 @asynccontextmanager
@@ -49,12 +106,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
 
 
 def create_app() -> FastAPI:
-    """
-    Создание и конфигурация FastAPI приложения.
-
-    Returns:
-        Сконфигурированное приложение FastAPI
-    """
+    """Создание и конфигурация FastAPI приложения."""
     app = FastAPI(
         title="Table Service",
         description="Сервис для управления таблицами и данными",
@@ -74,8 +126,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Регистрация роутеров
     register_routers(app)
+    register_exception_handlers(app)
 
     return app
 

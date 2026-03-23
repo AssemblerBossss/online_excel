@@ -1,5 +1,5 @@
-from typing import Optional, Callable, Coroutine, Any, List
-from sqlalchemy import select, delete
+from typing import Callable, Coroutine, Any
+from sqlalchemy import select, delete, Sequence
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
@@ -12,7 +12,7 @@ from table_service.app.schemas import DataTableCreate
 class TableRepository(Base):
     """Репозиторий для работы с таблицами данных (DataTable)."""
 
-    async def get_all_tables(self) -> List[DataTable]:
+    async def get_all_tables(self) -> Sequence[DataTable]:
         """
         Получить список всех таблиц в базе данных.
 
@@ -22,7 +22,7 @@ class TableRepository(Base):
         stmt = select(DataTable)
         result = await self._session.execute(stmt)
         tables = result.scalars().all()
-        return list(tables)
+        return tables
 
     async def _get_table_with_access_check(
         self,
@@ -30,7 +30,7 @@ class TableRepository(Base):
         user_id: int,
         user_role: str,
         access_checker: Callable[[DataTable, int, str], Coroutine[Any, Any, bool]],
-    ) -> Optional[DataTable]:
+    ) -> DataTable | None:
         """
         Базовая логика получения таблицы с проверкой прав доступа.
 
@@ -66,7 +66,7 @@ class TableRepository(Base):
 
     async def get_table_with_read_access(
         self, table_id: int, user_id: int, user_role: str
-    ) -> Optional[DataTable]:
+    ) -> DataTable | None:
         """
         Получить таблицу с проверкой прав на чтение.
 
@@ -84,7 +84,7 @@ class TableRepository(Base):
 
     async def get_table_with_write_access(
         self, table_id: int, user_id: int, user_role: str = None
-    ) -> Optional[DataTable]:
+    ) -> DataTable | None:
         """
         Получить таблицу с проверкой прав на запись.
 
