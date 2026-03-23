@@ -1,4 +1,5 @@
 import axios, {AxiosError, InternalAxiosRequestConfig} from 'axios';
+import { refreshToken } from './auth';
 
 const API_BASE_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:3000/api';
 
@@ -56,7 +57,7 @@ api.interceptors.response.use(
             // Проверяем наличие refresh token
             const storedRefreshToken = localStorage.getItem('refresh_token');
             if (!storedRefreshToken) {
-                // window.location.href = '/login';
+                window.location.href = '/login';
                 return Promise.reject(error);
             }
 
@@ -76,21 +77,17 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                // Отправляем refresh token в теле запроса
                 const refreshResponse = await refreshToken(storedRefreshToken);
 
-                if (refreshResponse.data.access_token) {
-                    localStorage.setItem('access_token', refreshResponse.data.access_token);
-                    if (refreshResponse.data.token_type) {
-                        localStorage.setItem('token_type', refreshResponse.data.token_type);
+                if (refreshResponse.access_token) {
+                    localStorage.setItem('access_token', refreshResponse.access_token);
+                    localStorage.setItem('token_type', refreshResponse.token_type || 'Bearer');
+                    if (refreshResponse.refresh_token) {
+                        localStorage.setItem('refresh_token', refreshResponse.refresh_token);
                     }
-                    if (refreshResponse.data.refresh_token) {
-                        localStorage.setItem('refresh_token', refreshResponse.data.refresh_token);
-                    }
-                    // Обновляем заголовок для оригинального запроса
                     if (originalRequest.headers) {
                         originalRequest.headers.Authorization =
-                            `${refreshResponse.data.token_type || 'Bearer'} ${refreshResponse.data.access_token}`;
+                            `${refreshResponse.token_type || 'Bearer'} ${refreshResponse.access_token}`;
                     }
                 }
 
@@ -101,7 +98,7 @@ api.interceptors.response.use(
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
                 localStorage.removeItem('token_type');
-                // window.location.href = '/login';
+                window.location.href = '/login';
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;

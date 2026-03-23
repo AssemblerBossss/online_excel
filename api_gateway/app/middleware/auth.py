@@ -39,14 +39,14 @@ def _check_authorization(request: Request) -> JSONResponse | None:
     try:
         user_data = verify_jwt_token(token)
 
-        # Сохраняем данные пользователя в request state
-        # Это будет использоваться в proxy для добавления headers
-        request.state.user = {
-            "user_id": user_data.user_id,
-            "email": user_data.email,
-            "role": user_data.role,
-            "is_active": user_data.is_active,
-        }
+        headers = dict(request.headers)
+        headers["X-User-ID"] = str(user_data.user_id)
+        headers["X-User-Email"] = user_data.email
+        headers["X-User-Role"] = user_data.role
+        headers["X-User-Active"] = str(user_data.is_active)
+        request.scope["headers"] = [
+            (k.lower().encode(), v.encode()) for k, v in headers.items()
+        ]
 
     except HTTPException as exc:
         # Преобразуем HTTPException в JSONResponse
