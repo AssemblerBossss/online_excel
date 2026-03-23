@@ -1,48 +1,64 @@
-from fastapi import status, HTTPException
+class AppException(Exception):
+    """Базовое доменное исключение."""
 
-# Пользователь не найден
-UserNotFoundException = HTTPException(
-    status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
-)
+    detail: str = "Internal server error"
 
-# Неверная почта или пароль
-IncorrectEmailOrPasswordException = HTTPException(
-    status_code=status.HTTP_400_BAD_REQUEST, detail="Неверная почта или пароль"
-)
+    def __init__(self, detail: str = None):
+        self.detail = detail or self.__class__.detail
+        super().__init__(self.detail)
 
-# Некорректный формат токена
-InvalidTokenFormatException = HTTPException(
-    status_code=status.HTTP_400_BAD_REQUEST, detail="Некорректный формат токена"
-)
 
-# Недостаточно прав
-ForbiddenException = HTTPException(
-    status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав"
-)
+class AccessDeniedException(AppException):
+    detail = "Нет доступа к данной таблице"
 
-TokenInvalidFormatException = HTTPException(
-    status_code=status.HTTP_400_BAD_REQUEST,
-    detail="Неверный формат токена. Ожидается 'Bearer <токен>'",
-)
 
-# Нет доступа к данной таблице
-AccessDeniedException = HTTPException(
-    status_code=status.HTTP_403_FORBIDDEN, detail="Нет доступа к данной таблице"
-)
+class ValidationException(AppException):
+    detail = "Ошибка валидации данных"
 
-# Некорректные данные для данной строки
-ValidationException = HTTPException(
-    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-    detail="Некорректные данные для данной строки",
-)
 
-# Не найдено
-NotFoundException = HTTPException(
-    status_code=status.HTTP_404_NOT_FOUND, detail="Not Found"
-)
+class NotFoundException(AppException):
+    detail = "Not Found"
 
-# Ошибка создания таблицы
-CanNotCreateTableException = HTTPException(
-    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    detail="Не удалось создать таблицу",
-)
+
+class CanNotCreateTableException(AppException):
+    detail = "Не удалось создать таблицу"
+
+
+class CanNotDeleteTableException(AppException):
+    detail = "Не удалось удалить таблицу"
+
+
+class UserNotFoundException(AppException):
+    detail = "Пользователь не найден"
+
+
+class ForbiddenException(AppException):
+    detail = "Недостаточно прав"
+
+
+class TokenInvalidFormatException(AppException):
+    detail = "Неверный формат токена. Ожидается 'Bearer <токен>'"
+
+
+class InvalidTokenFormatException(AppException):
+    detail = "Некорректный формат токена"
+
+
+class IncorrectEmailOrPasswordException(AppException):
+    detail = "Неверная почта или пароль"
+
+
+class InvalidFileFormatException(AppException):
+    detail = "Неверный формат файла"
+
+
+class InvalidFileMimeTypeException(AppException):
+    detail = "Неподдерживаемый тип файла"
+
+
+class EmptyFileException(AppException):
+    detail = "Файл пустой"
+
+
+class FileParseException(AppException):
+    detail = "Ошибка парсинга файла"
