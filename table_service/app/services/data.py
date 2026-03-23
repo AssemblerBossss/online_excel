@@ -63,7 +63,7 @@ class DataService:
 
         # Проверка типов данных
         for col_name, value in row_data.row_data.items():
-            if col_name not in schema_dict:
+            if col_name not in schema_dict or value == "" or value is None:
                 continue
 
             col_schema = schema_dict[col_name]
@@ -89,7 +89,7 @@ class DataService:
 
         # Проверяем ограничения значений (остальная логика)
         for col_name, value in row_data.row_data.items():
-            if col_name not in schema_dict:
+            if col_name not in schema_dict or value == "" or value is None:
                 continue
 
             col_schema = schema_dict[col_name]

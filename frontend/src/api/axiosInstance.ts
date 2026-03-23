@@ -12,9 +12,6 @@ api.interceptors.request.use((config) => {
     const token = localStorage.getItem('access_token');
     const tokenType = localStorage.getItem('token_type') || 'Bearer';
 
-    console.log('TOKEN FROM STORAGE:', token?.substring(0, 20));  // ← добавь
-    console.log('AUTH HEADER:', config.headers.Authorization);     // ← добавь
-
     if (token && config.headers) {
         config.headers.Authorization = `${tokenType} ${token}`;
     }

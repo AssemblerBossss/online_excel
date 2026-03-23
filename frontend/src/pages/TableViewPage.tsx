@@ -41,9 +41,6 @@ const TableViewPage: React.FC = () => {
                 tablesAPI.getTableRows(tableId),
             ]);
 
-            console.log('tableInfo:', tableInfo);   // ← добавь
-            console.log('tableRows:', tableRows);   // ← добавь
-
             setColumns(tableInfo.columns_schema || []);
             setRows(tableRows);
         } catch (err) {
@@ -76,6 +73,8 @@ const TableViewPage: React.FC = () => {
         if (!row) return;
 
         const newRowData = {...row.row_data, [col]: editingValue};
+        console.log('newRowData:', newRowData);  // ← добавь
+
 
         // Оптимистичное обновление
         setRows(prev => prev.map(r =>
@@ -87,7 +86,10 @@ const TableViewPage: React.FC = () => {
             setSaving(rowId);
             await tablesAPI.updateRow(tableId, rowId, newRowData);
         } catch (err) {
-            // Откатываем при ошибке
+            // Откатываем при
+            console.error('commitEdit error full:', err);
+            console.error('commitEdit error message:', err?.message);
+            console.error('commitEdit error stack:', err?.stack);
             setRows(prev => prev.map(r =>
                 r.id === rowId ? {...r, row_data: row.row_data} : r
             ));
