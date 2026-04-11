@@ -18,6 +18,7 @@ from table_service.app.core import (
     user_event_consumer,
     user_validator_instance,
     setup_service_logging,
+    close_redis_client,
 )
 from table_service.app.exceptions import (
     AccessDeniedException,
@@ -103,6 +104,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     await user_validator_instance.close()
     await user_event_consumer.close()
     await redis.close()
+    await close_redis_client()
 
 
 def create_app() -> FastAPI:

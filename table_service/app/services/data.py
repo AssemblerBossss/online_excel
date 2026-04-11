@@ -58,7 +58,7 @@ class DataService:
 
         # Проверка обязательных полей
         for col_name, col_schema in schema_dict.items():
-            if col_schema.get("required", False) and col_name not in row_data.columns:
+            if col_schema.get("required", False) and col_name not in row_data.row_data:
                 errors.append(f"Обязательное поле '{col_name}' отсутствует")
 
         # Проверка типов данных
@@ -71,8 +71,17 @@ class DataService:
 
             if expected_type == "string" and not isinstance(value, str):
                 errors.append(f"Поле {col_name} должно быть строкой")
-            elif expected_type == "number" and not isinstance(value, int):
-                errors.append(f"Поле {col_name} должно быть числом")
+            elif expected_type == "number":
+                if isinstance(value, str):
+                    try:
+                        row_data.row_data[col_name] = (
+                            int(value) if "." not in value else float(value)
+                        )
+                    except ValueError:
+                        errors.append(f"Поле {col_name} должно быть числом")
+                        continue
+                elif not isinstance(value, (int, float)):
+                    errors.append(f"Поле {col_name} должно быть числом")
             elif expected_type == "boolean" and not isinstance(value, bool):
                 errors.append(f"Поле {col_name} должно быть булевым")
             elif expected_type == "date":

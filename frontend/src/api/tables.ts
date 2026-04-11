@@ -62,8 +62,8 @@ export const tablesAPI = {
         return response.data;
     },
 
-    updateTableRow: async (tableId: number, rowData: Record<string, any>): Promise<TableRow> => {
-        const response = await api.post('/data/${tableId}/rows', {row_data: rowData});
+    updateRow: async (tableId: number, rowId: number, rowData: Record<string, any>): Promise<TableRow> => {
+        const response = await api.put(`/data/${tableId}/rows/${rowId}`, {row_data: rowData});
         return response.data;
     },
 

@@ -1,10 +1,11 @@
 from fastapi import Depends, Request, HTTPException
 from typing import AsyncGenerator, Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
+from redis.asyncio import Redis
 
 from table_service.app.services import DataService, TableService
 from table_service.app.repository import TableRepository, DataRepository, UserRepository
-from table_service.app.core import AsyncSessionFactory
+from table_service.app.core import AsyncSessionFactory, get_redis_client
 from table_service.app.schemas import SCurrentUser, SUserFilter
 
 
@@ -122,6 +123,10 @@ def get_data_service(
         DataService: Экземпляр сервиса данных.
     """
     return DataService(data_repo, table_repo)
+
+
+def get_redis() -> Redis:
+    return get_redis_client()
 
 
 async def get_current_user(request: Request) -> SUserFilter:
