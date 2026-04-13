@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     CACHE_PORT: int = 14000
     CACHE_DB: int = 0
 
+    ES_HOST: str = "elasticsearch"
+    ES_PORT: int = 9200
+
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_REDIRECT_URI: str = ""

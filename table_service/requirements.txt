@@ -49,4 +49,4 @@ tzdata==2025.2
 uvicorn==0.38.0
 aio-pika==9.5.8
 fastapi-cache2[redis]>=0.2.2
-
+elasticsearch[async]==9.3.0

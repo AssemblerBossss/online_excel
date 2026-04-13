@@ -1,11 +1,12 @@
+from elasticsearch import AsyncElasticsearch
 from fastapi import Depends, Request, HTTPException
 from typing import AsyncGenerator, Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
-from table_service.app.services import DataService, TableService
+from table_service.app.services import DataService, TableService, SearchService
 from table_service.app.repository import TableRepository, DataRepository, UserRepository
-from table_service.app.core import AsyncSessionFactory, get_redis_client
+from table_service.app.core import AsyncSessionFactory, get_redis_client, get_es_client
 from table_service.app.schemas import SCurrentUser, SUserFilter
 
 
@@ -127,6 +128,12 @@ def get_data_service(
 
 def get_redis() -> Redis:
     return get_redis_client()
+
+
+def get_search_service(
+    es: Annotated[AsyncElasticsearch, Depends(get_es_client)],
+) -> SearchService:
+    return SearchService(es_client=es)
 
 
 async def get_current_user(request: Request) -> SUserFilter:

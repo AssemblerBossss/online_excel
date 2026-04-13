@@ -11,6 +11,7 @@ from redis.asyncio import Redis
 from table_service.app.api.endpoints import (
     data_router,
     tables_router,
+    search_router,
 )
 from table_service.app.core import (
     init_db,
@@ -19,6 +20,8 @@ from table_service.app.core import (
     user_validator_instance,
     setup_service_logging,
     close_redis_client,
+    close_es_client,
+    init_es_index,
 )
 from table_service.app.exceptions import (
     AccessDeniedException,
@@ -156,6 +159,7 @@ def register_routers(app: FastAPI) -> None:
     routers = [
         (data_router, "/data", "Data"),
         (tables_router, "/tables", "Tables"),
+        (search_router, "/search", "Search"),
     ]
     for router, prefix, tag in routers:
         root_router.include_router(router, prefix=prefix, tags=[tag])
