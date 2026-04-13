@@ -5,13 +5,13 @@ services:
       context: .
       dockerfile: api_gateway/Dockerfile
     container_name: online_excel_gateway
-#    env_file:
-#      - .env
+    #    env_file:
+    #      - .env
     ports:
       - "8080:8080"
     depends_on:
       - auth_service
-      - backend
+      - table_service
     networks:
       - appnet
     volumes:
@@ -35,6 +35,7 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: guest
       RABBITMQ_PASSWORD: guest
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       JWT_SECRET_KEY: "secret"
       JWT_ALGORITHM: "HS256"
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
@@ -45,6 +46,8 @@ services:
         condition: service_healthy
     networks:
       - appnet
+    volumes:
+      - ./auth_service:/app/auth_service
 
   auth_db:
     container_name: online_excel_auth_db
@@ -63,9 +66,11 @@ services:
       - "8010:5432"
     networks:
       - appnet
+
     volumes:
       - auth_pgdata:/var/lib/postgresql/data
-
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
 
   db:
     container_name: online_excel_db
@@ -77,16 +82,23 @@ services:
       POSTGRES_DB: online_excel
     ports:
       - "7777:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - appnet
     volumes:
-      - pgdata:/var/lib/postresql/data
+      - pgdata:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
 
-  backend:
+  table_service:
     build:
       context: .
-      dockerfile: backend/Dockerfile
-    container_name: online_excel_backend
+      dockerfile: table_service/Dockerfile
+    container_name: online_excel_table_service
     environment:
       EXCEL_APP__DB_HOST: db
       EXCEL_APP__DB_PORT: 5432
@@ -94,22 +106,105 @@ services:
       EXCEL_APP__DB_PASSWORD: online_excel
       EXCEL_APP__DB_NAME: online_excel
       EXCEL_APP__DB_DRIVER: postgresql+asyncpg
+
+      EXCEL_APP__CACHE_HOST: redis
+      EXCEL_APP__CACHE_PORT: 6379
+      EXCEL_APP__CACHE_DB: 0
+
+      EXCEL_APP__ES_HOST: elasticsearch
+      EXCEL_APP__ES_PORT: 9200
+
+      EXCEL_APP__RABBITMQ_HOST: rabbitmq
+      EXCEL_APP__RABBITMQ_PORT: 5672
+      EXCEL_APP__RABBITMQ_USER: guest
+      EXCEL_APP__RABBITMQ_PASSWORD: guest
+      EXCEL_APP__RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
     ports:
       - "8000:8000"
     networks:
       - appnet
+    volumes:
+      - ./table_service:/app/table_service
+
+  rabbitmq:
+    image: rabbitmq:4.2.4-alpine
+    container_name: online_excel_rabbitmq
+    ports:
+      - "5672:5672"      # AMQP protocol
+      - "15672:15672"    # Management UI
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    networks:
+      - appnet
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: online_excel_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - appnet
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   frontend:
     build: ./frontend
     container_name: online_excel_frontend
     depends_on:
-      - backend
+      - api_gateway
+    environment:
+      VITE_API_URL: http://localhost:3000/api
     ports:
       - "3000:80"
     networks:
       - appnet
+    volumes:
+      - ./table_service:/app/table_service
+
+  elasticsearch:
+    image: elasticsearch:9.3.0
+    container_name: online_excel_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    #    ports:
+    #      - "9200:9200"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - appnet
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
 
 networks:
   appnet:
@@ -118,3 +213,5 @@ networks:
 volumes:
   pgdata:
   auth_pgdata:
+  rabbitmq_data:
+  es_data:

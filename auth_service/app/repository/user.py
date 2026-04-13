@@ -1,12 +1,12 @@
+import logging
+from collections.abc import Sequence
 from sqlalchemy import delete, func, update
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
-from typing import Optional, List
-from loguru import logger
 
 from auth_service.app.models import User, UserRole
-from auth_service.app.schemas import SUserFilter, UserBase, SUserUpdate, SUserAddDB
+
+logger = logging.getLogger(__name__)
 
 
 class UserRepository:
@@ -14,407 +14,123 @@ class UserRepository:
 
     def __init__(self, session: AsyncSession):
         self._session = session
-        self.model = User
 
-    async def find_one_or_none_by_id(self, user_id: int) -> Optional["User"]:
-        """
-        Найти пользователя по ID
+    async def find_one_or_none_by_id(self, user_id: int) -> User | None:
+        """Найти пользователя по ID"""
+        query = select(User).filter_by(id=user_id)
+        result = await self._session.execute(query)
+        return result.scalar_one_or_none()
 
-        Args:
-            user_id: ID пользователя
+    async def find_one_or_none(self, filter_dict: dict) -> User | None:
+        """Найти одного пользователя по фильтрам"""
+        query = select(User).filter_by(**filter_dict)
+        result = await self._session.execute(query)
+        return result.scalar_one_or_none()
 
-        Returns:
-            User или None если не найден
-        """
-        try:
-            query = select(User).filter_by(id=user_id)
-            result = await self._session.execute(query)
-            user = result.scalar_one_or_none()
+    async def find_by_email(self, email: str) -> User | None:
+        """Найти пользователя по email"""
+        query = select(User).filter_by(email=email)
+        result = await self._session.execute(query)
+        return result.scalar_one_or_none()
 
-            if user:
-                logger.info(f"Пользователь с ID {user_id} найден")
-            else:
-                logger.info(f"Пользователь с ID {user_id} не найден")
+    async def find_all(self, filters: dict | None = None) -> Sequence[User]:
+        """Найти всех пользователей по фильтрам"""
+        query = select(User).filter_by(**filters)
+        result = (await self._session.execute(query)).scalars().all()
+        return result
 
-            return user
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске пользователя с ID {user_id}: {e}")
-            raise
+    async def add(self, new_user: User) -> User:
+        """Добавить нового пользователя"""
+        self._session.add(new_user)
+        await self._session.flush()
+        return new_user
 
-    async def find_one_or_none(self, filters: SUserFilter) -> Optional["User"]:
-        """
-        Найти одного пользователя по фильтрам
+    async def add_many(self, users: list[User]) -> Sequence[User]:
+        """Добавить нескольких пользователей"""
+        self._session.add_all(users)
+        await self._session.flush()
+        return users
 
-        Args:
-            filters: Фильтры для поиска
-
-        Returns:
-            User или None если не найден
-        """
-        filter_dict = filters.model_dump(exclude_unset=True)
-        logger.debug(f"Поиск пользователя по фильтрам: {filter_dict}")
-
-        try:
-            query = select(User).filter_by(**filter_dict)
-            result = await self._session.execute(query)
-            user = result.scalar_one_or_none()
-
-            if user:
-                logger.info(f"Пользователь найден по фильтрам: {filter_dict}")
-            else:
-                logger.info(f"Пользователь не найден по фильтрам: {filter_dict}")
-
-            return user
-        except SQLAlchemyError as e:
-            logger.error(
-                f"Ошибка при поиске пользователя по фильтрам {filter_dict}: {e}"
-            )
-            raise
-
-    async def find_by_email(self, email: str) -> Optional["User"]:
-        """
-        Найти пользователя по email
-
-        Args:
-            email: Email пользователя
-
-        Returns:
-            User или None если не найден
-        """
-        try:
-            query = select(User).filter_by(email=email)
-            result = await self._session.execute(query)
-            user = result.scalar_one_or_none()
-
-            if user:
-                logger.info(f"Пользователь с email {email} найден")
-            else:
-                logger.info(f"Пользователь с email {email} не найден")
-
-            return user
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске пользователя по email {email}: {e}")
-            raise
-
-    async def find_all(self, filters: Optional[SUserFilter] = None) -> List["User"]:
-        """
-        Найти всех пользователей по фильтрам
-
-        Args:
-            filters: Фильтры для поиска (опционально)
-
-        Returns:
-            Список пользователей
-        """
-        filter_dict = filters.model_dump(exclude_unset=True) if filters else {}
-        logger.debug(f"Поиск всех пользователей по фильтрам: {filter_dict}")
-
-        try:
-            query = select(User).filter_by(**filter_dict)
-            result = await self._session.execute(query)
-            users = result.scalars().all()
-
-            logger.info(f"Найдено {len(users)} пользователей")
-
-            return users
-        except SQLAlchemyError as e:
-            logger.error(
-                f"Ошибка при поиске всех пользователей по фильтрам {filter_dict}: {e}"
-            )
-            raise
-
-    async def add(self, user_data: SUserAddDB) -> "User":
-        """
-        Добавить нового пользователя
-
-        Args:
-            user_data: Данные пользователя
-
-        Returns:
-            Созданный пользователь
-        """
-        values_dict = user_data.model_dump(exclude_unset=True)
-        logger.debug(f"Добавление пользователя с параметрами: {values_dict}")
-
-        try:
-            new_user = User(**values_dict)
-            self._session.add(new_user)
-            await self._session.flush()
-
-            logger.info(
-                f"Пользователь {new_user.email} успешно добавлен с ID {new_user.id}"
-            )
-
-            return new_user
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при добавлении пользователя: {e}")
-            raise
-
-    async def add_many(self, users_data: List[UserBase]) -> List["User"]:
-        """
-        Добавить нескольких пользователей
-
-        Args:
-            users_data: Список данных пользователей
-
-        Returns:
-            Список созданных пользователей
-        """
-        values_list = [user.model_dump(exclude_unset=True) for user in users_data]
-        logger.info(f"Добавление {len(values_list)} пользователей")
-
-        try:
-            new_users = [User(**values) for values in values_list]
-            self._session.add_all(new_users)
-            await self._session.flush()
-
-            logger.success(f"Успешно добавлено {len(new_users)} пользователей")
-
-            return new_users
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при добавлении нескольких пользователей: {e}")
-            raise
-
-    async def update(self, filters: SUserFilter, update_data: SUserUpdate) -> int:
-        """
-        Обновить пользователей по фильтрам
-
-        Args:
-            filters: Фильтры для выбора пользователей
-            update_data: Данные для обновления
-
-        Returns:
-            Количество обновленных записей
-        """
-        filter_dict = filters.model_dump(exclude_unset=True)
-        update_dict = update_data.model_dump(exclude_unset=True)
-
-        if not update_dict:
-            logger.warning("Нет данных для обновления")
+    async def update(self, filters: dict, values: dict) -> int:
+        """Обновить пользователей по фильтрам"""
+        if not values:
             return 0
 
-        logger.debug(
-            f"Обновление пользователей по фильтру: {filter_dict} с параметрами: {update_dict}"
+        query = (
+            update(User)
+            .filter_by(**filters)
+            .values(**values)
+            .execution_options(synchronize_session="fetch")
         )
+        result = await self._session.execute(query)
+        await self._session.flush()
+        return result.rowcount
 
-        try:
-            query = (
-                update(User)
-                .where(*[getattr(User, k) == v for k, v in filter_dict.items()])
-                .values(**update_dict)
-                .execution_options(synchronize_session="fetch")
-            )
-            result = await self._session.execute(query)
-
-            logger.info(f"Обновлено {result.rowcount} пользователей")
-            await self._session.flush()
-
-            return result.rowcount
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при обновлении пользователей: {e}")
-            raise
-
-    async def update_by_id(self, user_id: int, update_data: SUserUpdate) -> bool:
-        """
-        Обновить пользователя по ID
-
-        Args:
-            user_id: ID пользователя
-            update_data: Данные для обновления
-
-        Returns:
-            True если пользователь обновлен, False если не найден
-        """
-        update_dict = update_data.model_dump(exclude_unset=True)
-
-        if not update_dict:
-            logger.warning("Нет данных для обновления")
+    async def update_by_id(self, user_id: int, values: dict) -> bool:
+        """Обновить пользователя по ID"""
+        if not values:
             return False
 
-        logger.debug(
-            f"Обновление пользователя с ID {user_id} с параметрами: {update_dict}"
+        query = (
+            update(User)
+            .where(User.id == user_id)
+            .values(**values)
+            .execution_options(synchronize_session="fetch")
         )
+        result = await self._session.execute(query)
+        await self._session.flush()
+        return result.rowcount > 0
 
-        try:
-            query = (
-                update(User)
-                .where(User.id == user_id)
-                .values(**update_dict)
-                .execution_options(synchronize_session="fetch")
-            )
-            result = await self._session.execute(query)
+    async def delete(self, filters: dict | None = None) -> int:
+        """Удалить пользователей по фильтрам"""
+        if not filters:
+            return 0
 
-            updated = result.rowcount > 0
-            if updated:
-                logger.info(f"Пользователь с ID {user_id} успешно обновлен")
-            else:
-                logger.warning(f"Пользователь с ID {user_id} не найден для обновления")
-
-            await self._session.flush()
-
-            return updated
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при обновлении пользователя с ID {user_id}: {e}")
-            raise
-
-    async def delete(self, filters: SUserFilter) -> int:
-        """
-        Удалить пользователей по фильтрам
-
-        Args:
-            filters: Фильтры для удаления
-
-        Returns:
-            Количество удаленных записей
-        """
-        filter_dict = filters.model_dump(exclude_unset=True)
-
-        if not filter_dict:
-            logger.error("Нужен хотя бы один фильтр для удаления")
-            raise ValueError("Нужен хотя бы один фильтр для удаления")
-
-        logger.warning(f"Удаление пользователей по фильтру: {filter_dict}")
-
-        try:
-            query = delete(User).filter_by(**filter_dict)
-            result = await self._session.execute(query)
-
-            logger.info(f"Удалено {result.rowcount} пользователей")
-            await self._session.flush()
-
-            return result.rowcount
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при удалении пользователей: {e}")
-            raise
+        query = delete(User).filter_by(**filters)
+        result = await self._session.execute(query)
+        await self._session.flush()
+        return result.rowcount
 
     async def delete_by_id(self, user_id: int) -> bool:
-        """
-        Удалить пользователя по ID
+        """Удалить пользователя по ID"""
+        query = delete(User).filter_by(id=user_id)
+        result = await self._session.execute(query)
+        deleted = result.rowcount > 0
+        await self._session.flush()
+        return deleted
 
-        Args:
-            user_id: ID пользователя
+    # AGGREGATION methods
+    async def count(self, filters: dict | None = None) -> int:
+        """Подсчитать количество пользователей по фильтрам"""
+        query = select(func.count()).select_from(User)
+        if filters:
+            query = query.filter_by(**filters)
 
-        Returns:
-            True если пользователь удален, False если не найден
-        """
-        logger.warning(f"Удаление пользователя с ID {user_id}")
+        result = await self._session.execute(query)
+        return result.scalar()
 
-        try:
-            query = delete(User).filter_by(id=user_id)
-            result = await self._session.execute(query)
+    async def exists(self, filter_dict: dict | None = None) -> bool:
+        """Проверить существование пользователя по фильтрам"""
+        query = select(User.id).filter_by(**filter_dict).limit(1)
+        result = (await self._session.execute(query)).scalar() is not None
+        return result
 
-            deleted = result.rowcount > 0
-            if deleted:
-                logger.info(f"Пользователь с ID {user_id} успешно удален")
-            else:
-                logger.warning(f"Пользователь с ID {user_id} не найден для удаления")
+    async def get_active_users(self) -> Sequence[User]:
+        """Получить всех активных пользователей"""
+        filter_dict = {"is_active": True}
+        return await self.find_all(filters=filter_dict)
 
-            await self._session.flush()
-
-            return deleted
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при удалении пользователя с ID {user_id}: {e}")
-            raise
-
-    async def count(self, filters: Optional[SUserFilter] = None) -> int:
-        """
-        Подсчитать количество пользователей по фильтрам
-
-        Args:
-            filters: Фильтры для подсчета (опционально)
-
-        Returns:
-            Количество пользователей
-        """
-        filter_dict = filters.model_dump(exclude_unset=True) if filters else {}
-        logger.debug(f"Подсчет количества пользователей по фильтру: {filter_dict}")
-
-        try:
-            query = select(func.count(User.id)).filter_by(**filter_dict)
-            result = await self._session.execute(query)
-            count = result.scalar()
-
-            logger.info(f"Найдено {count} пользователей")
-
-            return count
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при подсчете пользователей: {e}")
-            raise
-
-    async def exists(self, filters: SUserFilter) -> bool:
-        """
-        Проверить существование пользователя по фильтрам
-
-        Args:
-            filters: Фильтры для проверки
-
-        Returns:
-            True если пользователь существует, False если нет
-        """
-        filter_dict = filters.model_dump(exclude_unset=True)
-        logger.debug(f"Проверка существования пользователя по фильтрам: {filter_dict}")
-
-        try:
-            query = select(User.id).filter_by(**filter_dict).limit(1)
-            result = await self._session.execute(query)
-            exists = result.scalar() is not None
-
-            if exists:
-                logger.debug(f"Пользователь существует по фильтрам: {filter_dict}")
-            else:
-                logger.debug(f"Пользователь не существует по фильтрам: {filter_dict}")
-
-            return exists
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при проверке существования пользователя: {e}")
-            raise
-
-    async def get_active_users(self) -> List["User"]:
-        """
-        Получить всех активных пользователей
-
-        Returns:
-            Список активных пользователей
-        """
-        logger.debug("Получение списка активных пользователей")
-        return await self.find_all(SUserFilter(is_active=True))
-
-    async def get_users_by_role(self, role: UserRole) -> List["User"]:
-        """
-        Получить пользователей по роли
-
-        Args:
-            role: Роль пользователя
-
-        Returns:
-            Список пользователей с указанной ролью
-        """
-        logger.debug(f"Получение пользователей с ролью {role}")
-        return await self.find_all(SUserFilter(role=role))
+    async def get_users_by_role(self, role: UserRole) -> Sequence[User]:
+        """Получить пользователей по роли"""
+        filters = {"role": role}
+        return await self.find_all(filters=filters)
 
     async def deactivate_user(self, user_id: int) -> bool:
-        """
-        Деактивировать пользователя по ID
-
-        Args:
-            user_id: ID пользователя
-
-        Returns:
-            True если пользователь деактивирован, False если не найден
-        """
-        logger.warning(f"Деактивация пользователя с ID {user_id}")
-        return await self.update_by_id(user_id, SUserUpdate(is_active=False))
+        """Деактивировать пользователя по ID"""
+        values = {"is_active": False}
+        return await self.update_by_id(user_id, values=values)
 
     async def change_user_role(self, user_id: int, new_role: UserRole) -> bool:
-        """
-        Изменить роль пользователя
-
-        Args:
-            user_id: ID пользователя
-            new_role: Новая роль пользователя
-
-        Returns:
-            True если роль изменена, False если пользователь не найден
-        """
-        logger.info(f"Изменение роли пользователя {user_id} на {new_role}")
-        return await self.update_by_id(user_id, SUserUpdate(role=new_role))
+        """Изменить роль пользователя"""
+        values = {"role": new_role}
+        return await self.update_by_id(user_id, values=values)

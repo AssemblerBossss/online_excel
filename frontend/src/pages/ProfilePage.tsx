@@ -70,7 +70,7 @@ const ProfilePage: React.FC = () => {
 
     return (
         <div style={styles.pageContainer}>
-            <SidebarWithToggle />
+            <SidebarWithToggle/>
 
             <div style={styles.header}>
                 <h1 style={styles.headerTitle}>Профиль</h1>

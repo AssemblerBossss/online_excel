@@ -4,7 +4,7 @@ from sqlalchemy.sql import func
 from typing import Optional
 import enum
 
-from auth_service.app.database import Base
+from .base import Base
 
 
 class UserRole(str, enum.Enum):
@@ -33,7 +33,9 @@ class User(Base):
         DateTime(timezone=True), onupdate=func.now()
     )
 
-    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    refresh_tokens = relationship(
+        "RefreshToken", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class RefreshToken(Base):

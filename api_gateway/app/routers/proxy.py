@@ -11,18 +11,11 @@ router = APIRouter()
     methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
 )
 async def proxy_auth(request: Request, path: str):
-    """
-    Проксирует /auth/* запросы к Auth Service
-    """
-    user_data = None
-    if hasattr(request.state, "user"):
-        user_data = request.state.user
-
+    """Проксирует /auth/* запросы к Auth Service"""
     return await proxy_request(
         request=request,
         target_url=settings.AUTH_SERVICE_URL,
-        path=f"/api/auth/{path}",
-        user_data=user_data,
+        path=f"/auth/{path}",
     )
 
 
@@ -31,45 +24,28 @@ async def proxy_auth(request: Request, path: str):
     methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
 )
 async def proxy_users(request: Request, path: str):
-    """
-    Проксирует /users/* запросы к Auth Service
-
-    Примеры:
-    - GET /api/users/me/ → Auth Service
-    - GET /api/users/123 → Auth Service
-    """
-    user_data = None
-    if hasattr(request.state, "user"):
-        user_data = request.state.user
-
+    """Проксирует /users/* запросы к Auth Service"""
     return await proxy_request(
         request=request,
         target_url=settings.AUTH_SERVICE_URL,
-        path=f"/api/users/{path}",
-        user_data=user_data,
+        path=f"/users/{path}",
     )
 
 
-# Main Service Endpoints
-
-
+@router.api_route(
+    "/tables",
+    methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+)
 @router.api_route(
     "/tables/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
 )
-async def proxy_tables(request: Request, path: str):
-    """
-    Проксирует /tables/* запросы к Main Service
-    """
-    user_data = None
-    if hasattr(request.state, "user"):
-        user_data = request.state.user
-
+async def proxy_tables(request: Request, path: str = ""):
+    """Проксирует /tables/* запросы к Main Service"""
     return await proxy_request(
         request=request,
         target_url=settings.MAIN_SERVICE_URL,
-        path=f"/api/tables/{path}",
-        user_data=user_data,
+        path=f"/tables/{path}",
     )
 
 
@@ -78,16 +54,22 @@ async def proxy_tables(request: Request, path: str):
     methods=["GET", "POST", "PUT", "DELETE"],
 )
 async def proxy_categories(request: Request, path: str):
-    """
-    Проксирует /categories/* запросы к Main Service
-    """
-    user_data = None
-    if hasattr(request.state, "user"):
-        user_data = request.state.user
-
+    """Проксирует /categories/* запросы к Main Service"""
     return await proxy_request(
         request=request,
         target_url=settings.MAIN_SERVICE_URL,
-        path=f"/api/categories/{path}",
-        user_data=user_data,
+        path=f"/categories/{path}",
+    )
+
+
+@router.api_route(
+    "/data/{path:path}",
+    methods=["GET", "POST", "PUT", "DELETE"],
+)
+async def proxy_categories(request: Request, path: str):
+    """Проксирует /data/* запросы к Main Service"""
+    return await proxy_request(
+        request=request,
+        target_url=settings.MAIN_SERVICE_URL,
+        path=f"/data/{path}",
     )

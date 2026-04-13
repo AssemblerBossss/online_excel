@@ -1,0 +1,21 @@
+info:
+  name: logout
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{base_url}}/api/auth/logout"
+  body:
+    type: json
+    data: |-
+      {
+        "refresh_token": "3GJF1tQ7l_jHb4d6QYsL4x8nUtVU8cW89PcIufRQvL5Jc4tKiknSyNME9Yf_FjdQl"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
