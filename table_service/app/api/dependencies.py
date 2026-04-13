@@ -90,9 +90,16 @@ def get_user_repository(
     return UserRepository(session=session)
 
 
+def get_search_service(
+    es: Annotated[AsyncElasticsearch, Depends(get_es_client)],
+) -> SearchService:
+    return SearchService(es_client=es)
+
+
 def get_table_service(
-    table_repository: TableRepository = Depends(get_table_repository),
-    data_repository: DataRepository = Depends(get_data_repository),
+    table_repository: Annotated[TableRepository, Depends(get_table_repository)],
+    data_repository: Annotated[DataRepository, Depends(get_data_repository)],
+    es: Annotated[SearchService, Depends(get_search_service)],
 ) -> TableService:
     """
     Получить экземпляр сервиса таблиц.
@@ -100,12 +107,16 @@ def get_table_service(
     Args:
         table_repository: Экземпляр репозитория таблиц.
         data_repository: Экземпляр репозитория данных.
+        es: Сервис Elasticsearch.
 
     Returns:
         TableService: Экземпляр сервиса таблиц.
+
     """
     return TableService(
-        table_repository=table_repository, data_repository=data_repository
+        table_repository=table_repository,
+        data_repository=data_repository,
+        search_service=es,
     )
 
 
@@ -128,12 +139,6 @@ def get_data_service(
 
 def get_redis() -> Redis:
     return get_redis_client()
-
-
-def get_search_service(
-    es: Annotated[AsyncElasticsearch, Depends(get_es_client)],
-) -> SearchService:
-    return SearchService(es_client=es)
 
 
 async def get_current_user(request: Request) -> SUserFilter:
