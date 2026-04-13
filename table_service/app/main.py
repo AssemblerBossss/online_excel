@@ -90,6 +90,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
     await user_validator_instance.connect()
     await init_db()
+    await init_es_index()
 
     redis = Redis(
         host=app_settings.CACHE_HOST,
@@ -104,8 +105,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     logger.info("UserEventConsumer started")
 
     yield
+
     await user_validator_instance.close()
     await user_event_consumer.close()
+    await close_es_client()
     await redis.close()
     await close_redis_client()
 
