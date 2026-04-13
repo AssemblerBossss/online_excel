@@ -6,6 +6,9 @@ _es_client: AsyncElasticsearch | None = None
 TABLE_INDEX = "tables"
 
 INDEX_MAPPING = {
+    "settings": {
+        "number_of_replicas": 0,
+    },
     "mappings": {
         "properties": {
             "id": {"type": "integer"},
@@ -14,7 +17,7 @@ INDEX_MAPPING = {
             "is_public": {"type": "boolean"},
             "created_by_id": {"type": "integer"},
         }
-    }
+    },
 }
 
 

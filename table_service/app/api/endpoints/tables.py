@@ -1,3 +1,4 @@
+import json
 from typing import Annotated
 from fastapi import (
     APIRouter,
@@ -7,25 +8,38 @@ from fastapi import (
     File,
     Form,
 )
-from fastapi_cache import FastAPICache
-from fastapi_cache.decorator import cache
+from redis.asyncio import Redis
 
 from table_service.app.schemas import DataTableCreate, DataTableResponse, SCurrentUser
 from table_service.app.services import TableService
 from table_service.app.api.dependencies import (
     get_table_service,
     get_current_active_user,
+    get_redis,
 )
 
 router = APIRouter()
 
+TABLES_CACHE_KEY = "tables:all"
+TABLES_CACHE_TTL = 120
+
+
+async def invalidate_tables_cache(redis: Redis) -> None:
+    await redis.delete(TABLES_CACHE_KEY)
+
 
 @router.get("/", response_model=list[DataTableResponse])
-@cache(expire=120, namespace="tables")
 async def get_tables(
     table_service: Annotated[TableService, Depends(get_table_service)],
+    redis: Annotated[Redis, Depends(get_redis)],
 ) -> list[DataTableResponse]:
-    return await table_service.get_all_tables()
+    cached = await redis.get(TABLES_CACHE_KEY)
+    if cached:
+        return json.loads(cached)
+
+    tables = await table_service.get_all_tables()
+    await redis.setex(TABLES_CACHE_KEY, TABLES_CACHE_TTL, json.dumps([t.model_dump(mode="json") for t in tables]))
+    return tables
 
 
 @router.get("/{table_id}", response_model=DataTableResponse)
@@ -48,11 +62,12 @@ async def create_table(
     table_data: DataTableCreate,
     table_service: Annotated[TableService, Depends(get_table_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    redis: Annotated[Redis, Depends(get_redis)],
 ) -> DataTableResponse:
     result = await table_service.create_table(
         table_data=table_data, user_id=current_user.user_id
     )
-    await FastAPICache.clear(namespace="tables")
+    await invalidate_tables_cache(redis)
     return result
 
 
@@ -64,6 +79,7 @@ async def create_table(
 async def create_table_from_excel(
     table_service: Annotated[TableService, Depends(get_table_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    redis: Annotated[Redis, Depends(get_redis)],
     table_name: str = Form(...),
     description: str = Form(None),
     file: UploadFile = File(..., description="Excel file to process"),
@@ -74,7 +90,7 @@ async def create_table_from_excel(
         table_name=table_name,
         description=description,
     )
-    await FastAPICache.clear(namespace="tables")
+    await invalidate_tables_cache(redis)
     return result
 
 
@@ -86,12 +102,12 @@ async def delete_table(
     table_id: int,
     table_service: Annotated[TableService, Depends(get_table_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    redis: Annotated[Redis, Depends(get_redis)],
 ):
     await table_service.delete_table(
         table_id=table_id,
         user_id=current_user.user_id,
         user_role=current_user.role,
     )
-    await FastAPICache.clear(namespace="tables")
-    await FastAPICache.clear(namespace="rows")
+    await invalidate_tables_cache(redis)
     return None

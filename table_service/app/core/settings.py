@@ -1,6 +1,5 @@
-from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Literal
+from functools import cached_property
 
 LOG_FORMAT_DEFAULT = (
     "[%(asctime)s.%(msecs)03d] %(module)10s:%(lineno)-3d %(levelname)-7s - %(message)s"
@@ -38,6 +37,11 @@ class Settings(BaseSettings):
     ES_HOST: str = "elasticsearch"
     ES_PORT: int = 9200
 
+    RABBITMQ_HOST: str = "rabbitmq"
+    RABBITMQ_PORT: int = 5672
+    RABBITMQ_USER: str = "guest"
+    RABBITMQ_PASSWORD: str = "guest"
+
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_REDIRECT_URI: str = ""
@@ -46,11 +50,15 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB: int = 10  # Максимальный размер файла в MB
     MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB в байтах
 
-    @property
+    @cached_property
     def db_url(self) -> str:
         return f"{self.DB_DRIVER}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
-    @property
+    @cached_property
+    def RABBITMQ_URL(self) -> str:
+        return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/"
+
+    @cached_property
     def google_redirect_url(self) -> str:
         return f"https://accounts.google.com/o/oauth2/auth?response_type=code&client_id={self.GOOGLE_CLIENT_ID}&redirect_uri={self.GOOGLE_REDIRECT_URI}&scope=openid%20profile%20email&access_type=offline"
 

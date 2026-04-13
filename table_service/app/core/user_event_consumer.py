@@ -1,17 +1,16 @@
 from __future__ import annotations
 import json
 import logging
-import os
-from datetime import datetime
-
 import aio_pika
+from datetime import datetime
 
 from table_service.app.core.database import AsyncSessionFactory
 from table_service.app.infrastructure import EventConsumerBase
+from table_service.app.core import app_settings
 
 logger = logging.getLogger(__name__)
 
-RABBITMQ_URL = os.getenv("RABBITMQ_URL")
+RABBITMQ_URL = app_settings.RABBITMQ_URL
 
 
 class UserEventConsumer:

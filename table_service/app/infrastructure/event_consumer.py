@@ -1,9 +1,8 @@
-import os
 import aio_pika
 from aio_pika import ExchangeType
 from typing import Callable
 
-RABBITMQ_URL = os.getenv("RABBITMQ_URL")
+from table_service.app.core.settings import app_settings
 
 
 class EventConsumerBase:
@@ -13,8 +12,8 @@ class EventConsumerBase:
     объявления exchange/queue и биндинга routing keys.
     """
 
-    def __init__(self, amqp_url: str = RABBITMQ_URL):
-        self.amqp_url = amqp_url
+    def __init__(self, amqp_url: str | None = None):
+        self.amqp_url = amqp_url or app_settings.RABBITMQ_URL
         self.connection: aio_pika.RobustConnection | None = None
         self.channel: aio_pika.RobustChannel | None = None
 

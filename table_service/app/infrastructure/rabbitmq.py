@@ -1,13 +1,16 @@
-import os
 import uuid
 import aio_pika
 import asyncio
 from typing import Optional
 from aio_pika.abc import AbstractIncomingMessage
+from typing_extensions import deprecated
 
-RABBITMQ_URL = os.getenv("RABBITMQ_URL")
+from table_service.app.core.settings import app_settings
+
+RABBITMQ_URL = app_settings.RABBITMQ_URL
 
 
+@deprecated("RPC-валидация пользователей не подключена")
 class RpcClient:
     """Асинхронный RPC клиент для RabbitMQ."""
 

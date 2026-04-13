@@ -1,6 +1,9 @@
+from typing_extensions import deprecated
+
 from table_service.app.infrastructure import RpcClient
 
 
+@deprecated("RPC-валидация пользователей не подключена")
 class RabbitMQUserValidator:
     """Конкретная реализация валидатора категорий через RabbitMQ RPC."""
 
