@@ -66,3 +66,11 @@ class FileParseException(AppException):
 
 class CanNotUpdateTableException(AppException):
     detail = "Ошибка обновления таблицы"
+
+
+class PermissionAlreadyExistsException(AppException):
+    detail = "Права для этого пользователя уже существуют"
+
+
+class CanNotCreatePermissionException(AppException):
+    detail = "Не удалось создать права доступа"

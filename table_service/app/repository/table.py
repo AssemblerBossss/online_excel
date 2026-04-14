@@ -13,16 +13,21 @@ class TableRepository(Base):
     """Репозиторий для работы с таблицами данных (DataTable)."""
 
     async def get_all_tables(self) -> Sequence[DataTable]:
-        """
-        Получить список всех таблиц в базе данных.
-
-        Returns:
-            List[DataTable]: Список всех таблиц. Если таблиц нет — возвращает пустой список.
-        """
+        """Получить список всех таблиц в базе данных."""
         stmt = select(DataTable)
         result = await self._session.execute(stmt)
         tables = result.scalars().all()
         return tables
+
+    async def get_table_by_id(self, table_id: int) -> DataTable | None:
+        """Получить таблицу по ее идентификатору."""
+        stmt = (
+            select(DataTable)
+            .options(selectinload(DataTable.permissions))
+            .where(DataTable.id == table_id)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def _get_table_with_access_check(
         self,
@@ -150,12 +155,7 @@ class TableRepository(Base):
         return False
 
     async def create_table(self, table_data: dict, user_id: int) -> DataTable:
-        """
-        Создать новую таблицу данных.
-        Args:
-            table_data: Данные для создания таблицы (имя, описание, схема и т.д.)
-            user_id: Идентификатор пользователя, создающего таблицу.
-        """
+        """Создать новую таблицу данных."""
         stmt = (
             insert(DataTable)
             .values(
@@ -194,17 +194,6 @@ class TableRepository(Base):
         при удалении таблицы автоматически удалятся:
         - Все строки таблицы (TableRow)
         - Все права доступа (TablePermission)
-
-        Args:
-            table_id: ID таблицы для удаления
-            user_id: ID пользователя (для проверки прав)
-            user_role: Роль пользователя
-
-        Returns:
-            bool: True если таблица удалена, False если не найдена
-
-        Raises:
-            AccessDeniedException: Если нет прав на удаление
         """
 
         table = await self.get_table_with_write_access(

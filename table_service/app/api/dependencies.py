@@ -4,8 +4,18 @@ from typing import AsyncGenerator, Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
-from table_service.app.services import DataService, TableService, SearchService
-from table_service.app.repository import TableRepository, DataRepository, UserRepository
+from table_service.app.services import (
+    DataService,
+    TableService,
+    SearchService,
+    PermissionService,
+)
+from table_service.app.repository import (
+    TableRepository,
+    DataRepository,
+    UserRepository,
+    PermissionRepository,
+)
 from table_service.app.core import AsyncSessionFactory, get_redis_client, get_es_client
 from table_service.app.schemas import SCurrentUser, SUserFilter
 
@@ -66,6 +76,13 @@ def get_user_repository(
     return UserRepository(session=session)
 
 
+def get_permission_repository(
+    session: Annotated[AsyncSession, Depends(get_session_with_commit)],
+) -> PermissionRepository:
+    """Получить экземпляр репозитория разрешения пользователей."""
+    return PermissionRepository(session=session)
+
+
 def get_search_service(
     es: Annotated[AsyncElasticsearch, Depends(get_es_client)],
 ) -> SearchService:
@@ -84,6 +101,16 @@ def get_table_service(
         data_repository=data_repository,
         search_service=es,
     )
+
+
+def get_permission_service(
+    table_repo: Annotated[TableRepository, Depends(get_table_repository)],
+    permission_repo: Annotated[
+        PermissionRepository, Depends(get_permission_repository)
+    ],
+) -> PermissionService:
+    """Получить экземпляр сервиса разрешений пользователей."""
+    return PermissionService(table_repo=table_repo, permission_repo=permission_repo)
 
 
 def get_data_service(

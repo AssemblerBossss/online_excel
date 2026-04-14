@@ -12,6 +12,7 @@ from table_service.app.api.endpoints import (
     data_router,
     tables_router,
     search_router,
+    permissions_router,
 )
 from table_service.app.core import (
     init_db,
@@ -35,6 +36,8 @@ from table_service.app.exceptions import (
     FileParseException,
     AppException,
     CanNotUpdateTableException,
+    PermissionAlreadyExistsException,
+    CanNotCreatePermissionException,
 )
 
 setup_service_logging()
@@ -84,6 +87,18 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(CanNotUpdateTableException)
     async def file_parse_handler(request: Request, exc: CanNotUpdateTableException):
         return JSONResponse(status_code=404, content={"detail": exc.detail})
+
+    @app.exception_handler(PermissionAlreadyExistsException)
+    async def permission_exists_handler(
+        request: Request, exc: PermissionAlreadyExistsException
+    ):
+        return JSONResponse(status_code=409, content={"detail": exc.detail})
+
+    @app.exception_handler(CanNotCreatePermissionException)
+    async def cant_create_permission_handler(
+        request: Request, exc: CanNotCreatePermissionException
+    ):
+        return JSONResponse(status_code=500, content={"detail": exc.detail})
 
     @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException):
@@ -168,6 +183,7 @@ def register_routers(app: FastAPI) -> None:
         (data_router, "/data", "Data"),
         (tables_router, "/tables", "Tables"),
         (search_router, "/search", "Search"),
+        (permissions_router, "/tables/{table_id}/permissions", "Permissions"),
     ]
     for router, prefix, tag in routers:
         root_router.include_router(router, prefix=prefix, tags=[tag])
