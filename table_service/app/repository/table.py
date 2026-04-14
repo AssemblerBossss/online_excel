@@ -2,11 +2,11 @@ from typing import Callable, Coroutine, Any
 from sqlalchemy import select, delete, Sequence
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.sync import update
 
 from table_service.app.repository.base import Base
 from table_service.app.models import DataTable
 from table_service.app.exceptions import AccessDeniedException
-from table_service.app.schemas import DataTableCreate
 
 
 class TableRepository(Base):
@@ -149,26 +149,20 @@ class TableRepository(Base):
 
         return False
 
-    async def create_table(
-        self, table_data: DataTableCreate, user_id: int
-    ) -> DataTable:
+    async def create_table(self, table_data: dict, user_id: int) -> DataTable:
         """
         Создать новую таблицу данных.
-
         Args:
             table_data: Данные для создания таблицы (имя, описание, схема и т.д.)
             user_id: Идентификатор пользователя, создающего таблицу.
-
-        Returns:
-            DataTable: Созданная таблица с подгруженным владельцем.
         """
         stmt = (
             insert(DataTable)
             .values(
-                name=table_data.name,
-                description=table_data.description,
-                is_public=table_data.is_public,
-                columns_schema=table_data.columns_schema,
+                name=table_data.get("name"),
+                description=table_data.get("description"),
+                is_public=table_data.get("is_public"),
+                columns_schema=table_data.get("columns_schema"),
                 created_by_id=user_id,
             )
             .returning(DataTable)
@@ -179,6 +173,18 @@ class TableRepository(Base):
         await self._session.refresh(table)
 
         return table
+
+    async def update_table(self, table_id: int, data: dict) -> DataTable | None:
+        """Обновить таблицу"""
+        stmt = (
+            update(DataTable)
+            .where(DataTable.id == table_id)
+            .values(**data)
+            .returning(DataTable)
+        )
+
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def delete_table(self, table_id: int, user_id: int, user_role: str) -> bool:
         """

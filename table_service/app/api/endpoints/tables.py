@@ -10,7 +10,12 @@ from fastapi import (
 )
 from redis.asyncio import Redis
 
-from table_service.app.schemas import DataTableCreate, DataTableResponse, SCurrentUser
+from table_service.app.schemas import (
+    DataTableCreate,
+    DataTableResponse,
+    SCurrentUser,
+    DataTableUpdate,
+)
 from table_service.app.services import TableService
 from table_service.app.api.dependencies import (
     get_table_service,
@@ -38,7 +43,11 @@ async def get_tables(
         return json.loads(cached)
 
     tables = await table_service.get_all_tables()
-    await redis.setex(TABLES_CACHE_KEY, TABLES_CACHE_TTL, json.dumps([t.model_dump(mode="json") for t in tables]))
+    await redis.setex(
+        TABLES_CACHE_KEY,
+        TABLES_CACHE_TTL,
+        json.dumps([t.model_dump(mode="json") for t in tables]),
+    )
     return tables
 
 
@@ -53,6 +62,25 @@ async def get_table(
         user_id=current_user.user_id,
         user_role=current_user.role,
     )
+
+
+@router.patch("/{table_id}", response_model=DataTableResponse)
+async def update_table(
+    table_id: int,
+    update_data: DataTableUpdate,
+    table_service: Annotated[TableService, Depends(get_table_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    redis: Annotated[Redis, Depends(get_redis)],
+) -> DataTableResponse:
+    result = await table_service.update_table(
+        table_id=table_id,
+        user_id=current_user.user_id,
+        user_role=current_user.role,
+        update_data=update_data,
+    )
+
+    await invalidate_tables_cache(redis)
+    return result
 
 
 @router.post(

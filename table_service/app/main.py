@@ -34,6 +34,7 @@ from table_service.app.exceptions import (
     EmptyFileException,
     FileParseException,
     AppException,
+    CanNotUpdateTableException,
 )
 
 setup_service_logging()
@@ -79,6 +80,10 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(FileParseException)
     async def file_parse_handler(request: Request, exc: FileParseException):
         return JSONResponse(status_code=400, content={"detail": exc.detail})
+
+    @app.exception_handler(CanNotUpdateTableException)
+    async def file_parse_handler(request: Request, exc: CanNotUpdateTableException):
+        return JSONResponse(status_code=404, content={"detail": exc.detail})
 
     @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException):

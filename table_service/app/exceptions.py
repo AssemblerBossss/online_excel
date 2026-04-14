@@ -62,3 +62,7 @@ class EmptyFileException(AppException):
 
 class FileParseException(AppException):
     detail = "Ошибка парсинга файла"
+
+
+class CanNotUpdateTableException(AppException):
+    detail = "Ошибка обновления таблицы"

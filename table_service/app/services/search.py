@@ -51,10 +51,10 @@ class SearchService:
             "name": name,
             "description": description,
             "is_public": is_public,
-            created_by_id: "created_by_id",
+            "created_by_id": created_by_id,
         }
 
-        await self.es_client.index(index=TABLE_INDEX, document=doc)
+        await self.es_client.index(index=TABLE_INDEX, id=str(table_id), document=doc)
         logger.debug("Таблица %s проиндексирована в Elasticsearch", table_id)
 
     async def delete_from_index(self, table_id: int) -> None:
