@@ -6,6 +6,7 @@ from table_service.app.exceptions import (
     PermissionAlreadyExistsException,
     CanNotCreatePermissionException,
 )
+from table_service.app.models import DataTable, TablePermission
 from table_service.app.repository import TableRepository, PermissionRepository
 from table_service.app.schemas import TablePermissionResponse, TablePermissionCreate
 
@@ -40,7 +41,7 @@ class PermissionService:
         self, table_id: int, user_id: int, user_role: str
     ) -> None:
         """Проверить доступ пользователя к таблице."""
-        table = await self.table_repo.get_table_by_id(table_id=table_id)
+        table: DataTable = await self.table_repo.get_table_by_id(table_id=table_id)
         if not table:
             raise NotFoundException("Таблица не найдена")
 
@@ -49,6 +50,53 @@ class PermissionService:
 
         if not (is_owner or is_admin):
             raise AccessDeniedException()
+
+    async def check_read_access(
+        self, table: DataTable, user_id: int, user_role: str
+    ) -> bool:
+        """Проверить, имеет ли пользователь право на чтение таблицы."""
+        if table.created_by_id == user_id:
+            return True
+        if user_role and user_role.upper() == self.ADMIN_ROLE:
+            return True
+        if table.is_public:
+            return True
+        perm: TablePermission = await self.permission_repo.get_permissions(
+            table_id=table.id, user_id=user_id
+        )
+        if perm and perm.can_read:
+            return True
+        return False
+
+    async def check_write_access(
+        self, table: DataTable, user_id: int, user_role: str
+    ) -> bool:
+        """Проверить, имеет ли пользователь право на запись в таблицу."""
+        if table.created_by_id == user_id:
+            return True
+        if user_role and user_role.upper() == self.ADMIN_ROLE:
+            return True
+        perm: TablePermission = await self.permission_repo.get_permissions(
+            table_id=table.id, user_id=user_id
+        )
+        if perm and (perm.can_write or perm.can_manage):
+            return True
+        return False
+
+    async def check_manage_access(
+        self, table: DataTable, user_id: int, user_role: str
+    ) -> bool:
+        """Проверить, имеет ли пользователь право на управление (изменение прав, удаление таблицы)."""
+        if table.created_by_id == user_id:
+            return True
+        if user_role and user_role.upper() == self.ADMIN_ROLE:
+            return True
+        perm: TablePermission = await self.permission_repo.get_permissions(
+            table_id=table.id, user_id=user_id
+        )
+        if perm and perm.can_manage:
+            return True
+        return False
 
     async def get_permissions(
         self, table_id: int, user_id: int, user_role: str
