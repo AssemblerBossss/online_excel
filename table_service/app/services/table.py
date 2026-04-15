@@ -14,7 +14,7 @@ from table_service.app.services.excel_processor import (
     _import_excel_data_to_table,
 )
 from table_service.app.services.search import SearchService
-
+from table_service.app.services.permission import PermissionService
 from table_service.app.exceptions import (
     NotFoundException,
     CanNotCreateTableException,
@@ -24,6 +24,7 @@ from table_service.app.exceptions import (
     FileParseException,
     CanNotDeleteTableException,
     CanNotUpdateTableException,
+    AccessDeniedException,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,13 +43,15 @@ class TableService:
         self,
         table_repository: TableRepository,
         data_repository: DataRepository,
+        permission_service: PermissionService,
         search_service: SearchService | None = None,
     ):
         self.table_repo = table_repository
         self.data_repo = data_repository
+        self.permission_service = permission_service
         self.search_service = search_service
 
-    def _to_response(self, table) -> DataTableResponse:
+    def _to_response(self, table: DataTable) -> DataTableResponse:
         return DataTableResponse(
             id=table.id,
             name=table.name,
@@ -75,14 +78,17 @@ class TableService:
         self, table_id: int, user_id: int, user_role: str
     ) -> DataTableResponse:
         """Получить таблицу по ID с проверкой прав на чтение."""
-        table = await self.table_repo.get_table_with_read_access(
-            table_id=table_id, user_id=user_id, user_role=user_role
-        )
+        table = await self.table_repo.get_table_by_id(table_id)
         if not table:
             logger.warning(
                 "Table %s not found or access denied for user %s", table_id, user_id
             )
             raise NotFoundException("Table not found or access denied")
+        if not await self.permission_service.check_read_access(
+            table=table, user_id=user_id, user_role=user_role
+        ):
+            raise AccessDeniedException()
+
         return self._to_response(table)
 
     async def create_table(
@@ -93,9 +99,6 @@ class TableService:
         payload = table_data.model_dump()
         table = await self.table_repo.create_table(table_data=payload, user_id=user_id)
         if not table:
-            logger.error(
-                "Failed to create table '%s' for user %s", table_data.name, user_id
-            )
             raise CanNotCreateTableException()
 
         if self.search_service:
@@ -115,15 +118,16 @@ class TableService:
         self, table_id: int, user_id: int, user_role: str, update_data: DataTableUpdate
     ) -> DataTableResponse:
 
-        table = await self.table_repo.get_table_with_write_access(
-            table_id, user_id, user_role=user_role
-        )
-        if not table:
+        if not (table := await self.table_repo.get_table_by_id(table_id=table_id)):
             raise NotFoundException("Table not found or access denied")
+
+        if not await self.permission_service.check_write_access(
+            table=table, user_id=user_id, user_role=user_role
+        ):
+            raise AccessDeniedException()
 
         payload = update_data.model_dump(exclude_none=True)
         updated = await self.table_repo.update_table(table_id, payload)
-
         if not updated:
             raise CanNotUpdateTableException()
 
@@ -237,34 +241,16 @@ class TableService:
 
     async def delete_table(self, table_id: int, user_id: int, user_role: str) -> None:
         """Удалить таблицу."""
-        table: DataTable | None = await self.table_repo.get_table_with_write_access(
-            table_id, user_id, user_role=user_role
-        )
-
+        table: DataTable | None = await self.table_repo.get_table_by_id(table_id)
         if not table:
-            logger.warning(
-                "User %s (role: %s) denied write access to table %s",
-                user_id,
-                user_role,
-                table_id,
-            )
             raise NotFoundException("Table not found or access denied")
 
-        deleted = await self.table_repo.delete_table(
-            table_id=table_id, user_id=user_id, user_role=user_role
-        )
+        if not await self.table_repo.delete_table(table_id=table_id):
+            raise CanNotDeleteTableException()
 
         if self.search_service:
             await self.search_service.delete_from_index(table_id=table_id)
 
-        if not deleted:
-            logger.error(
-                "Failed to delete table %s (name: '%s') by user %s",
-                table_id,
-                table.name,
-                user_id,
-            )
-            raise CanNotDeleteTableException()
         logger.info(
             "User %s deleted table %s (name: %s)", user_id, table_id, table.name
         )

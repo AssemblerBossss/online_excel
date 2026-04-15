@@ -10,15 +10,22 @@ from table_service.app.exceptions import (
     NotFoundException,
 )
 from table_service.app.models import TableRow
+from table_service.app.services.permission import PermissionService
 
 logger = logging.getLogger(__name__)
 
 
 class DataService:
 
-    def __init__(self, data_repo: DataRepository, table_repo: TableRepository):
+    def __init__(
+        self,
+        data_repo: DataRepository,
+        table_repo: TableRepository,
+        permission_service: PermissionService,
+    ):
         self.data_repo = data_repo
         self.table_repo = table_repo
+        self.permission_service = permission_service
 
     @staticmethod
     def _to_row_response(row: TableRow) -> TableRowResponse:
@@ -242,17 +249,13 @@ class DataService:
     ) -> list[TableRowResponse]:
         """Получить строки таблицы"""
 
-        table = await self.table_repo.get_table_with_read_access(
-            table_id=table_id, user_id=user_id, user_role=user_role
-        )
-
+        table = await self.table_repo.get_table_by_id(table_id)
         if not table:
-            logger.warning(
-                "User %s (role: %s) denied read access to table %s",
-                user_id,
-                user_role,
-                table_id,
-            )
+            raise NotFoundException("Таблица не найдена")
+
+        if not await self.permission_service.check_read_access(
+            table=table, user_id=user_id, user_role=user_role
+        ):
             raise AccessDeniedException()
 
         if not sort_by:
@@ -269,36 +272,35 @@ class DataService:
         return [self._to_row_response(row) for row in rows]
 
     async def get_table_row(
-        self, table_id: int, user_id: int, row_id: int
+        self, table_id: int, user_id: int, user_role: str, row_id: int
     ) -> TableRowResponse | None:
         """Получить строку таблицы"""
-
-        table = await self.table_repo.get_table_with_read_access(
-            table_id=table_id, user_id=user_id, user_role=None
-        )
-
+        table = await self.table_repo.get_table_by_id(table_id)
         if not table:
-            logger.warning("User %s denied read access to table %s", user_id, table_id)
+            raise NotFoundException("Таблица не найдена")
+
+        if not await self.permission_service.check_read_access(
+            table=table, user_id=user_id, user_role=user_role
+        ):
             raise AccessDeniedException()
 
         row = await self.data_repo.get_row_by_id(table_id=table_id, row_id=row_id)
         if not row:
-            logger.warning(
-                "Row %s not found in table %s (requested by user %s)",
-                row_id,
-                table_id,
-                user_id,
-            )
             raise NotFoundException()
 
         return self._to_row_response(row)
 
     async def create_table_row(
-        self, table_id: int, user_id: int, row_data: TableRowCreate
+        self, table_id: int, user_id: int, user_role: str, row_data: TableRowCreate
     ) -> TableRowResponse:
         """Создать новую строку в таблице"""
-        table = await self.table_repo.get_table_with_write_access(table_id, user_id)
+        table = await self.table_repo.get_table_by_id(table_id)
         if not table:
+            raise NotFoundException("Таблица не найдена")
+
+        if not await self.permission_service.check_write_access(
+            table=table, user_id=user_id, user_role=user_role
+        ):
             logger.warning("User %s denied write access to table %s", user_id, table_id)
             raise AccessDeniedException()
 
@@ -306,12 +308,6 @@ class DataService:
             table.columns_schema, row_data
         )
         if validation_errors:
-            logger.warning(
-                "Row validation failed for table %s by user %s: %s",
-                table_id,
-                user_id,
-                "; ".join(validation_errors),
-            )
             raise ValidationException("; ".join(validation_errors))
 
         row = await self.data_repo.create_table_row(table_id, row_data)
@@ -320,58 +316,52 @@ class DataService:
         return self._to_row_response(row)
 
     async def update_table_row(
-        self, table_id: int, row_id: int, user_id: int, row_data: TableRowUpdate
+        self,
+        table_id: int,
+        row_id: int,
+        user_id: int,
+        user_role: str,
+        row_data: TableRowUpdate,
     ) -> TableRowResponse | None:
         """Обновить строку таблицы"""
-
-        table = await self.table_repo.get_table_with_write_access(table_id, user_id)
+        table = await self.table_repo.get_table_by_id(table_id)
         if not table:
-            logger.warning("User %s denied write access to table %s", user_id, table_id)
+            raise NotFoundException("Таблица не найдена")
 
+        if not await self.permission_service.check_write_access(
+            table=table, user_id=user_id, user_role=user_role
+        ):
+            logger.warning("User %s denied write access to table %s", user_id, table_id)
             raise AccessDeniedException()
 
         validation_errors = self._validate_row_data_with_schema(
             table.columns_schema, row_data
         )
         if validation_errors:
-            logger.warning(
-                "Row %s validation failed for table %s by user %s: %s",
-                row_id,
-                table_id,
-                user_id,
-                "; ".join(validation_errors),
-            )
             raise ValidationException("; ".join(validation_errors))
 
         row = await self.data_repo.update_table_row(table_id, row_id, row_data)
         if not row:
-            logger.warning(
-                "Row %s not found in table %s during update by user %s",
-                row_id,
-                table_id,
-                user_id,
-            )
             raise NotFoundException()
 
-        logger.info("User %s updated row %s in table %s", user_id, row_id, table_id)
         return self._to_row_response(row)
 
-    async def delete_table_row(self, table_id: int, row_id: int, user_id: int) -> None:
+    async def delete_table_row(
+        self, table_id: int, row_id: int, user_id: int, user_role: str
+    ) -> None:
         """Удалить строку таблицы"""
-        table = await self.table_repo.get_table_with_write_access(
-            table_id=table_id, user_id=user_id
-        )
+        table = await self.table_repo.get_table_by_id(table_id)
         if not table:
-            logger.warning("User %s denied write access to table %s", user_id, table_id)
+            raise NotFoundException("Таблица не найдена")
+
+        if not await self.permission_service.check_write_access(
+            table=table, user_id=user_id, user_role=user_role
+        ):
             raise AccessDeniedException()
+
         row = await self.data_repo.get_row_by_id(table_id=table_id, row_id=row_id)
         if not row:
-            logger.warning(
-                "Row %s not found in table %s during delete by user %s",
-                row_id,
-                table_id,
-                user_id,
-            )
             raise NotFoundException()
+
         await self.data_repo.delete_table_row(table_id=table_id, row_id=row_id)
         logger.info("User %s deleted row %s from table %s", user_id, row_id, table_id)

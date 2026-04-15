@@ -93,6 +93,7 @@ async def get_row(
         table_id=table_id,
         user_id=current_user.user_id,
         row_id=row_id,
+        user_role=current_user.role,
     )
 
 
@@ -113,6 +114,7 @@ async def create_table_row(
         table_id=table_id,
         user_id=current_user.user_id,
         row_data=row_data,
+        user_role=current_user.role,
     )
     await redis.delete(_rows_cache_key(table_id))
     return result
@@ -137,6 +139,7 @@ async def update_row(
         row_id=row_id,
         user_id=current_user.user_id,
         row_data=row_data,
+        user_role=current_user.role,
     )
     await redis.delete(_rows_cache_key(table_id))
     return result
@@ -155,5 +158,6 @@ async def delete_row(
         table_id=table_id,
         row_id=row_id,
         user_id=current_user.user_id,
+        user_role=current_user.role,
     )
     await redis.delete(_rows_cache_key(table_id))

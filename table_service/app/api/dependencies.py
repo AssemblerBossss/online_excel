@@ -90,19 +90,6 @@ def get_search_service(
     return SearchService(es_client=es)
 
 
-def get_table_service(
-    table_repository: Annotated[TableRepository, Depends(get_table_repository)],
-    data_repository: Annotated[DataRepository, Depends(get_data_repository)],
-    es: Annotated[SearchService, Depends(get_search_service)],
-) -> TableService:
-    """Получить экземпляр сервиса таблиц."""
-    return TableService(
-        table_repository=table_repository,
-        data_repository=data_repository,
-        search_service=es,
-    )
-
-
 def get_permission_service(
     table_repo: Annotated[TableRepository, Depends(get_table_repository)],
     permission_repo: Annotated[
@@ -113,12 +100,32 @@ def get_permission_service(
     return PermissionService(table_repo=table_repo, permission_repo=permission_repo)
 
 
+def get_table_service(
+    table_repo: Annotated[TableRepository, Depends(get_table_repository)],
+    data_repo: Annotated[DataRepository, Depends(get_data_repository)],
+    permission_service: Annotated[PermissionService, Depends(get_permission_service)],
+    search_service: Annotated[SearchService, Depends(get_search_service)],
+) -> TableService:
+    """Получить экземпляр сервиса таблиц."""
+    return TableService(
+        table_repository=table_repo,
+        data_repository=data_repo,
+        permission_service=permission_service,
+        search_service=search_service,
+    )
+
+
 def get_data_service(
     data_repo: Annotated[DataRepository, Depends(get_data_repository)],
     table_repo: Annotated[TableRepository, Depends(get_table_repository)],
+    permission_service: Annotated[PermissionService, Depends(get_permission_service)],
 ) -> DataService:
     """Получить экземпляр сервиса данных."""
-    return DataService(data_repo, table_repo)
+    return DataService(
+        data_repo=data_repo,
+        table_repo=table_repo,
+        permission_service=permission_service,
+    )
 
 
 def get_redis() -> Redis:
