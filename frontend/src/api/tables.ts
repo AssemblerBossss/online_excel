@@ -70,4 +70,9 @@ export const tablesAPI = {
     deleteRow: async (tableId: number, rowId: number): Promise<void> => {
         await api.delete(`/data/${tableId}/rows/${rowId}`);
     },
+
+    searchTables: async(query: string, limit: number = 10): Promise<DataTableResponse[]> => {
+        const response = await api.get('/search/', { params: { q: query, limit } });
+        return response.data;
+    },
 };

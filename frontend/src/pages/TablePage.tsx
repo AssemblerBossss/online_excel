@@ -17,6 +17,34 @@ const TablesPage: React.FC = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [createMethod, setCreateMethod] = useState<'manual' | 'excel'>('manual');
 
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<DataTableResponse[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [showSuggestions, setShowSuggestions] = useState(false)
+
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+            setSearchResults([]);
+            setShowSuggestions(false);
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            setIsSearching(true);
+            try {
+                const results = await tablesAPI.searchTables(searchQuery);
+                setSearchResults(results);
+                setShowSuggestions(true);
+            } catch (err) {
+                console.error('Ошибка поиска:', err);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+
     useEffect(() => {
         loadTables();
     }, []);
@@ -169,6 +197,12 @@ const TablesPage: React.FC = () => {
         }
     };
 
+    const handleSelectSuggestion = (table: DataTableResponse) => {
+        setShowSuggestions(false);
+        setSearchQuery('');
+        navigate(`/data/${table.id}/rows`);
+    };
+
     if (loading) {
         return (
             <div style={styles.loadingContainer}>
@@ -205,6 +239,42 @@ const TablesPage: React.FC = () => {
 
             {/* Main Content */}
             <main style={styles.main}>
+             {/* Search Bar */}
+                  <div style={styles.searchContainer}>
+                      <div style={styles.searchWrapper}>
+                          <input
+                              style={styles.searchInput}
+                              type="text"
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              onFocus={() => searchResults.length > 0 && setShowSuggestions(true)}
+                              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                              placeholder="Поиск таблиц..."
+                          />
+                          {isSearching && <div style={styles.searchSpinner} />}
+                          {showSuggestions && searchResults.length > 0 && (
+                              <div style={styles.suggestions}>
+                                  {searchResults.map((table) => (
+                                      <div
+                                          key={table.id}
+                                          style={styles.suggestionItem}
+                                          onMouseDown={() => handleSelectSuggestion(table)}
+                                      >
+                                          <span style={styles.suggestionName}>{table.name}</span>
+                                          {table.description && (
+                                              <span style={styles.suggestionDesc}>{table.description}</span>
+                                          )}
+                                      </div>
+                                  ))}
+                              </div>
+                          )}
+                          {showSuggestions && searchResults.length === 0 && !isSearching && searchQuery.trim() && (
+                              <div style={styles.suggestions}>
+                                  <div style={styles.noResults}>Ничего не найдено</div>
+                              </div>
+                          )}
+                      </div>
+                  </div>
                 {error && (
                     <div style={styles.error}>
                         {error}
@@ -736,6 +806,73 @@ const styles: Record<string, React.CSSProperties> = {
         lineHeight: 1,
         color: '#333',
     },
+    searchContainer: {
+        marginBottom: '24px',
+      },
+    searchWrapper: {
+          position: 'relative',
+          maxWidth: '480px',
+      },
+    searchInput: {
+          width: '100%',
+          padding: '12px 16px',
+          border: '1px solid #d1d5db',
+          borderRadius: '8px',
+          fontSize: '16px',
+          boxSizing: 'border-box' as const,
+          outline: 'none',
+      },
+    searchSpinner: {
+          position: 'absolute',
+          right: '12px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: '16px',
+          height: '16px',
+          border: '2px solid #e2e8f0',
+          borderTop: '2px solid #3b82f6',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+    },
+    suggestions: {
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          right: 0,
+          background: 'white',
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+          zIndex: 100,
+          marginTop: '4px',
+          overflow: 'hidden',
+    },
+    suggestionItem: {
+          padding: '12px 16px',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column' as const,
+          gap: '2px',
+          borderBottom: '1px solid #f1f5f9',
+    },
+    suggestionName: {
+          fontWeight: '500',
+          color: '#1a202c',
+          fontSize: '14px',
+      },
+      suggestionDesc: {
+          color: '#64748b',
+          fontSize: '12px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap' as const,
+      },
+      noResults: {
+          padding: '12px 16px',
+          color: '#64748b',
+          fontSize: '14px',
+          textAlign: 'center' as const,
+      },
 };
 
 // Добавляем CSS анимацию
