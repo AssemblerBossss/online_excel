@@ -215,6 +215,18 @@ class TableService:
                 )
                 raise CanNotCreateTableException()
 
+            if self.search_service:
+                await self.search_service.index_table(
+                    table_id=table.id,
+                    name=table.name,
+                    description=table.description,
+                    is_public=table.is_public,
+                    created_by_id=table.created_by_id,
+                )
+                logger.info(
+                    "Table %s indexed in Elasticsearch from Excel import", table.id
+                )
+
             await _import_excel_data_to_table(self.data_repo, table.id, df)
             logger.info(
                 "User %s created table %s from Excel '%s' (%s rows, %s columns)",
