@@ -1,5 +1,5 @@
 # Stage 1: Сборка
-FROM node:22-alpine AS builder
+FROM node:22-alpine3.22 AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --no-audit --prefer-offline

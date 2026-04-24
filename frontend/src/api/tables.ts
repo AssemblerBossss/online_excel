@@ -72,7 +72,7 @@ export const tablesAPI = {
     },
 
     searchTables: async(query: string, limit: number = 10): Promise<DataTableResponse[]> => {
-        const response = await api.get('/search/', { params: { q: query, limit } });
+        const response = await api.get('/search', { params: { q: query, limit } });
         return response.data;
     },
 };

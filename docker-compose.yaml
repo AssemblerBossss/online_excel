@@ -183,8 +183,6 @@ services:
       - "3000:80"
     networks:
       - appnet
-    volumes:
-      - ./table_service:/app/table_service
 
   elasticsearch:
     image: elasticsearch:9.3.0
