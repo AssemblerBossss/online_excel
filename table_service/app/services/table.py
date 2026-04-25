@@ -131,14 +131,8 @@ class TableService:
         if not updated:
             raise CanNotUpdateTableException()
 
-        if self.search_service:
-            await self.search_service.index_table(
-                table_id=updated.id,
-                name=updated.name,
-                description=updated.description,
-                is_public=updated.is_public,
-                created_by_id=updated.created_by_id,
-            )
+        if self.search_service and payload:
+            await self.search_service.update_table(table_id=updated.id, **payload)
 
         logger.info("User %s updated table %s", user_id, table_id)
         return self._to_response(updated)

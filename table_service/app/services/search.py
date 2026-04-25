@@ -45,7 +45,7 @@ class SearchService:
         is_public: bool,
         created_by_id: int,
     ) -> None:
-        """Индексировать/обновить таблицу в Elasticsearch."""
+        """Индексировать таблицу в Elasticsearch."""
         doc = {
             "id": table_id,
             "name": name,
@@ -56,6 +56,39 @@ class SearchService:
 
         await self.es_client.index(index=TABLE_INDEX, id=str(table_id), document=doc)
         logger.debug("Таблица %s проиндексирована в Elasticsearch", table_id)
+
+    async def update_table(
+        self,
+        table_id: int,
+        name: str | None = None,
+        description: str | None = None,
+        is_public: bool | None = None,
+        created_by_id: int | None = None,
+    ) -> None:
+        """Обновить таблицу в Elasticsearch."""
+        doc = {}
+        if name is not None:
+            doc["name"] = name
+        if description is not None:
+            doc["description"] = description
+        if is_public is not None:
+            doc["is_public"] = is_public
+        if created_by_id is not None:
+            doc["created_by_id"] = created_by_id
+        doc = {
+            "id": table_id,
+            "name": name,
+            "description": description,
+            "is_public": is_public,
+            "created_by_id": created_by_id,
+        }
+
+        try:
+            await self.es_client.update(index=TABLE_INDEX, id=str(table_id), doc=doc)
+            logger.debug("Table %s updated in Elasticsearch", table_id)
+        except Exception as e:
+            logger.error("Failed to update table %s in Elasticsearch: %s", table_id, e)
+            raise
 
     async def delete_from_index(self, table_id: int) -> None:
         """Удалить таблицу из индекса Elasticsearch."""
