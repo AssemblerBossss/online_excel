@@ -18,6 +18,7 @@ from table_service.app.repository import (
 )
 from table_service.app.core import AsyncSessionFactory, get_redis_client, get_es_client
 from table_service.app.schemas import SCurrentUser, SUserFilter
+from table_service.app.services.data_validation import DataValidationService
 
 
 async def get_session_with_commit() -> AsyncGenerator[AsyncSession, None]:
@@ -90,6 +91,11 @@ def get_search_service(
     return SearchService(es_client=es)
 
 
+async def get_validation_service() -> DataValidationService:
+    """Получить экземпляр сервиса валидации данных."""
+    return DataValidationService()
+
+
 def get_permission_service(
     table_repo: Annotated[TableRepository, Depends(get_table_repository)],
     permission_repo: Annotated[
@@ -119,12 +125,16 @@ def get_data_service(
     data_repo: Annotated[DataRepository, Depends(get_data_repository)],
     table_repo: Annotated[TableRepository, Depends(get_table_repository)],
     permission_service: Annotated[PermissionService, Depends(get_permission_service)],
+    validation_service: Annotated[
+        DataValidationService, Depends(get_validation_service)
+    ],
 ) -> DataService:
     """Получить экземпляр сервиса данных."""
     return DataService(
         data_repo=data_repo,
         table_repo=table_repo,
         permission_service=permission_service,
+        validation_service=validation_service,
     )
 
 

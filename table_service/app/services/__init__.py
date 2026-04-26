@@ -2,6 +2,7 @@ from .data import DataService
 from .table import TableService
 from .search import SearchService
 from .permission import PermissionService
+from .data_validation import DataValidationService
 
 
 __all__ = [
@@ -9,4 +10,5 @@ __all__ = [
     "TableService",
     "SearchService",
     "PermissionService",
+    "DataValidationService",
 ]
