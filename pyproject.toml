@@ -27,6 +27,7 @@ dependencies = [
     "aio-pika (>=9.5.8,<10.0.0)",
     "fastapi-cache2[redis] (>=0.2.2,<0.3.0)",
     "elasticsearch[async] (>=9.3.0,<10.0.0)",
+    "fastapi-limiter (>=0.2.0,<0.3.0)",
 ]
 
 [tool.poetry]

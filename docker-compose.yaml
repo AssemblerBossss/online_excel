@@ -5,8 +5,6 @@ services:
       context: .
       dockerfile: api_gateway/Dockerfile
     container_name: online_excel_gateway
-    #    env_file:
-    #      - .env
     ports:
       - "8080:8080"
     depends_on:
@@ -24,22 +22,8 @@ services:
     container_name: online_excel_auth_service
     ports:
       - "8001:8001"
-    environment:
-      DB_HOST: auth_db
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: auth_db
-      DB_DRIVER: postgresql+asyncpg
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: guest
-      RABBITMQ_PASSWORD: guest
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
-      JWT_SECRET_KEY: "secret"
-      JWT_ALGORITHM: "HS256"
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      REFRESH_TOKEN_EXPIRE_DAYS: 30
+    env_file:
+      - ./auth_service/.env
     restart: on-failure
     depends_on:
       auth_db:
@@ -99,27 +83,8 @@ services:
       context: .
       dockerfile: table_service/Dockerfile
     container_name: online_excel_table_service
-    environment:
-      EXCEL_APP__DB_HOST: db
-      EXCEL_APP__DB_PORT: 5432
-      EXCEL_APP__DB_USER: postgres
-      EXCEL_APP__DB_PASSWORD: online_excel
-      EXCEL_APP__DB_NAME: online_excel
-      EXCEL_APP__DB_DRIVER: postgresql+asyncpg
-
-      EXCEL_APP__CACHE_HOST: redis
-      EXCEL_APP__CACHE_PORT: 6379
-      EXCEL_APP__CACHE_DB: 0
-
-      EXCEL_APP__ES_HOST: elasticsearch
-      EXCEL_APP__ES_PORT: 9200
-
-      EXCEL_APP__RABBITMQ_HOST: rabbitmq
-      EXCEL_APP__RABBITMQ_PORT: 5672
-      EXCEL_APP__RABBITMQ_USER: guest
-      EXCEL_APP__RABBITMQ_PASSWORD: guest
-      EXCEL_APP__RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
-
+    env_file:
+      - ./table_service/.env
     depends_on:
       db:
         condition: service_healthy
@@ -129,7 +94,6 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
-
     ports:
       - "8000:8000"
     networks:
