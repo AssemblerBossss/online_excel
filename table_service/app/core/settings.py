@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     DB_DRIVER: str = "postgresql+asyncpg"
 
     CACHE_HOST: str = "redis"
-    CACHE_PORT: int = 14000
+    CACHE_PORT: int = 6379
     CACHE_DB: int = 0
 
     ES_HOST: str = "elasticsearch"

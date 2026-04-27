@@ -28,6 +28,8 @@ services:
     depends_on:
       auth_db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - appnet
     volumes:

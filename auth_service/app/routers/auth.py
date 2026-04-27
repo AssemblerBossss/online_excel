@@ -1,17 +1,21 @@
 from typing import Annotated
 from fastapi import APIRouter, Response, Depends, Request
 from fastapi import status
+from starlette.responses import JSONResponse
 
 from auth_service.app.schemas import SUserRegister, SUserAuth, Token, TokenRefresh
 from auth_service.app.services import AuthService
 from auth_service.app.dependency import get_auth_service
-from auth_service.app.сore import UnitOfWork, get_async_uow_session
+from auth_service.app.сore import UnitOfWork, get_async_uow_session, limiter
+
 
 router = APIRouter()
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
+@limiter.limit("3/minute")
 async def register_user(
+    request: Request,
     user_data: SUserRegister,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
@@ -20,10 +24,14 @@ async def register_user(
         user_data,
         uow_session=uow_session,
     )
-    return {"message": "Вы успешно зарегистрированы!"}
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content={"message": "Вы успешно зарегистрированы!"},
+    )
 
 
 @router.post("/login", response_model=Token)
+@limiter.limit("5/minute")
 async def auth_user(
     request: Request,
     user_data: SUserAuth,
@@ -39,11 +47,13 @@ async def auth_user(
         ip_address=ip_address,
         uow_session=uow_session,
     )
-    return tokens
+    return JSONResponse(status_code=status.HTTP_200_OK, content=tokens.model_dump())
 
 
 @router.post("/logout")
+@limiter.limit("20/minute")
 async def logout(
+    request: Request,
     token_data: TokenRefresh,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
@@ -51,10 +61,11 @@ async def logout(
     result = await auth_service.logout(
         refresh_token=token_data.refresh_token, uow_session=uow_session
     )
-    return result
+    return JSONResponse(status_code=status.HTTP_200_OK, content=result)
 
 
 @router.post("/refresh", response_model=Token)
+@limiter.limit("20/minute")
 async def refresh_tokens(
     request: Request,
     token_data: TokenRefresh,
@@ -71,4 +82,4 @@ async def refresh_tokens(
         ip_address=ip_address,
         uow_session=uow_session,
     )
-    return tokens
+    return JSONResponse(status_code=status.HTTP_200_OK, content=tokens.model_dump())
