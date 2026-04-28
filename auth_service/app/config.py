@@ -24,6 +24,14 @@ class Settings(BaseSettings):
     RABBITMQ_PASSWORD: str = "guest"
     RABBITMQ_VHOST: str = "/"
 
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 1
+    RATE_LIMIT_REGISTER: str = "3/minute"
+    RATE_LIMIT_LOGIN: str = "5/minute"
+    RATE_LIMIT_REFRESH: str = "10/minute"
+    RATE_LIMIT_LOGOUT: str = "20/minute"
+
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
@@ -37,6 +45,11 @@ class Settings(BaseSettings):
             f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}"
             f"@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{self.RABBITMQ_VHOST}"
         )
+
+    @property
+    def REDIS_URL(self) -> str:
+        """Redis URL для slowapi (с async+ префиксом)"""
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
     class Config:
         env_file = ".env"

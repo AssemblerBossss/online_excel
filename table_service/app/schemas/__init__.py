@@ -1,6 +1,7 @@
 from .data import TableRowCreate, TableRowResponse, TableRowUpdate, TableRowInDB
-from .table import DataTableCreate, DataTableResponse
+from .table import DataTableCreate, DataTableResponse, DataTableUpdate
 from .user import SCurrentUser, SUserFilter
+from .permission import TablePermissionCreate, TablePermissionResponse
 
 
 __all__ = [
@@ -10,6 +11,9 @@ __all__ = [
     "TableRowInDB",
     "DataTableCreate",
     "DataTableResponse",
+    "DataTableUpdate",
     "SCurrentUser",
     "SUserFilter",
+    "TablePermissionCreate",
+    "TablePermissionResponse",
 ]

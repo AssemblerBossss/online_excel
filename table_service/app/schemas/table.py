@@ -1,21 +1,24 @@
-from pydantic import BaseModel, field_validator
-from typing import Dict, Any, Optional, List
+from pydantic import BaseModel
+from typing import Any
 from datetime import datetime
 
 
 class DataTableBase(BaseModel):
     """Базовая схема для таблицы с данными"""
 
-    name: str
-    description: Optional[str] = None
-    is_public: Optional[bool] = False
-    columns_schema: Optional[List[Dict[str, Any]]] = None
+    name: str | None = None
+    description: str | None = None
+    is_public: bool | None = None
+
+
+class DataTableUpdate(DataTableBase):
+    pass
 
 
 class DataTableCreate(DataTableBase):
     """Схема для создания новой таблицы"""
 
-    pass
+    columns_schema: list[dict[str, Any]] | None = None
 
 
 class DataTableResponse(DataTableBase):
@@ -24,4 +27,5 @@ class DataTableResponse(DataTableBase):
     id: int
     created_by: int
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
+    columns_schema: list[dict[str, Any]] | None = None

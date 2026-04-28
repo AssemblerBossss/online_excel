@@ -17,7 +17,11 @@ from table_service.app.schemas import (
     SCurrentUser,
 )
 from table_service.app.services import DataService
-from table_service.app.api.dependencies import get_data_service, get_current_active_user, get_redis
+from table_service.app.api.dependencies import (
+    get_data_service,
+    get_current_active_user,
+    get_redis,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -29,7 +33,11 @@ def _rows_cache_key(table_id: int) -> str:
     return f"rows:table:{table_id}"
 
 
-@router.get("/{table_id}/rows", response_model=list[TableRowResponse])
+@router.get(
+    "/{table_id}/rows",
+    response_model=list[TableRowResponse],
+    status_code=status.HTTP_200_OK,
+)
 async def list_table_rows(
     data_service: Annotated[DataService, Depends(get_data_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
@@ -60,12 +68,20 @@ async def list_table_rows(
     )
 
     if use_cache:
-        await redis.setex(cache_key, ROWS_CACHE_TTL, json.dumps([r.model_dump(mode="json") for r in rows]))
+        await redis.setex(
+            cache_key,
+            ROWS_CACHE_TTL,
+            json.dumps([r.model_dump(mode="json") for r in rows]),
+        )
 
     return rows
 
 
-@router.get("/{table_id}/rows/{row_id}", response_model=TableRowResponse)
+@router.get(
+    "/{table_id}/rows/{row_id}",
+    response_model=TableRowResponse,
+    status_code=status.HTTP_200_OK,
+)
 async def get_row(
     data_service: Annotated[DataService, Depends(get_data_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
@@ -77,6 +93,7 @@ async def get_row(
         table_id=table_id,
         user_id=current_user.user_id,
         row_id=row_id,
+        user_role=current_user.role,
     )
 
 
@@ -97,12 +114,17 @@ async def create_table_row(
         table_id=table_id,
         user_id=current_user.user_id,
         row_data=row_data,
+        user_role=current_user.role,
     )
     await redis.delete(_rows_cache_key(table_id))
     return result
 
 
-@router.put("/{table_id}/rows/{row_id}", response_model=TableRowResponse)
+@router.put(
+    "/{table_id}/rows/{row_id}",
+    response_model=TableRowResponse,
+    status_code=status.HTTP_200_OK,
+)
 async def update_row(
     row_data: TableRowUpdate,
     data_service: Annotated[DataService, Depends(get_data_service)],
@@ -117,6 +139,7 @@ async def update_row(
         row_id=row_id,
         user_id=current_user.user_id,
         row_data=row_data,
+        user_role=current_user.role,
     )
     await redis.delete(_rows_cache_key(table_id))
     return result
@@ -135,5 +158,6 @@ async def delete_row(
         table_id=table_id,
         row_id=row_id,
         user_id=current_user.user_id,
+        user_role=current_user.role,
     )
     await redis.delete(_rows_cache_key(table_id))

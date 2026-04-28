@@ -21,14 +21,9 @@ class DataRepository(Base):
             table_id: ID таблицы для получения строк
             skip: Пагинация
             limit: Максимальное количество возвращаемых строк
-            sort_by: Название поля для сортировки. Если None, порядок не гарантируется.
+            sort_by: Название поля для сортировки. Если None, порядок не гарантируется
             sort_order: Порядок сортировки - "asc" (по возрастанию) или "desc" (по убыванию)
 
-        Returns:
-            Sequence[TableRow]: Список строк таблицы
-
-        Raises:
-            SQLAlchemyError: При ошибках выполнения запроса к базе данных
         """
 
         if sort_order.lower() == "asc":
@@ -69,9 +64,6 @@ class DataRepository(Base):
         Args:
             table_id: ID таблицы, в которую добавляется строка
             row_data: Данные строки в формате JSON/dict. Должны соответствовать схеме таблицы.
-
-        Returns:
-            Optional[TableRow]: Созданная строка таблицы или None при ошибке
         """
         row_data_dict = (
             row_data.row_data
@@ -94,9 +86,6 @@ class DataRepository(Base):
         Args:
             table_id: ID таблицы, в которую добавляются строки
             rows_data: Список данных строк для вставки
-
-        Returns:
-            int: Количество созданных строк
         """
         if not rows_data:
             return 0

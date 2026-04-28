@@ -1,11 +1,14 @@
 import logging
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 
 from auth_service.app.config import auth_service_settings
-from auth_service.app.сore import init_db, setup_service_logging
+from auth_service.app.сore import init_db, setup_service_logging, limiter
 from auth_service.app.routers import auth_router, user_router
 from auth_service.app.events import event_publisher
 from auth_service.app.exceptions import AppException
@@ -14,10 +17,21 @@ setup_service_logging()
 logger = logging.getLogger(__name__)
 
 
+async def custom_rate_limit_handler(
+    request: Request, exc: RateLimitExceeded
+) -> Response:
+    """Кастомный обработчик превышения лимита запросов."""
+    return _rate_limit_exceeded_handler(request, exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Управление жизненным циклом приложения"""
     logger.info("Starting Auth Service...")
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
+    yield
+    await limiter.close()
 
     # Инициализация БД
     await init_db()
