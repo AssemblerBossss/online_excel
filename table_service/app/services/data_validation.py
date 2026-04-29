@@ -120,13 +120,11 @@ class DataValidationService:
     @staticmethod
     def _validate_number_field(value: Any, col_name: str) -> str | None:
         """Проверить и преобразовать числовое поле."""
+        if isinstance(value, bool):  # bool проверяем ПЕРВЫМ, до int/float
+            return f"Поле {col_name} должно быть числом"
         if isinstance(value, str):
             try:
-                # Convert string to number (int or float)
-                if "." in value:
-                    return None  # Will be converted to float later
-                else:
-                    return None  # Will be converted to int later
+                float(value) if "." in value else int(value)
             except ValueError:
                 return f"Поле {col_name} должно быть числом"
         elif not isinstance(value, (int, float)):

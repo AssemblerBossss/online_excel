@@ -27,4 +27,12 @@ class RabbitMQUserValidator:
         return response == b"true"
 
 
-user_validator_instance = RabbitMQUserValidator()
+_user_validator_instance = None
+
+
+def get_user_validator():
+    """Lazy initialization — создаёт инстанс только при первом вызове."""
+    global _user_validator_instance
+    if _user_validator_instance is None:
+        _user_validator_instance = RabbitMQUserValidator()
+    return _user_validator_instance
