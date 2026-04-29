@@ -2,7 +2,6 @@ import logging
 from collections.abc import Sequence
 from sqlalchemy import delete, select, update, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.engine import CursorResult
 from datetime import datetime, timezone
 
 from auth_service.app.models import RefreshToken
@@ -75,7 +74,7 @@ class TokenRepository:
         )
         result = await self._session.execute(query)
         await self._session.flush()
-        return result.rowcount
+        return int(result.rowcount)
 
     async def delete_token(self, refresh_token: str) -> bool:
         """Удалить refresh token из БД"""
@@ -83,7 +82,7 @@ class TokenRepository:
         result = await self._session.execute(query)
         await self._session.flush()
 
-        deleted: CursorResult = result.rowcount
+        deleted = int(result.rowcount)
         return deleted > 0
 
     async def count_active_user_tokens(self, user_id) -> int:

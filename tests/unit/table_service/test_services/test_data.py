@@ -61,7 +61,6 @@ def constraint_schema() -> list[dict[str, Any]]:
 
 
 class TestBuildSchemaDict:
-
     def test_normal_columns(self):
         """Обычный случай: все колонки имеют name."""
         schema = [
@@ -96,7 +95,7 @@ class TestValidateRequiredFields:
     """Тесты проверки обязательных полей."""
 
     def test_required_field_present(
-            self, basic_schema: list[dict[str, Any]], service: DataValidationService
+        self, basic_schema: list[dict[str, Any]], service: DataValidationService
     ):
         row = TableRowCreate(row_data={"name": "Alice", "age": 30})
         errors = service.validate_row_data(
@@ -105,7 +104,7 @@ class TestValidateRequiredFields:
         assert errors == []
 
     def test_required_field_missing(
-            self, basic_schema: list[dict[str, Any]], service: DataValidationService
+        self, basic_schema: list[dict[str, Any]], service: DataValidationService
     ):
         """Если обязательное поле отсутствует — должна быть ошибка."""
         row = TableRowCreate(
@@ -117,7 +116,7 @@ class TestValidateRequiredFields:
         assert "name" in errors[0]
 
     def test_optional_field_missing_is_ok(
-            self, basic_schema: list[dict[str, Any]], service: DataValidationService
+        self, basic_schema: list[dict[str, Any]], service: DataValidationService
     ):
         """Необязательное поле может отсутствовать — ошибок нет."""
         row = TableRowCreate(
@@ -127,7 +126,7 @@ class TestValidateRequiredFields:
         assert errors == []
 
     def test_raise_on_error_true_raises_exception(
-            self, basic_schema: list[dict[str, Any]], service: DataValidationService
+        self, basic_schema: list[dict[str, Any]], service: DataValidationService
     ):
         """При raise_on_error=True должен кидать ValidationException."""
         row = TableRowCreate(row_data={})  # обязательное 'name' отсутствует
@@ -137,7 +136,7 @@ class TestValidateRequiredFields:
             service.validate_row_data(basic_schema, row, raise_on_error=True)
 
     def test_raise_on_error_false_returns_errors(
-            self, basic_schema: list[dict[str, Any]], service: DataValidationService
+        self, basic_schema: list[dict[str, Any]], service: DataValidationService
     ):
         """При raise_on_error=False возвращает список ошибок без исключения."""
         row = TableRowCreate(row_data={})
@@ -167,10 +166,10 @@ class TestValidateDataTypes:
         ],
     )
     def test_string_type(
-            self,
-            service: DataValidationService,
-            value: Any,
-            should_fail: bool,
+        self,
+        service: DataValidationService,
+        value: Any,
+        should_fail: bool,
     ) -> None:
         schema = [{"name": "field", "type": "string"}]
         row = TableRowCreate(row_data={"field": value})
@@ -178,9 +177,9 @@ class TestValidateDataTypes:
             table_columns_schema=schema, row_data=row, raise_on_error=False
         )
         if should_fail:
-            assert any(
-                "field" in e for e in errors
-            ), f"Ожидалась ошибка для value={value!r}"
+            assert any("field" in e for e in errors), (
+                f"Ожидалась ошибка для value={value!r}"
+            )
         else:
             assert errors == [], f"Не ожидалась ошибка для value={value!r}"
 
@@ -196,7 +195,7 @@ class TestValidateDataTypes:
         ],
     )
     def test_number_type(
-            self, service: DataValidationService, value: Any, should_fail: bool
+        self, service: DataValidationService, value: Any, should_fail: bool
     ) -> None:
         schema = [{"name": "amount", "type": "number"}]
         row = TableRowCreate(row_data={"amount": value})
@@ -217,7 +216,7 @@ class TestValidateDataTypes:
         ],
     )
     def test_boolean_type(
-            self, service: DataValidationService, value: Any, should_fail: bool
+        self, service: DataValidationService, value: Any, should_fail: bool
     ) -> None:
         schema = [{"name": "flag", "type": "boolean"}]
         row = TableRowCreate(row_data={"flag": value})
@@ -230,7 +229,7 @@ class TestValidateDataTypes:
             assert errors == []
 
     def test_unknown_type_in_schema_is_ignored(
-            self, service: DataValidationService
+        self, service: DataValidationService
     ) -> None:
         """Если в схеме тип которого нет в коде — просто пропускаем без ошибок."""
         schema = [{"name": "data", "type": "json"}]
@@ -239,7 +238,7 @@ class TestValidateDataTypes:
         assert errors == []
 
     def test_field_not_in_schema_is_ignored(
-            self, service: DataValidationService
+        self, service: DataValidationService
     ) -> None:
         """Поля, которых нет в схеме, молча игнорируются."""
         schema = [{"name": "name", "type": "string"}]
@@ -261,10 +260,10 @@ class TestDateValidation:
         ],
     )
     def test_valid_date_formats(
-            self,
-            service: DataValidationService,
-            date_schema: list[dict[str, Any]],
-            date_value: Any,
+        self,
+        service: DataValidationService,
+        date_schema: list[dict[str, Any]],
+        date_value: Any,
     ) -> None:
         """Все поддерживаемые форматы дат должны проходить валидацию."""
         row = TableRowCreate(row_data={"birth_date": date_value})
@@ -281,17 +280,17 @@ class TestDateValidation:
         ],
     )
     def test_invalid_date_formats(
-            self,
-            service: DataValidationService,
-            date_schema: list[dict[str, Any]],
-            date_value: str,
+        self,
+        service: DataValidationService,
+        date_schema: list[dict[str, Any]],
+        date_value: str,
     ) -> None:
         row = TableRowCreate(row_data={"birth_date": date_value})
         errors = service.validate_row_data(date_schema, row, raise_on_error=False)
         assert len(errors) > 0, f"Должна быть ошибка для: {date_value}"
 
     def test_date_before_min_date(
-            self, service: DataValidationService, date_schema: list[dict[str, Any]]
+        self, service: DataValidationService, date_schema: list[dict[str, Any]]
     ) -> None:
         """Дата раньше min_date должна давать ошибку."""
         row = TableRowCreate(row_data={"birth_date": "1800-01-01"})
@@ -299,7 +298,7 @@ class TestDateValidation:
         assert any("раньше" in e for e in errors)
 
     def test_date_after_max_date(
-            self, service: DataValidationService, date_schema: list[dict[str, Any]]
+        self, service: DataValidationService, date_schema: list[dict[str, Any]]
     ) -> None:
         """Дата позже max_date должна давать ошибку."""
         row = TableRowCreate(row_data={"birth_date": "2025-01-01"})
@@ -307,7 +306,7 @@ class TestDateValidation:
         assert any("позже" in e for e in errors)
 
     def test_date_on_boundary_min(
-            self, service: DataValidationService, date_schema: list[dict[str, Any]]
+        self, service: DataValidationService, date_schema: list[dict[str, Any]]
     ) -> None:
         """Граничное значение min_date должно проходить."""
         row = TableRowCreate(row_data={"birth_date": "1900-01-01"})  # ровно min_date
@@ -315,7 +314,7 @@ class TestDateValidation:
         assert errors == []
 
     def test_date_on_boundary_max(
-            self, service: DataValidationService, date_schema: list[dict[str, Any]]
+        self, service: DataValidationService, date_schema: list[dict[str, Any]]
     ) -> None:
         """Граничное значение max_date должно проходить."""
         row = TableRowCreate(row_data={"birth_date": "2010-12-31"})  # ровно max_date
@@ -323,7 +322,7 @@ class TestDateValidation:
         assert errors == []
 
     def test_date_field_not_a_string(
-            self, service: DataValidationService, date_schema: list[dict[str, Any]]
+        self, service: DataValidationService, date_schema: list[dict[str, Any]]
     ) -> None:
         """Если передать не строку в поле даты — ошибка типа."""
         row = TableRowCreate(row_data={"birth_date": 20001231})
@@ -340,7 +339,7 @@ class TestConstraintValidation:
     """
 
     def test_number_within_range(
-            self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
+        self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
     ) -> None:
         row = TableRowCreate(
             row_data={"score": 50, "username": "alice", "status": "active"}
@@ -349,14 +348,14 @@ class TestConstraintValidation:
         assert errors == []
 
     def test_number_below_min(
-            self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
+        self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
     ) -> None:
         row = TableRowCreate(row_data={"score": -1})
         errors = service.validate_row_data(constraint_schema, row, raise_on_error=False)
         assert any("score" in e and "меньше" in e for e in errors)
 
     def test_number_above_max(
-            self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
+        self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
     ):
         row = TableRowCreate(row_data={"score": 101})
         errors = service.validate_row_data(constraint_schema, row, raise_on_error=False)
@@ -364,10 +363,10 @@ class TestConstraintValidation:
 
     @pytest.mark.parametrize("score", [0, 50, 100])
     def test_number_on_boundaries(
-            self,
-            service: DataValidationService,
-            constraint_schema: list[dict[str, Any]],
-            score,
+        self,
+        service: DataValidationService,
+        constraint_schema: list[dict[str, Any]],
+        score,
     ) -> None:
         """Граничные значения 0 и 100 должны проходить."""
         row = TableRowCreate(row_data={"score": score})
@@ -375,14 +374,14 @@ class TestConstraintValidation:
         assert errors == [], f"score={score} должен быть валидным"
 
     def test_string_too_short(
-            self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
+        self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
     ) -> None:
         row = TableRowCreate(row_data={"username": "ab"})  # min_length=3
         errors = service.validate_row_data(constraint_schema, row, raise_on_error=False)
         assert any("username" in e for e in errors)
 
     def test_string_too_long(
-            self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
+        self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
     ) -> None:
         row = TableRowCreate(row_data={"username": "a" * 21})  # max_length=20
         errors = service.validate_row_data(constraint_schema, row, raise_on_error=False)
@@ -390,21 +389,21 @@ class TestConstraintValidation:
 
     @pytest.mark.parametrize("status", ["active", "inactive", "banned"])
     def test_valid_enum_values(
-            self, service, constraint_schema: list[dict[str, Any]], status
+        self, service, constraint_schema: list[dict[str, Any]], status
     ) -> None:
         row = TableRowCreate(row_data={"status": status})
         errors = service.validate_row_data(constraint_schema, row, raise_on_error=False)
         assert errors == []
 
     def test_invalid_enum_value(
-            self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
+        self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
     ) -> None:
         row = TableRowCreate(row_data={"status": "deleted"})
         errors = service.validate_row_data(constraint_schema, row, raise_on_error=False)
         assert any("status" in e for e in errors)
 
     def test_multiple_errors_returned_at_once(
-            self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
+        self, service: DataValidationService, constraint_schema: list[dict[str, Any]]
     ):
         """Все ошибки должны накапливаться, а не останавливаться на первой."""
         row = TableRowCreate(

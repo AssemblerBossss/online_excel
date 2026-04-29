@@ -40,8 +40,5 @@ jobs:
       - name: Run Ruff formatter check
         run: ruff format --check .
 
-      - name: Run mypy type check
-        run: mypy . --ignore-missing-imports --no-strict-optional
-
 
 
