@@ -1,19 +1,13 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 from io import BytesIO
 import pandas as pd
-import numpy as np
 from fastapi import UploadFile
-
-from table_service.app.services.table import TableService, ALLOWED_EXCEL_MIME_TYPES
 from table_service.app.exceptions import (
     NotFoundException,
     CanNotCreateTableException,
-    CanNotUpdateTableException,
-    CanNotDeleteTableException,
     AccessDeniedException,
     InvalidFileFormatException,
-    EmptyFileException,
     FileParseException,
     InvalidFileMimeTypeException,
 )
@@ -26,7 +20,6 @@ from table_service.app.schemas import (
 
 from tests.fixtures import (
     valid_excel_file,
-    excel_file_with_empty_sheet,
     excel_file_with_mixed_types,
 )
 

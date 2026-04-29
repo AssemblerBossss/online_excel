@@ -3,7 +3,7 @@ from typing import Any
 
 from table_service.app.exceptions import ValidationException
 from table_service.app.services.data_validation import DataValidationService
-from table_service.app.schemas import TableRowCreate, TableRowUpdate
+from table_service.app.schemas import TableRowCreate
 
 
 @pytest.fixture(scope="function")

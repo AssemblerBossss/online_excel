@@ -1,0 +1,47 @@
+name: CI - Auth Service
+
+on:
+  pull_request:
+    paths:
+      - 'auth_service/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/ci-auth-service.yml'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'auth_service/**'
+
+env:
+  PYTHON_VERSION: '3.13'
+  SERVICE_NAME: auth_service
+
+
+jobs:
+  lint-and-type-check:
+    runs-on: ubuntu-latest
+    container: python3.13-slim
+
+    defaults:
+      run:
+        working-directory: ./${{ env.SERVICE_NAME }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy pytest pytest-asyncio pytest-cov httpx
+          pip install -r requirements.txt
+
+      - name: Run Ruff linter
+        run: ruff check . --output-format=github
+
+      - name: Run Ruff formatter check
+        run: ruff format --check .
+        
+      - name: Run mypy type check
+        run: mypy . --ignore-missing-imports --no-strict-optional
+
+
+
