@@ -5,7 +5,6 @@ from auth_service.app.сore import UnitOfWork
 
 
 class UserService:
-
     def __init__(self):
         self.event_publisher = event_publisher
 
