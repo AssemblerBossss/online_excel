@@ -1,12 +1,12 @@
-from pydantic import BaseModel, field_validator
-from typing import Dict, Any, Optional, List
+from pydantic import BaseModel, field_validator, ConfigDict
+from typing import Any
 from datetime import datetime
 
 
 class TableRowBase(BaseModel):
     """Базовая схема для строки таблицы с данными в формате ключ-значение"""
 
-    row_data: Dict[str, Any]
+    row_data: dict[str, Any]
 
 
 class TableRowCreate(TableRowBase):
@@ -16,8 +16,6 @@ class TableRowCreate(TableRowBase):
     def validate_row_data(cls, v):
         if not isinstance(v, dict):
             raise ValueError("row_data must be a dictionary")
-        if len(v) == 0:
-            raise ValueError("row_data cannot be empty")
         return v
 
 
@@ -38,10 +36,9 @@ class TableRowInDB(TableRowBase):
     id: int
     table_id: int
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TableRowResponse(TableRowInDB):

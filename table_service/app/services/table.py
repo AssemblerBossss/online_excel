@@ -237,7 +237,7 @@ class TableService:
                 "User %s uploaded empty Excel file '%s'", user_id, excel_file.filename
             )
             raise EmptyFileException("Excel файл пустой")
-        except pd.errors.ParserError:
+        except (pd.errors.ParserError, ValueError):
             logger.warning(
                 "User %s uploaded unparseable Excel file '%s'",
                 user_id,
@@ -249,7 +249,12 @@ class TableService:
         """Удалить таблицу."""
         table: DataTable | None = await self.table_repo.get_table_by_id(table_id)
         if not table:
-            raise NotFoundException("Table not found or access denied")
+            raise NotFoundException("Table not found")
+
+        if not await self.permission_service.check_write_access(
+            table=table, user_id=user_id, user_role=user_role
+        ):
+            raise AccessDeniedException()
 
         if not await self.table_repo.delete_table(table_id=table_id):
             raise CanNotDeleteTableException()

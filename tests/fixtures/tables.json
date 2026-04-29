@@ -1,0 +1,12 @@
+[
+  {
+    "id": "test-table-1",
+    "name": "Test Table 1",
+    "owner_id": "test-user-1"
+  },
+  {
+    "id": "test-table-2",
+    "name": "Test Table 2",
+    "owner_id": "test-user-2"
+  }
+]

@@ -1,3 +1,4 @@
+import warnings
 from typing import Any
 import pandas as pd
 
@@ -19,6 +20,51 @@ dtype_map = {
     "datetime64": "datetime",
     "object": "string",
 }
+
+# Распространенные форматы дат для проверки
+COMMON_DATE_FORMATS = [
+    "%Y-%m-%d",  # 2024-01-15
+    "%d.%m.%Y",  # 15.01.2024
+    "%m/%d/%Y",  # 01/15/2024
+    "%d/%m/%Y",  # 15/01/2024
+    "%Y-%m-%d %H:%M:%S",  # 2024-01-15 14:30:00
+    "%d.%m.%Y %H:%M:%S",  # 15.01.2024 14:30:00
+    "%m/%d/%Y %H:%M:%S",  # 01/15/2024 14:30:00
+    "%Y-%m-%dT%H:%M:%S",  # 2024-01-15T14:30:00
+]
+
+
+def _is_datetime_column(series: pd.Series) -> bool:
+    """
+    Проверяет, можно ли преобразовать колонку в datetime.
+
+    Сначала пытается распознать конкретные форматы дат,
+    затем только использует общий парсинг.
+    """
+    sample_values = series.dropna().head(10)
+
+    if len(sample_values) == 0:
+        return False
+
+    # Пробуем распознать конкретные форматы дат
+    for date_format in COMMON_DATE_FORMATS:
+        try:
+            pd.to_datetime(sample_values, format=date_format, errors="raise")
+            return True
+        except (ValueError, TypeError):
+            continue
+
+    # Если ни один конкретный формат не подошел, пробуем общий парсинг
+    # Но подавляем предупреждение о неопределенном формате
+    try:
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=UserWarning, message="Could not infer format"
+            )
+            pd.to_datetime(sample_values, errors="raise")
+            return True
+    except (ValueError, TypeError):
+        return False
 
 
 def _generate_columns_schema_from_dataframe(
@@ -48,18 +94,11 @@ def _generate_columns_schema_from_dataframe(
         schema_type = dtype_map.get(dtype, "string")
 
         if dtype == "object":
-
-            # dropna() - удаляет все пустые значения (NaN/None) из этого столбца
-            # head() - берет первые 10 непустых значений из столбца
-            sample_values = dataframe[column_name].dropna().head(10)
-
-            if len(sample_values) > 0:
-                # Проверяем, можно ли преобразовать в дату
-                try:
-                    pd.to_datetime(sample_values, errors="raise")
-                    schema_type = "datetime"
-                except (ValueError, TypeError):
-                    schema_type = "string"
+            # Проверяем, можно ли преобразовать в дату
+            if _is_datetime_column(dataframe[column_name]):
+                schema_type = "datetime"
+            else:
+                schema_type = "string"
 
         columns_schema = {
             "name": str(column_name),
@@ -125,7 +164,21 @@ async def _import_excel_data_to_table(
                 elif col_dtype == "object":
                     # Пытаемся преобразовать в дату
                     try:
-                        date_val = pd.to_datetime(value)
+                        # Сначала пробуем распознать формат
+                        date_val = None
+                        for date_format in COMMON_DATE_FORMATS:
+                            try:
+                                date_val = pd.to_datetime(value, format=date_format)
+                                break
+                            except (ValueError, TypeError):
+                                continue
+
+                        # Если не подошел ни один формат, пробуем общий парсинг
+                        if date_val is None:
+                            with warnings.catch_warnings():
+                                warnings.filterwarnings("ignore", category=UserWarning)
+                                date_val = pd.to_datetime(value)
+
                         row_data[str(col)] = date_val.isoformat()
                     except (ValueError, TypeError):
                         # Если не дата, то строка

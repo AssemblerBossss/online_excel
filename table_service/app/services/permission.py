@@ -102,7 +102,9 @@ class PermissionService:
         self, table_id: int, user_id: int, user_role: str
     ) -> list[TablePermissionResponse]:
         """Получить список всех прав доступа для указанной таблицы."""
-        await self._check_table_access(table_id, user_id, user_role)
+        await self._check_table_access(
+            table_id=table_id, user_id=user_id, user_role=user_role
+        )
 
         perms = await self.permission_repo.get_permissions_by_table(table_id=table_id)
         return [self._to_response(p) for p in perms]
@@ -146,8 +148,8 @@ class PermissionService:
         await self._check_table_access(table_id, user_id, user_role)
 
         if not (
-            deleted := await self.permission_repo.delete_permission(
-                table_id, target_user_id
+            await self.permission_repo.delete_permission(
+                table_id=table_id, user_id=target_user_id
             )
         ):
             raise NotFoundException("Права для данного пользователя не найдены")
