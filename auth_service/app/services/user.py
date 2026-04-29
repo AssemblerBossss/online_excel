@@ -1,5 +1,5 @@
 from auth_service.app.events import event_publisher
-from auth_service.app.exceptions import ForbiddenException, UserNotFoundException
+from auth_service.app.exceptions import ForbiddenException
 from auth_service.app.schemas import SUserInfo, UserRole
 from auth_service.app.сore import UnitOfWork
 
@@ -9,7 +9,9 @@ class UserService:
     def __init__(self):
         self.event_publisher = event_publisher
 
-    async def _check_permissions(current_user: SUserInfo, target_user_id: int) -> None:
+    async def _check_permissions(
+        self, current_user: SUserInfo, target_user_id: int
+    ) -> None:
         if current_user.role != UserRole.ADMIN and current_user.id != target_user_id:
             raise ForbiddenException()
 

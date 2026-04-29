@@ -2,7 +2,7 @@ import logging
 from collections.abc import Sequence
 from sqlalchemy import delete, select, update, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.engine import Result, CursorResult
+from sqlalchemy.engine import CursorResult
 from datetime import datetime, timezone
 
 from auth_service.app.models import RefreshToken
@@ -52,7 +52,6 @@ class TokenRepository:
         query = select(RefreshToken).where(
             and_(
                 RefreshToken.user_id == user_id,
-                RefreshToken.revoked == False,
                 RefreshToken.expires_at > datetime.now(timezone.utc),
             )
         )

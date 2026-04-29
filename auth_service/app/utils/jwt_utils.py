@@ -1,7 +1,7 @@
 import secrets
 from typing import Optional
 from datetime import datetime, timedelta, timezone
-from jose import jwt, JWTError, ExpiredSignatureError
+from jose import jwt
 
 from auth_service.app.config import auth_service_settings
 
