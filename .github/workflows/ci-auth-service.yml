@@ -19,7 +19,7 @@ env:
 jobs:
   lint-and-type-check:
     runs-on: ubuntu-latest
-    container: python:3.13-slim
+    container: python:3.13
 
     defaults:
       run:
