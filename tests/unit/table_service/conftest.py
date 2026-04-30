@@ -42,7 +42,9 @@ def mock_table_repo():
 
 @pytest.fixture
 def mock_data_repo():
-    return AsyncMock()
+    repo = AsyncMock()
+    repo.bulk_create_table_row = AsyncMock(return_value=0)
+    return repo
 
 
 @pytest.fixture

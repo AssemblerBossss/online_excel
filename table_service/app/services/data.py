@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 class DataService:
-
     def __init__(
         self,
         data_repo: DataRepository,

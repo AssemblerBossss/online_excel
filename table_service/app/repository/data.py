@@ -5,7 +5,6 @@ from table_service.app.schemas import TableRowCreate, TableRowUpdate
 
 
 class DataRepository(Base):
-
     async def get_rows_by_table_id(
         self,
         table_id: int,

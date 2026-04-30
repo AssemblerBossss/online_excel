@@ -19,7 +19,6 @@ class GunicornConfig(BaseSettings):
 
 
 class Settings(BaseSettings):
-
     gunicorn: GunicornConfig = GunicornConfig()
     uvicorn: UvicornConfig = UvicornConfig()
 

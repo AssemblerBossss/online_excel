@@ -6,7 +6,6 @@ from table_service.app.models import TablePermission
 
 
 class PermissionRepository(Base):
-
     async def get_permissions_by_table(
         self, table_id: int
     ) -> Sequence[TablePermission]:

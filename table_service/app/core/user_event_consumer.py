@@ -53,7 +53,6 @@ class UserEventConsumer:
         self, event_type: str, body: dict, repo: "UserRepository"
     ) -> None:
         if event_type in ("user.registered", "user.updated"):
-
             timestamp = datetime.fromisoformat(body["timestamp"].replace("Z", "+00:00"))
             # Берём только значение роли без префикса класса
             role = body["role"].split(".")[-1].lower()
