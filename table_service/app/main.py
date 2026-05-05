@@ -85,7 +85,9 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(status_code=400, content={"detail": exc.detail})
 
     @app.exception_handler(CanNotUpdateTableException)
-    async def file_parse_handler(request: Request, exc: CanNotUpdateTableException):
+    async def cannot_update_table_handler(
+        request: Request, exc: CanNotUpdateTableException
+    ):
         return JSONResponse(status_code=404, content={"detail": exc.detail})
 
     @app.exception_handler(PermissionAlreadyExistsException)

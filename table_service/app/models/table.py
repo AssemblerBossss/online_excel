@@ -1,7 +1,11 @@
+from __future__ import annotations
 from sqlalchemy import String, Integer, Boolean, DateTime, Text, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from typing import Optional, List, Dict, Any
+from typing import Optional, TYPE_CHECKING, List, Dict, Any
+
+if TYPE_CHECKING:
+    from table_service.app.models.data import TableRow
 
 from table_service.app.core import Base
 
