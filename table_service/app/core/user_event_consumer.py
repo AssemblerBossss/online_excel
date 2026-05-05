@@ -6,7 +6,6 @@ from datetime import datetime
 
 from table_service.app.core.database import AsyncSessionFactory
 from table_service.app.infrastructure import EventConsumerBase
-from table_service.app.repository import UserRepository
 from table_service.app.core import app_settings
 from typing import TYPE_CHECKING
 
