@@ -19,7 +19,7 @@ env:
 jobs:
   lint-and-type-check:
     runs-on: ubuntu-latest
-    container: python:${{ env.PYTHON_VERSION }}-slim
+    container: python:3.13-slim
 
     defaults:
       run:
@@ -41,7 +41,7 @@ jobs:
 
   unit-tests:
     runs-on: ubuntu-latest
-    container: python:${{ env.PYTHON_VERSION }}
+    container: python:3.13
     needs: [ lint-and-type-check ]
 
     steps:
