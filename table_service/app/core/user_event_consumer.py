@@ -8,6 +8,10 @@ from table_service.app.core.database import AsyncSessionFactory
 from table_service.app.infrastructure import EventConsumerBase
 from table_service.app.repository import UserRepository
 from table_service.app.core import app_settings
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from table_service.app.repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +46,8 @@ class UserEventConsumer:
                 )
 
                 async with AsyncSessionFactory() as session:
+                    from table_service.app.repository import UserRepository
+
                     repo = UserRepository(session=session)
                     await self._dispatch(event_type, body, repo)
 
@@ -49,7 +55,7 @@ class UserEventConsumer:
                 logger.error(f"Ошибка обработки события: {e}", exc_info=True)
 
     async def _dispatch(
-        self, event_type: str, body: dict, repo: UserRepository
+        self, event_type: str, body: dict, repo: "UserRepository"
     ) -> None:
         if event_type in ("user.registered", "user.updated"):
             timestamp = datetime.fromisoformat(body["timestamp"].replace("Z", "+00:00"))
