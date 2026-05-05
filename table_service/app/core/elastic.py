@@ -9,11 +9,57 @@ INDEX_MAPPING = {
     "settings": {
         "number_of_replicas": 0,
     },
+    "analysis": {
+        "analyzer": {
+            "text_analyzer": {
+                "type": "custom",
+                "tokenizer": "standard",
+                "filter": [
+                    "lowercase",
+                    "asciifolding",
+                    "stop",
+                ],
+            },
+            "search_analyzer": {
+                "type": "custom",
+                "tokenizer": "standard",
+                "filter": [
+                    "lowercase",
+                    "asciifolding",
+                ],
+            },
+            "tokenizer": {
+                "ngram_tokenizer": {
+                    "type": "ngram",
+                    "min_gram": 3,
+                    "max_gram": 4,
+                    "token_chars": ["letter", "digit"],
+                }
+            },
+        }
+    },
     "mappings": {
         "properties": {
             "id": {"type": "integer"},
-            "name": {"type": "text", "analyzer": "standard"},
-            "description": {"type": "text", "analyzer": "standard"},
+            "name": {
+                "type": "text",
+                "analyzer": "text_analyzer",
+                "search_analyzer": "search_analyzer",
+                "fields": {
+                    # sub-field для точного/prefix поиска
+                    "keyword": {"type": "keyword"},
+                    # sub-field для ngram — поиск по частичному совпадению (напр. "proj" → "project")
+                    "ngram": {
+                        "type": "text",
+                        "analyzer": "ngram_analyzer",
+                    },
+                },
+            },
+            "description": {
+                "type": "text",
+                "analyzer": "text_analyzer",
+                "search_analyzer": "search_analyzer",
+            },
             "is_public": {"type": "boolean"},
             "created_by_id": {"type": "integer"},
         }

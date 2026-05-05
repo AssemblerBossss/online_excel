@@ -1,5 +1,6 @@
 import logging
 from elasticsearch import AsyncElasticsearch
+from elasticsearch import NotFoundError, ConnectionError as ESConnectionError
 
 from table_service.app.core.elastic import TABLE_INDEX
 
@@ -21,7 +22,7 @@ class SearchService:
             "query": {
                 "multi_match": {
                     "query": query,
-                    "fields": ["name^2", "description"],
+                    "fields": ["name^3", "name.ngram^1", "description^1"],
                     "type": "best_fields",
                     "fuzziness": "AUTO",
                 }
@@ -30,6 +31,12 @@ class SearchService:
 
         try:
             response = await self.es_client.search(index=TABLE_INDEX, body=body)
+        except NotFoundError:
+            logger.error("Индекс %s не найден в Elasticsearch", TABLE_INDEX)
+            return []
+        except ESConnectionError as e:
+            logger.error("ES недоступен: %s", e)
+            return []
         except Exception as e:
             logger.error("Ошибка поиска в Elasticsearch: %s", e)
             return []
@@ -75,14 +82,8 @@ class SearchService:
             doc["is_public"] = is_public
         if created_by_id is not None:
             doc["created_by_id"] = created_by_id
-        doc = {
-            "id": table_id,
-            "name": name,
-            "description": description,
-            "is_public": is_public,
-            "created_by_id": created_by_id,
-        }
-
+        if not doc:
+            return  # нечего обновлять
         try:
             await self.es_client.update(index=TABLE_INDEX, id=str(table_id), doc=doc)
             logger.debug("Table %s updated in Elasticsearch", table_id)
@@ -93,7 +94,7 @@ class SearchService:
     async def delete_from_index(self, table_id: int) -> None:
         """Удалить таблицу из индекса Elasticsearch."""
         try:
-            await self.es_client.delete(index=TABLE_INDEX, id=table_id)
+            await self.es_client.delete(index=TABLE_INDEX, id=str(table_id))
             logger.debug("Таблица %s удалена из индекса Elasticsearch", table_id)
         except Exception:
             logger.warning("Не удалось удалить таблицу %s из индекса", table_id)
