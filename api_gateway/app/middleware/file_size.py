@@ -1,5 +1,5 @@
 import logging
-from fastapi import HTTPException, Request, status, FastAPI
+from fastapi import Request, status, FastAPI
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -40,7 +40,7 @@ class FileSizeLimitMiddleware(BaseHTTPMiddleware):
                     response = JSONResponse(
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                         content={
-                            "detail": f"File too large. Maximum size is {self.max_file_size / (1024*1024):.1f} MB",
+                            "detail": f"File too large. Maximum size is {self.max_file_size / (1024 * 1024):.1f} MB",
                             "max_size_mb": self.max_file_size / (1024 * 1024),
                             "actual_size_mb": file_size / (1024 * 1024),
                         },

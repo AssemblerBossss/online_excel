@@ -1,4 +1,3 @@
-import sys
 import logging
 from typing import Any
 from datetime import datetime, UTC

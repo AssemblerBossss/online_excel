@@ -50,19 +50,6 @@ async def proxy_tables(request: Request, path: str = ""):
 
 
 @router.api_route(
-    "/categories/{path:path}",
-    methods=["GET", "POST", "PUT", "DELETE"],
-)
-async def proxy_categories(request: Request, path: str):
-    """Проксирует /categories/* запросы к Main Service"""
-    return await proxy_request(
-        request=request,
-        target_url=settings.MAIN_SERVICE_URL,
-        path=f"/categories/{path}",
-    )
-
-
-@router.api_route(
     "/search",
     methods=["GET"],
 )
@@ -88,3 +75,16 @@ async def proxy_categories(request: Request, path: str):
         target_url=settings.MAIN_SERVICE_URL,
         path=f"/data/{path}",
     )
+
+
+# @router.api_route(
+#     "/categories/{path:path}",
+#     methods=["GET", "POST", "PUT", "DELETE"],
+# )
+# async def proxy_categories(request: Request, path: str):
+#     """Проксирует /categories/* запросы к Main Service"""
+#     return await proxy_request(
+#         request=request,
+#         target_url=settings.MAIN_SERVICE_URL,
+#         path=f"/categories/{path}",
+#     )

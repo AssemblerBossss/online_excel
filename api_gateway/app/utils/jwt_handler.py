@@ -1,4 +1,3 @@
-from typing import Optional
 from fastapi import HTTPException, status
 from jose import jwt, JWTError
 from pydantic import BaseModel
@@ -12,7 +11,7 @@ class UserData(BaseModel):
     is_active: bool
 
 
-def verify_jwt_token(token: str) -> Optional[UserData]:
+def verify_jwt_token(token: str) -> UserData | None:
     """
     Проверяет JWT токен и возвращает данные пользователя
     """
@@ -42,11 +41,11 @@ def verify_jwt_token(token: str) -> Optional[UserData]:
             role=role,
             is_active=is_active,
         )
-    except (JWTError, ValueError, TypeError) as e:
+    except (JWTError, ValueError, TypeError):
         raise credentials_exception
 
 
-def extract_token_from_header(authorization: Optional[str]) -> Optional[str]:
+def extract_token_from_header(authorization: str | None) -> str | None:
     """
     Извлекает токен из заголовка Authorization
 

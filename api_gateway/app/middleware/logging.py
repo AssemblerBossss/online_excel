@@ -20,7 +20,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         # Логируем входящий запрос
         logger.info(
-            f"Incoming request",
+            "Incoming request",
             extra={
                 "request_id": request_id,
                 "method": request.method,
@@ -38,7 +38,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
             # Логируем завершение запроса
             logger.info(
-                f"Request completed",
+                "Request completed",
                 extra={
                     "request_id": request_id,
                     "method": request.method,
@@ -54,7 +54,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             process_time = (time.time() - start_time) * 1000
             logger.error(
-                f"Request failed",
+                "Request failed",
                 extra={
                     "request_id": request_id,
                     "method": request.method,
