@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Response, Depends, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi import status
 from starlette.responses import JSONResponse
 

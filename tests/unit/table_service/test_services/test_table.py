@@ -1,19 +1,13 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 from io import BytesIO
 import pandas as pd
-import numpy as np
 from fastapi import UploadFile
-
-from table_service.app.services.table import TableService, ALLOWED_EXCEL_MIME_TYPES
 from table_service.app.exceptions import (
     NotFoundException,
     CanNotCreateTableException,
-    CanNotUpdateTableException,
-    CanNotDeleteTableException,
     AccessDeniedException,
     InvalidFileFormatException,
-    EmptyFileException,
     FileParseException,
     InvalidFileMimeTypeException,
 )
@@ -26,7 +20,6 @@ from table_service.app.schemas import (
 
 from tests.fixtures import (
     valid_excel_file,
-    excel_file_with_empty_sheet,
     excel_file_with_mixed_types,
 )
 
@@ -409,7 +402,9 @@ class TestDeleteTable:
 
 
 class TestEdgeCases:
-    async def test_handles_very_large_excel_file(self, service, mock_table_repo):
+    async def test_handles_very_large_excel_file(
+        self, service, mock_table_repo, real_data_table: DataTable
+    ):
         """Симулируем большой файл (100k+ строк)"""
         # Генерируем большой DataFrame
         large_df = pd.DataFrame(
@@ -427,14 +422,15 @@ class TestEdgeCases:
         )
         file.file = buffer
 
-        # Проверяем, что не упадет по памяти/таймауту
-        mock_table_repo.create_table.return_value = MagicMock(id=1)
+        # Используем реальный объект DataTable чтобы избежать проблем с Pydantic
+        mock_table_repo.create_table.return_value = real_data_table
 
         result = await service.create_table_from_excel_file(file, user_id=100)
         assert result is not None
+        assert result.id == real_data_table.id
 
     async def test_handles_excel_with_special_characters(
-        self, service, mock_table_repo
+        self, service, mock_table_repo, real_data_table: DataTable
     ):
         """Excel файл с русскими, эмодзи и спецсимволами"""
         df = pd.DataFrame(
@@ -457,8 +453,10 @@ class TestEdgeCases:
         )
         file.file = buffer
 
-        mock_table_repo.create_table.return_value = MagicMock(id=1)
+        # Используем реальный объект DataTable чтобы избежать проблем с Pydantic
+        mock_table_repo.create_table.return_value = real_data_table
 
         # Не должно упасть из-за кодировки
         result = await service.create_table_from_excel_file(file, user_id=100)
         assert result is not None
+        assert result.id == real_data_table.id

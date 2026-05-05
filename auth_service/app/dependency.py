@@ -1,6 +1,6 @@
 from fastapi import Request, Depends, HTTPException
 from typing import Annotated
-from auth_service.app.сore import UnitOfWork, get_async_uow_session, get_db
+from auth_service.app.сore import UnitOfWork, get_async_uow_session
 from auth_service.app.models import User as UserORM
 from auth_service.app.schemas import SUserInfo, SUserFilter
 from auth_service.app.services import AuthService, UserService

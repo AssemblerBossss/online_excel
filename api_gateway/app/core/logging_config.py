@@ -28,10 +28,6 @@ class CustomJsonFormatter(logging.Formatter):
         return json.dumps(log_record, ensure_ascii=False)
 
 
-import sys
-import logging
-
-
 def setup_logging():
     """Настройка JSON-логирования для API Gateway"""
 

@@ -7,6 +7,10 @@ from datetime import datetime
 from table_service.app.core.database import AsyncSessionFactory
 from table_service.app.infrastructure import EventConsumerBase
 from table_service.app.core import app_settings
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from table_service.app.repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +57,6 @@ class UserEventConsumer:
         self, event_type: str, body: dict, repo: "UserRepository"
     ) -> None:
         if event_type in ("user.registered", "user.updated"):
-
             timestamp = datetime.fromisoformat(body["timestamp"].replace("Z", "+00:00"))
             # Берём только значение роли без префикса класса
             role = body["role"].split(".")[-1].lower()

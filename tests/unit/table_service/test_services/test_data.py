@@ -3,7 +3,7 @@ from typing import Any
 
 from table_service.app.exceptions import ValidationException
 from table_service.app.services.data_validation import DataValidationService
-from table_service.app.schemas import TableRowCreate, TableRowUpdate
+from table_service.app.schemas import TableRowCreate
 
 
 @pytest.fixture(scope="function")
@@ -61,7 +61,6 @@ def constraint_schema() -> list[dict[str, Any]]:
 
 
 class TestBuildSchemaDict:
-
     def test_normal_columns(self):
         """Обычный случай: все колонки имеют name."""
         schema = [
@@ -178,9 +177,9 @@ class TestValidateDataTypes:
             table_columns_schema=schema, row_data=row, raise_on_error=False
         )
         if should_fail:
-            assert any(
-                "field" in e for e in errors
-            ), f"Ожидалась ошибка для value={value!r}"
+            assert any("field" in e for e in errors), (
+                f"Ожидалась ошибка для value={value!r}"
+            )
         else:
             assert errors == [], f"Не ожидалась ошибка для value={value!r}"
 

@@ -6,4 +6,5 @@ from .file_size import FileSizeLimitMiddleware
 __all__ = [
     "RequestLoggingMiddleware",
     "JWTAuthMiddleware",
+    "FileSizeLimitMiddleware",
 ]

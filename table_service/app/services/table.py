@@ -1,6 +1,7 @@
 import logging
 from fastapi import UploadFile
 import pandas as pd
+from pydantic import ValidationError
 
 from table_service.app.schemas import (
     DataTableResponse,
@@ -38,7 +39,6 @@ ALLOWED_EXCEL_MIME_TYPES = {
 
 
 class TableService:
-
     def __init__(
         self,
         table_repository: TableRepository,
@@ -237,7 +237,9 @@ class TableService:
                 "User %s uploaded empty Excel file '%s'", user_id, excel_file.filename
             )
             raise EmptyFileException("Excel файл пустой")
-        except (pd.errors.ParserError, ValueError):
+        except ValidationError:
+            raise
+        except (pd.errors.ParserError, ValueError, TypeError):
             logger.warning(
                 "User %s uploaded unparseable Excel file '%s'",
                 user_id,
@@ -260,7 +262,14 @@ class TableService:
             raise CanNotDeleteTableException()
 
         if self.search_service:
-            await self.search_service.delete_from_index(table_id=table_id)
+            try:
+                await self.search_service.delete_from_index(table_id=table_id)
+            except Exception:
+                logger.warning(
+                    "Failed to delete table %s from search index, "
+                    "data may be orphaned until next sync",
+                    table_id,
+                )
 
         logger.info(
             "User %s deleted table %s (name: %s)", user_id, table_id, table.name

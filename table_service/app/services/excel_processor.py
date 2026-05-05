@@ -3,7 +3,7 @@ from typing import Any
 import pandas as pd
 
 from table_service.app.repository import DataRepository
-from table_service.app.schemas import DataTableCreate, TableRowCreate
+from table_service.app.schemas import TableRowCreate
 
 
 # Маппинг pandas dtype на типы схемы
@@ -142,7 +142,12 @@ async def _import_excel_data_to_table(
                 value = row[col]
 
                 # Пропускаем NaN/None значения
-                if pd.isna(value):
+                try:
+                    is_na = pd.isna(value)
+                except (TypeError, ValueError):
+                    is_na = False
+
+                if is_na:
                     row_data[str(col)] = None
                     continue
 
@@ -190,8 +195,7 @@ async def _import_excel_data_to_table(
             row_create = TableRowCreate(row_data=row_data)
             rows_to_create.append(row_create)
 
-        except Exception as e:
-            # logger.warning(f"Не удалось импортировать строку {idx}: {str(e)}")
+        except Exception:
             failed_count += 1
             continue
 

@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 class PermissionService:
-
     ADMIN_ROLE = "ADMIN"
 
     def __init__(

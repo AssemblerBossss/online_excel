@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 
 class AuthService:
-
     def __init__(self):
         self.event_publisher = event_publisher
 
@@ -63,7 +62,6 @@ class AuthService:
     ) -> User:
         """Регистрирует нового пользователя."""
         async with uow_session.start():
-
             if await uow_session.user.find_by_email(email=user_data.email):
                 raise UserAlreadyExistsException
 

@@ -1,0 +1,68 @@
+name: CI - Table Service
+
+on:
+  pull_request:
+    paths:
+      - 'table_service/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/ci-table-service.yml'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'table_service/**'
+
+env:
+  PYTHON_VERSION: '3.13'
+  SERVICE_NAME: table_service
+
+
+jobs:
+  lint-and-type-check:
+    runs-on: ubuntu-latest
+    container: python:3.13-slim
+
+    defaults:
+      run:
+        working-directory: ./${{ env.SERVICE_NAME }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+
+      - name: Run Ruff linter
+        run: ruff check . --output-format=github
+
+      - name: Run Ruff formatter check
+        run: ruff format --check .
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    container: python:3.13
+    needs: [ lint-and-type-check ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov httpx
+          pip install -r table_service/requirements.txt
+
+      - name: Run unit tests
+        run: |
+          pytest tests/unit/table_service \
+          -v \
+          --cov=table_service \
+          --cov-report=xml \
+          --cov-report=term \
+          -m "not integration"
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
