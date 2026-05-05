@@ -1,3 +1,4 @@
+import sys
 import logging
 from typing import Any
 from datetime import datetime, UTC
@@ -25,10 +26,6 @@ class CustomJsonFormatter(logging.Formatter):
             log_record["exception"] = self.formatException(record.exc_info)
 
         return json.dumps(log_record, ensure_ascii=False)
-
-
-import sys
-import logging
 
 
 def setup_logging():

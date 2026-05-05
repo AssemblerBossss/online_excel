@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from sqlalchemy import select, update, delete, insert
+from sqlalchemy import select, delete, insert
 
 from table_service.app.repository.base import Base
 from table_service.app.models import TablePermission

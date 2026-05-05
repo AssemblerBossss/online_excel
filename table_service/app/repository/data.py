@@ -1,5 +1,5 @@
-from sqlalchemy import select, update, delete, insert, asc, desc, Sequence
-from table_service.app.models import TableRow, DataTable
+from sqlalchemy import select, update, delete, asc, desc, Sequence
+from table_service.app.models import TableRow
 from table_service.app.repository.base import Base
 from table_service.app.schemas import TableRowCreate, TableRowUpdate
 
