@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/mihail/Рабочий стол/projects/online-excel/**)"
+    ]
+  }
+}

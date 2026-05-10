@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 # from slowapi.errors import RateLimitExceeded
 
 from api_gateway.app.config import settings
-from api_gateway.app.middleware import JWTAuthMiddleware, RequestLoggingMiddleware
+from api_gateway.app.middleware import JWTAuthMiddleware, RequestLoggingMiddleware, RateLimiterMiddleware
 from api_gateway.app.utils import init_http_client, close_http_client
 from api_gateway.app.routers import health_router, proxy_router
 from api_gateway.app.core import setup_logging
@@ -39,8 +39,11 @@ app = FastAPI(
 )
 
 # Rate Limiting
-# app.state.limiter = limiter
-# app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+from api_gateway.app.middleware.rate_limit import limiter, custom_rate_limit_handler
+from slowapi.errors import RateLimitExceeded
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
 # CORS Middleware (должен быть первым)
 app.add_middleware(
@@ -53,6 +56,7 @@ app.add_middleware(
 
 # Custom Middlewares
 app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(RateLimiterMiddleware, limiter=limiter)
 app.add_middleware(JWTAuthMiddleware)
 
 # Роутеры
