@@ -47,21 +47,7 @@ class CircuitBreakerRegistry:
         return self._breakers[service_name]
 
     def get_status(self) -> dict:
-        (
-            """Получить статус всех breaker'ов для мониторинга."""
-            """
-        Получить статус всех breaker'ов для мониторинга
-
-        Доступные атрибуты CircuitBreaker:
-        - state: текущее состояние (объект)
-        - current_state: Enum состояния ('closed', 'open', 'half-open')
-        - fail_counter: счетчик ошибок
-        - fail_max: максимум ошибок до открытия
-        - timeout_duration: таймаут до закрытия
-        - opens_at: когда откроется (если открыт)
-        - time_until_open: время до открытия
-        """
-        )
+        """Получить статус всех breaker'ов для мониторинга."""
         status = {}
 
         for service, breaker in self._breakers.items():
