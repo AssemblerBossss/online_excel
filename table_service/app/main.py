@@ -18,7 +18,6 @@ from table_service.app.core import (
     init_db,
     app_settings,
     user_event_consumer,
-    get_user_validator,
     setup_service_logging,
     close_redis_client,
     close_es_client,
@@ -110,8 +109,6 @@ def register_exception_handlers(app: FastAPI) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
-    user_validator = get_user_validator()
-    await user_validator.connect()
     await init_db()
     await init_es_index()
 
@@ -129,7 +126,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
 
     yield
 
-    await user_validator.close()
     await user_event_consumer.close()
     await close_es_client()
     await redis.close()

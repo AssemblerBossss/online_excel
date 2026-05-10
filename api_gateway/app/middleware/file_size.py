@@ -25,18 +25,7 @@ class FileSizeLimitMiddleware(BaseHTTPMiddleware):
             content_length = request.headers.get("Content-Length")
             if content_length:
                 file_size = int(content_length)
-                logger.info(
-                    "File upload attempt: {} bytes, limit: {} bytes".format(
-                        file_size, self.max_file_size
-                    )
-                )
                 if file_size > self.max_file_size:
-                    logger.warning(
-                        "File size limit exceeded: {} > {} for endpoint: {}".format(
-                            file_size, self.max_file_size, request.url.path
-                        )
-                    )
-
                     response = JSONResponse(
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                         content={

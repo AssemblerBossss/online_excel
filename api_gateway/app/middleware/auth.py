@@ -97,6 +97,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/auth/login",
         "/auth/refresh",
         "/auth/logout",
+        "/health",
+        "/health/circuit-breakers",
     }
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:

@@ -17,6 +17,23 @@ aiormq = ">=6.8,<7.0"
 yarl = "*"
 
 [[package]]
+name = "aiobreaker"
+version = "1.2.0"
+description = "Python implementation of the Circuit Breaker pattern."
+optional = false
+python-versions = ">=3.6"
+groups = ["main"]
+files = [
+    {file = "aiobreaker-1.2.0-py3-none-any.whl", hash = "sha256:f275decad78bdd161715afeee67e5dde7967de54c836648b44f4eea1b5e41d60"},
+    {file = "aiobreaker-1.2.0.tar.gz", hash = "sha256:217a9cfa12e520bb2dd1934bace281d1d7deb8d7630dd183a6295fd22e323ce7"},
+]
+
+[package.extras]
+docs = ["sphinx", "sphinx-autobuild", "sphinx-autodoc-typehints", "sphinx-rtd-theme"]
+redis = ["redis"]
+test = ["bandit", "codecov", "fakeredis", "mypy", "pylint", "pytest (>4)", "pytest-asyncio", "pytest-cov", "safety"]
+
+[[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
 description = "Happy Eyeballs for asyncio"
@@ -2613,4 +2630,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "30992dfb03981bdd36615505b113dc0679e18e546c546f4130f8c4708def1283"
+content-hash = "57b534f1294b16f36627abe78f18de9cf3e7c31757f6f031914e4ed969fcf3e7"
