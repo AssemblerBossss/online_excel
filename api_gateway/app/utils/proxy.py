@@ -57,8 +57,6 @@ async def proxy_request(
     # Читаем body
     body = await request.body()
 
-    client = get_http_client()
-
     service = resolve_service(target_url)
     breaker = circuit_breaker_registry.get_breaker(service)
 
