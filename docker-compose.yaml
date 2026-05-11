@@ -8,12 +8,20 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - auth_service
-      - table_service
+      auth_service:
+        condition: service_healthy
+      table_service:
+        condition: service_healthy
     networks:
       - appnet
     volumes:
       - ./api_gateway:/app/api_gateway
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8080/health/\")' || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   auth_service:
     build:
@@ -34,6 +42,12 @@ services:
       - appnet
     volumes:
       - ./auth_service:/app/auth_service
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/health/\")' || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   auth_db:
     container_name: online_excel_auth_db
@@ -102,6 +116,12 @@ services:
       - appnet
     volumes:
       - ./table_service:/app/table_service
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health/\")' || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   rabbitmq:
     image: rabbitmq:4.2.4-alpine

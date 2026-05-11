@@ -9,7 +9,7 @@ from slowapi.errors import RateLimitExceeded
 
 from auth_service.app.config import auth_service_settings
 from auth_service.app.сore import init_db, setup_service_logging, limiter
-from auth_service.app.routers import auth_router, user_router
+from auth_service.app.routers import auth_router, user_router, health_router
 from auth_service.app.events import event_publisher
 from auth_service.app.exceptions import AppException
 
@@ -30,9 +30,6 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Auth Service...")
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
-    yield
-    await limiter.close()
-
     # Инициализация БД
     await init_db()
     logger.info("✅ Database initialized")
@@ -65,6 +62,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(user_router, prefix="/user", tags=["user"])
+app.include_router(health_router, prefix="/health", tags=["health"])
 
 
 # Exception handlers
@@ -75,13 +73,3 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
         status_code=exc.status_code,
         content={"detail": exc.detail},
     )
-
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "service": auth_service_settings.PROJECT_NAME,
-        "version": auth_service_settings.VERSION,
-    }

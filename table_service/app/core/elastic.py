@@ -8,26 +8,7 @@ TABLE_INDEX = "tables"
 INDEX_MAPPING = {
     "settings": {
         "number_of_replicas": 0,
-    },
-    "analysis": {
-        "analyzer": {
-            "text_analyzer": {
-                "type": "custom",
-                "tokenizer": "standard",
-                "filter": [
-                    "lowercase",
-                    "asciifolding",
-                    "stop",
-                ],
-            },
-            "search_analyzer": {
-                "type": "custom",
-                "tokenizer": "standard",
-                "filter": [
-                    "lowercase",
-                    "asciifolding",
-                ],
-            },
+        "analysis": {
             "tokenizer": {
                 "ngram_tokenizer": {
                     "type": "ngram",
@@ -36,7 +17,24 @@ INDEX_MAPPING = {
                     "token_chars": ["letter", "digit"],
                 }
             },
-        }
+            "analyzer": {
+                "text_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": ["lowercase", "asciifolding", "stop"],
+                },
+                "search_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": ["lowercase", "asciifolding"],
+                },
+                "ngram_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "ngram_tokenizer",
+                    "filter": ["lowercase", "asciifolding"],
+                },
+            },
+        },
     },
     "mappings": {
         "properties": {
@@ -46,9 +44,7 @@ INDEX_MAPPING = {
                 "analyzer": "text_analyzer",
                 "search_analyzer": "search_analyzer",
                 "fields": {
-                    # sub-field для точного/prefix поиска
                     "keyword": {"type": "keyword"},
-                    # sub-field для ngram — поиск по частичному совпадению (напр. "proj" → "project")
                     "ngram": {
                         "type": "text",
                         "analyzer": "ngram_analyzer",

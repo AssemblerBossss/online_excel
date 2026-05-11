@@ -13,12 +13,12 @@ from table_service.app.api.endpoints import (
     tables_router,
     search_router,
     permissions_router,
+    health_router,
 )
 from table_service.app.core import (
     init_db,
     app_settings,
     user_event_consumer,
-    get_user_validator,
     setup_service_logging,
     close_redis_client,
     close_es_client,
@@ -110,8 +110,6 @@ def register_exception_handlers(app: FastAPI) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
-    user_validator = get_user_validator()
-    await user_validator.connect()
     await init_db()
     await init_es_index()
 
@@ -129,7 +127,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
 
     yield
 
-    await user_validator.close()
     await user_event_consumer.close()
     await close_es_client()
     await redis.close()
@@ -187,6 +184,7 @@ def register_routers(app: FastAPI) -> None:
         (tables_router, "/tables", "Tables"),
         (search_router, "/search", "Search"),
         (permissions_router, "/tables/{table_id}/permissions", "Permissions"),
+        (health_router, "/health", "Health"),
     ]
     for router, prefix, tag in routers:
         root_router.include_router(router, prefix=prefix, tags=[tag])
