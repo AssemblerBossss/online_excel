@@ -41,8 +41,8 @@ jobs:
         run: |
           pip install pytest pytest-asyncio httpx pytest-timeout
 
-      - name: Start services
-        run: docker compose up -d
+      - name: Start services and wait for healthy
+        run: docker compose up -d --wait --timeout 120
 
       - name: Run integration tests
         run: |
@@ -51,6 +51,18 @@ jobs:
             -v \
             --timeout=120 \
             --junitxml=integration-report.xml
+      - name: Save logs on failure
+        if: failure()
+        run: docker compose logs >integration-logs.txt
+
+      - name: Upload test report and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-result
+          path: |
+            integration-report.xml
+            integration-logs.txt
 
       - name: Tear down services
         if: always()

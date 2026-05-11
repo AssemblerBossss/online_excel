@@ -2,15 +2,18 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-
-# from slowapi import _rate_limit_exceeded_handler
-# from slowapi.errors import RateLimitExceeded
+from slowapi.errors import RateLimitExceeded
 
 from api_gateway.app.config import settings
-from api_gateway.app.middleware import JWTAuthMiddleware, RequestLoggingMiddleware, RateLimiterMiddleware
+from api_gateway.app.middleware import (
+    JWTAuthMiddleware,
+    RequestLoggingMiddleware,
+    RateLimiterMiddleware,
+)
 from api_gateway.app.utils import init_http_client, close_http_client
 from api_gateway.app.routers import health_router, proxy_router
 from api_gateway.app.core import setup_logging
+from api_gateway.app.middleware.rate_limit import limiter, custom_rate_limit_handler
 
 # Настройка логирования
 setup_logging()
@@ -19,13 +22,11 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ===== STARTUP =====
     logging.info("Initializing HTTP client...")
     await init_http_client()
 
     yield
 
-    # ===== SHUTDOWN =====
     logging.info("Closing HTTP client...")
     await close_http_client()
 
@@ -39,9 +40,6 @@ app = FastAPI(
 )
 
 # Rate Limiting
-from api_gateway.app.middleware.rate_limit import limiter, custom_rate_limit_handler
-from slowapi.errors import RateLimitExceeded
-
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
