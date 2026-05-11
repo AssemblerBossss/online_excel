@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@5
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -53,7 +53,7 @@ jobs:
             --junitxml=integration-report.xml
       - name: Save logs on failure
         if: failure()
-        run: docker compose logs >integration-logs.txt
+        run: docker compose logs > integration-logs.txt
 
       - name: Upload test report and logs
         if: always()
