@@ -13,6 +13,7 @@ from table_service.app.api.endpoints import (
     tables_router,
     search_router,
     permissions_router,
+    health_router,
 )
 from table_service.app.core import (
     init_db,
@@ -183,6 +184,7 @@ def register_routers(app: FastAPI) -> None:
         (tables_router, "/tables", "Tables"),
         (search_router, "/search", "Search"),
         (permissions_router, "/tables/{table_id}/permissions", "Permissions"),
+        (health_router, "/health", "Health"),
     ]
     for router, prefix, tag in routers:
         root_router.include_router(router, prefix=prefix, tags=[tag])

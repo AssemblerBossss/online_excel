@@ -1,0 +1,57 @@
+name: CI - Integration Tests
+
+on:
+  workflow_run:
+    workflows:
+      - "CI - Auth Service"
+      - "CI - API Gateway Service"
+      - "CI - Table Service"
+    types: [ completed ]
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  COMPOSE_PROJECT_NAME: online_excel_test
+  PYTHON_VERSION: '3.13'
+
+jobs:
+  check-dependencies:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    outputs:
+      all_passed: ${{ steps.check.outputs.all_passed }}
+    steps:
+      - id: check
+        run: echo "all_passed=true" >> $GITHUB_OUTPUT
+
+  integration_tests:
+    runs-on: ubuntu-latest
+    needs: [ check-dependencies ]
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-asyncio httpx pytest-timeout
+
+      - name: Start services
+        run: docker compose up -d
+
+      - name: Run integration tests
+        run: |
+          pytest tests/integration \
+            -m integration \
+            -v \
+            --timeout=120 \
+            --junitxml=integration-report.xml
+
+      - name: Tear down services
+        if: always()
+        run: docker compose down -v --remove-orphans

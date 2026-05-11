@@ -2,6 +2,7 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
+from slowapi.wrappers import Limit
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Callable
 from logging import getLogger
@@ -32,21 +33,26 @@ limiter = Limiter(
 async def custom_rate_limit_handler(
     request: Request, exc: RateLimitExceeded
 ) -> Response:
-    """Кастомный обработчик превышения лимита запросов."""
+    # exc.limit - это объект Limit
+    limit_obj: Limit = exc.limit
+
+    # Формируем читаемое правило, например "10 per minute"
+    limit_rule = f"{limit_obj.limit}"
+
+    # Стандартный заголовок: просим подождать 60 секунд (или значение granularity)
+    # В реальном приложении здесь должна быть логика вычисления времени до сброса из Redis
+    retry_after_seconds = limit_obj.granularity
+
     return JSONResponse(
         status_code=429,
         content={
             "detail": "Too many requests",
             "error": "RATE_LIMIT_EXCEEDED",
-            "limit": exc.limit,
-            "window": exc.window,
-            "retry_after": exc.retry_after,
+            "limit": limit_rule,  # Показываем пользователю правило
+            "retry_after": retry_after_seconds,
         },
         headers={
-            "X-RateLimit-Limit": str(exc.limit),
-            "X-RateLimit-Remaining": str(exc.remaining),
-            "X-RateLimit-Reset": str(exc.reset),
-            "Retry-After": str(exc.retry_after),
+            "Retry-After": str(retry_after_seconds),
         },
     )
 
