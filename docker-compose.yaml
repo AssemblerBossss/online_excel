@@ -1,5 +1,5 @@
 services:
-  # API Gateway
+  # ==================== API Gateway ====================
   api_gateway:
     build:
       context: .
@@ -16,6 +16,25 @@ services:
       - appnet
     volumes:
       - ./api_gateway:/app/api_gateway
+    env_file:
+      - path: ./api_gateway/.env
+        required: false
+    environment:
+      # JWT (секрет — только через GitHub Secrets)
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-local_dev_secret}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      # URLs сервисов
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://auth_service:8001}
+      - MAIN_SERVICE_URL=${MAIN_SERVICE_URL:-http://table_service:8000}
+      # Redis
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      # Rate limiting & CORS
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000"]}
+      # Environment meta
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-local}
     healthcheck:
       test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8080/health/\")' || exit 1" ]
       interval: 10s
@@ -23,6 +42,7 @@ services:
       retries: 5
       start_period: 20s
 
+  # ==================== Auth Service ====================
   auth_service:
     build:
       context: .
@@ -32,6 +52,33 @@ services:
       - "8001:8001"
     env_file:
       - ./auth_service/.env
+    environment:
+      # Database (чувствительные данные — через секреты)
+      - DB_HOST=${AUTH_DB_HOST:-auth_db}
+      - DB_PORT=${AUTH_DB_PORT:-5432}
+      - DB_USER=${AUTH_DB_USER:-postgres}
+      - DB_PASSWORD=${AUTH_DB_PASSWORD:-postgres}
+      - DB_NAME=${AUTH_DB_NAME:-auth_db}
+      - DB_DRIVER=${AUTH_DB_DRIVER:-postgresql+asyncpg}
+      # RabbitMQ
+      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
+      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      # Redis
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_RATE_LIMIT_DB=${REDIS_RATE_LIMIT_DB:-1}
+      - REDIS_CACHE_DB=${REDIS_CACHE_DB:-2}
+      # JWT (обязательно через секрет!)
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-local_dev_secret}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-30}
+      # Meta
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-local}
     restart: on-failure
     depends_on:
       auth_db:
@@ -49,51 +96,7 @@ services:
       retries: 5
       start_period: 20s
 
-  auth_db:
-    container_name: online_excel_auth_db
-    image: postgres:16-alpine
-    shm_size: 128mb
-    environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_DB: auth_db
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    ports:
-      - "8010:5432"
-    networks:
-      - appnet
-
-    volumes:
-      - auth_pgdata:/var/lib/postgresql/data
-      - ./postgresql.conf:/etc/postgresql/postgresql.conf
-    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
-
-  db:
-    container_name: online_excel_db
-    image: postgres:16-alpine
-    shm_size: 128mb
-    environment:
-      POSTGRES_PASSWORD: online_excel
-      POSTGRES_USER: postgres
-      POSTGRES_DB: online_excel
-    ports:
-      - "7777:5432"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - appnet
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./postgresql.conf:/etc/postgresql/postgresql.conf
-    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
-
+  # ==================== Table Service ====================
   table_service:
     build:
       context: .
@@ -101,6 +104,30 @@ services:
     container_name: online_excel_table_service
     env_file:
       - ./table_service/.env
+    environment:
+      # Database (pydantic-settings: префикс EXCEL_APP__)
+      - EXCEL_APP__DB_HOST=${TABLE_DB_HOST:-db}
+      - EXCEL_APP__DB_PORT=${TABLE_DB_PORT:-5432}
+      - EXCEL_APP__DB_USER=${TABLE_DB_USER:-postgres}
+      - EXCEL_APP__DB_PASSWORD=${TABLE_DB_PASSWORD:-online_excel}
+      - EXCEL_APP__DB_NAME=${TABLE_DB_NAME:-online_excel}
+      - EXCEL_APP__DB_DRIVER=${TABLE_DB_DRIVER:-postgresql+asyncpg}
+      # Cache (Redis)
+      - EXCEL_APP__CACHE_HOST=${CACHE_HOST:-redis}
+      - EXCEL_APP__CACHE_PORT=${CACHE_PORT:-6379}
+      - EXCEL_APP__CACHE_DB=${CACHE_DB:-0}
+      # Elasticsearch
+      - EXCEL_APP__ES_HOST=${ES_HOST:-elasticsearch}
+      - EXCEL_APP__ES_PORT=${ES_PORT:-9200}
+      # RabbitMQ
+      - EXCEL_APP__RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
+      - EXCEL_APP__RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - EXCEL_APP__RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - EXCEL_APP__RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - EXCEL_APP__RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      # Meta
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-local}
     depends_on:
       db:
         condition: service_healthy
@@ -123,6 +150,54 @@ services:
       retries: 5
       start_period: 20s
 
+  # ==================== Infrastructure ====================
+
+  auth_db:
+    container_name: online_excel_auth_db
+    image: postgres:16-alpine
+    shm_size: 128mb
+    environment:
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-postgres}
+      POSTGRES_USER: ${AUTH_DB_USER:-postgres}
+      POSTGRES_DB: ${AUTH_DB_NAME:-auth_db}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8010:5432"
+    networks:
+      - appnet
+
+    volumes:
+      - auth_pgdata:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
+
+  db:
+    container_name: online_excel_db
+    image: postgres:16-alpine
+    shm_size: 128mb
+    environment:
+      POSTGRES_PASSWORD: ${TABLE_DB_PASSWORD:-online_excel}
+      POSTGRES_USER: ${TABLE_DB_USER:-postgres}
+      POSTGRES_DB: ${TABLE_DB_NAME:-online_excel}
+    ports:
+      - "7777:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - appnet
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
+
+
   rabbitmq:
     image: rabbitmq:4.2.4-alpine
     container_name: online_excel_rabbitmq
@@ -130,8 +205,8 @@ services:
       - "5672:5672"      # AMQP protocol
       - "15672:15672"    # Management UI
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf

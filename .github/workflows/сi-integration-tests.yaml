@@ -41,8 +41,30 @@ jobs:
         run: |
           pip install pytest pytest-asyncio httpx pytest-timeout
 
+      # Валидация конфигурации (поймает ошибки подстановки переменных ДО запуска)
+      - name: Validate docker-compose config
+        run: docker compose config > /dev/null
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          AUTH_DB_PASSWORD: ${{ secrets.AUTH_DB_PASSWORD }}
+          TABLE_DB_PASSWORD: ${{ secrets.TABLE_DB_PASSWORD }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+
+          LOG_LEVEL: ${{ vars.LOG_LEVEL }}
+          ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+
       - name: Start services and wait for healthy
         run: docker compose up -d --wait --timeout 120
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+
+          AUTH_DB_PASSWORD: ${{ secrets.AUTH_DB_PASSWORD }}
+          TABLE_DB_PASSWORD: ${{ secrets.TABLE_DB_PASSWORD }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+
+          # Эти значения хранятся в: Settings → Secrets and variables → Actions → Variables
+          LOG_LEVEL: ${{ vars.LOG_LEVEL }}
+          ENVIRONMENT: ${{ vars.ENVIRONMENT }}
 
       - name: Run integration tests
         run: |
@@ -51,6 +73,7 @@ jobs:
             -v \
             --timeout=120 \
             --junitxml=integration-report.xml
+
       - name: Save logs on failure
         if: failure()
         run: docker compose logs > integration-logs.txt
