@@ -20,7 +20,7 @@ async def http_client():
 
 async def _register_and_login(client: httpx.AsyncClient) -> str:
     """Регистрирует уникального пользователя и возвращает access_token."""
-    email = f"it_{uuid.uuid4().hex[:10]}@test.local"
+    email = f"it_{uuid.uuid4().hex[:10]}@example.com"
     password = "Test_Pass_123"
 
     register_response = await client.post(
