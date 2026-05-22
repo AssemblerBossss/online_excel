@@ -51,7 +51,8 @@ services:
     ports:
       - "8001:8001"
     env_file:
-      - ./auth_service/.env
+      - path: ./auth_service/.env
+        required: false
     environment:
       # Database (чувствительные данные — через секреты)
       - DB_HOST=${AUTH_DB_HOST:-auth_db}
@@ -103,7 +104,8 @@ services:
       dockerfile: table_service/Dockerfile
     container_name: online_excel_table_service
     env_file:
-      - ./table_service/.env
+      - path: ./table_service/.env
+        required: false
     environment:
       # Database (pydantic-settings: префикс EXCEL_APP__)
       - EXCEL_APP__DB_HOST=${TABLE_DB_HOST:-db}
