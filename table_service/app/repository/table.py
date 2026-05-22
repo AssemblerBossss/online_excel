@@ -1,7 +1,6 @@
-from sqlalchemy import select, delete, Sequence
+from sqlalchemy import select, delete, Sequence, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
-from sqlalchemy.orm.sync import update
 
 from table_service.app.repository.base import Base
 from table_service.app.models import DataTable

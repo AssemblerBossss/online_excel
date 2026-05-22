@@ -88,15 +88,11 @@ class SearchService:
         try:
             await self.es_client.update(index=TABLE_INDEX, id=str(table_id), doc=doc)
         except NotFoundError:
-            logger.warning("ES doc %s not found, re-indexing", table_id)
-            await self.es_client.index(
-                index=TABLE_INDEX, id=str(table_id), document=doc
-            )
+            logger.exception("Failed to update table %s in Elasticsearch", table_id)
 
     async def delete_from_index(self, table_id: int) -> None:
         """Удалить таблицу из индекса Elasticsearch."""
         try:
             await self.es_client.delete(index=TABLE_INDEX, id=str(table_id))
-            logger.debug("Таблица %s удалена из индекса Elasticsearch", table_id)
         except Exception:
             logger.warning("Не удалось удалить таблицу %s из индекса", table_id)
