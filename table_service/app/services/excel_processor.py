@@ -1,209 +1,156 @@
+import logging
 import warnings
 from typing import Any
 import pandas as pd
 
-from table_service.app.repository import DataRepository
+from table_service.app.exceptions import EmptyFileException
 from table_service.app.schemas import TableRowCreate
 
-
-# Маппинг pandas dtype на типы схемы
-dtype_map = {
-    "int64": "number",
-    "int32": "number",
-    "int16": "number",
-    "int8": "number",
-    "float64": "number",
-    "float32": "number",
-    "float16": "number",
-    "bool": "boolean",
-    "datetime64[ns]": "datetime",
-    "datetime64": "datetime",
-    "object": "string",
-}
-
-# Распространенные форматы дат для проверки
-COMMON_DATE_FORMATS = [
-    "%Y-%m-%d",  # 2024-01-15
-    "%d.%m.%Y",  # 15.01.2024
-    "%m/%d/%Y",  # 01/15/2024
-    "%d/%m/%Y",  # 15/01/2024
-    "%Y-%m-%d %H:%M:%S",  # 2024-01-15 14:30:00
-    "%d.%m.%Y %H:%M:%S",  # 15.01.2024 14:30:00
-    "%m/%d/%Y %H:%M:%S",  # 01/15/2024 14:30:00
-    "%Y-%m-%dT%H:%M:%S",  # 2024-01-15T14:30:00
-]
+logger = logging.getLogger(__name__)
 
 
-def _is_datetime_column(series: pd.Series) -> bool:
-    """
-    Проверяет, можно ли преобразовать колонку в datetime.
+class ExcelProcessorService:
+    """Преобразование DataFrame в схему колонок и строки таблицы. Без доступа к БД."""
 
-    Сначала пытается распознать конкретные форматы дат,
-    затем только использует общий парсинг.
-    """
-    sample_values = series.dropna().head(10)
+    DTYPE_MAP = {
+        "int64": "number",
+        "int32": "number",
+        "int16": "number",
+        "int8": "number",
+        "float64": "number",
+        "float32": "number",
+        "float16": "number",
+        "bool": "boolean",
+        "datetime64[ns]": "datetime",
+        "datetime64": "datetime",
+        "object": "string",
+    }
 
-    if len(sample_values) == 0:
-        return False
+    COMMON_DATE_FORMATS = [
+        "%Y-%m-%d",  # 2024-01-15
+        "%d.%m.%Y",  # 15.01.2024
+        "%m/%d/%Y",  # 01/15/2024
+        "%d/%m/%Y",  # 15/01/2024
+        "%Y-%m-%d %H:%M:%S",  # 2024-01-15 14:30:00
+        "%d.%m.%Y %H:%M:%S",  # 15.01.2024 14:30:00
+        "%m/%d/%Y %H:%M:%S",  # 01/15/2024 14:30:00
+        "%Y-%m-%dT%H:%M:%S",  # 2024-01-15T14:30:00
+    ]
 
-    # Пробуем распознать конкретные форматы дат
-    for date_format in COMMON_DATE_FORMATS:
-        try:
-            pd.to_datetime(sample_values, format=date_format, errors="raise")
-            return True
-        except (ValueError, TypeError):
-            continue
+    def build_columns_schema(self, df: pd.DataFrame) -> list[dict[str, Any]]:
+        """Сгенерировать схему колонок по DataFrame с автоопределением типов."""
+        if df.empty or df.columns.empty:
+            raise EmptyFileException("Файл не содержит данных для импорта")
 
-    # Если ни один конкретный формат не подошел, пробуем общий парсинг
-    # Но подавляем предупреждение о неопределенном формате
-    try:
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", category=UserWarning, message="Could not infer format"
+        schema = []
+        for col in df.columns:
+            if pd.isna(col) or str(col).strip() == "":
+                continue
+            schema.append(
+                {
+                    "name": str(col),
+                    "type": self._infer_column_type(df[col]),
+                    "required": False,
+                }
             )
-            pd.to_datetime(sample_values, errors="raise")
-            return True
-    except (ValueError, TypeError):
-        return False
+        return schema
 
+    def build_rows(self, df: pd.DataFrame) -> tuple[list[TableRowCreate], int]:
+        """
+        Преобразовать строки DataFrame в объекты для bulk insert.
 
-def _generate_columns_schema_from_dataframe(
-    dataframe: pd.DataFrame,
-) -> list[dict[str, Any]] | None:
-    """
-    Генерирует схему колонок на основе DataFrame с автоматическим определением типов.
+        Преобразование по типам колонок:
+        — числа остаются числами,
+        — даты приводятся к ISO-строкам,
+        — boolean остаётся boolean,
+        — остальное в строки.
+        """
+        rows, failed = [], 0
+        for _, row in df.iterrows():
+            try:
+                row_data = {
+                    str(col): self._convert_value(row[col], str(df[col].dtype))
+                    for col in df.columns
+                }
+                rows.append(TableRowCreate(row_data=row_data))
+            except Exception:
+                failed += 1
+        return rows, failed
 
-    Args:
-        dataframe: DataFrame для анализа
-
-    Returns:
-        Список схем колонок с определенными типами данных
-    """
-
-    if dataframe.empty or dataframe.columns.empty:
-        return None
-
-    columns_schemas = []
-
-    for column_name in dataframe.columns:
-        if pd.isna(column_name) or str(column_name).strip() == "":
-            continue
-
-        # Получаем тип данных колонки
-        dtype = str(dataframe[column_name].dtype)
-        schema_type = dtype_map.get(dtype, "string")
-
+    def _infer_column_type(self, series: pd.Series) -> str:
+        """Определить тип колонки схемы по dtype и содержимому."""
+        dtype = str(series.dtype)
         if dtype == "object":
-            # Проверяем, можно ли преобразовать в дату
-            if _is_datetime_column(dataframe[column_name]):
-                schema_type = "datetime"
-            else:
-                schema_type = "string"
+            return "datetime" if self._is_datetime_column(series) else "string"
+        return self.DTYPE_MAP.get(dtype, "string")
 
-        columns_schema = {
-            "name": str(column_name),
-            "type": schema_type,
-            "required": False,
-        }
-        columns_schemas.append(columns_schema)
+    def _convert_value(self, value: Any, dtype: str) -> Any:
+        """Привести одно значение к типу, пригодному для хранения."""
+        if self._is_na(value):
+            return None
 
-    return columns_schemas
+        if dtype in ("int64", "int32", "int16", "int8"):
+            return int(value)
+        if dtype in ("float64", "float32", "float16"):
+            return float(value)
+        if dtype == "bool":
+            return bool(value)
+        if "datetime" in dtype:
+            return pd.Timestamp(value).isoformat()
+        if dtype == "object":
+            parsed = self._try_parse_date(value)
+            return parsed.isoformat() if parsed is not None else str(value)
+        return str(value)
 
+    def _is_datetime_column(self, series: pd.Series) -> bool:
+        """
+        Проверяет, можно ли преобразовать колонку в datetime.
 
-async def _import_excel_data_to_table(
-    data_repo: DataRepository, table_id: int, df: pd.DataFrame
-) -> dict[str, int]:
-    """
-    Импортирует данные из DataFrame в таблицу используя bulk insert.
+        Сначала пытается распознать конкретные форматы дат,
+        затем только использует общий парсинг.
+        """
+        sample_values = series.dropna().head(10)
+        if len(sample_values) == 0:
+            return False
 
-    Преобразует данные в соответствии с их типами:
-    - Числа остаются числами
-    - Даты преобразуются в ISO строки
-    - Boolean остаются boolean
-    - Остальное в строки
+        for date_format in self.COMMON_DATE_FORMATS:
+            try:
+                pd.to_datetime(sample_values, format=date_format, errors="raise")
+                return True
+            except (ValueError, TypeError):
+                continue
 
-    Args:
-        data_repo: Репозиторий для работы с данными
-        table_id: ID таблицы
-        df: DataFrame с данными для импорта
-
-    Returns:
-        dict: Статистика импорта {"total": N, "success": M, "failed": K}
-    """
-
-    rows_to_create = []
-    failed_count = 0
-
-    for idx, row in df.iterrows():
+        # Если ни один конкретный формат не подошел, пробуем общий парсинг
+        # Но подавляем предупреждение о неопределенном формате
         try:
-            row_data = {}
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", category=UserWarning, message="Could not infer format"
+                )
+                pd.to_datetime(sample_values, errors="raise")
+                return True
+        except (ValueError, TypeError):
+            return False
 
-            for col in df.columns:
-                value = row[col]
+    def _try_parse_date(self, value: Any) -> pd.Timestamp | None:
+        """Попытаться распарсить скалярное значение в дату. None, если не дата."""
+        for date_format in self.COMMON_DATE_FORMATS:
+            try:
+                return pd.to_datetime(value, format=date_format)
+            except (ValueError, TypeError):
+                continue
 
-                # Пропускаем NaN/None значения
-                try:
-                    is_na = pd.isna(value)
-                except (TypeError, ValueError):
-                    is_na = False
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning)
+                return pd.to_datetime(value)
+        except (ValueError, TypeError):
+            return None
 
-                if is_na:
-                    row_data[str(col)] = None
-                    continue
-
-                # Определяем тип данных и преобразуем соответственно
-                col_dtype = str(df[col].dtype)
-
-                # Числовые типы
-                if col_dtype in ["int64", "int32", "int16", "int8"]:
-                    row_data[str(col)] = int(value)
-                elif col_dtype in ["float64", "float32", "float16"]:
-                    row_data[str(col)] = float(value)
-                # Boolean
-                elif col_dtype == "bool":
-                    row_data[str(col)] = bool(value)
-                # Datetime
-                elif "datetime" in col_dtype:
-                    row_data[str(col)] = pd.Timestamp(value).isoformat()
-                # Object - может быть дата или строка
-                elif col_dtype == "object":
-                    # Пытаемся преобразовать в дату
-                    try:
-                        # Сначала пробуем распознать формат
-                        date_val = None
-                        for date_format in COMMON_DATE_FORMATS:
-                            try:
-                                date_val = pd.to_datetime(value, format=date_format)
-                                break
-                            except (ValueError, TypeError):
-                                continue
-
-                        # Если не подошел ни один формат, пробуем общий парсинг
-                        if date_val is None:
-                            with warnings.catch_warnings():
-                                warnings.filterwarnings("ignore", category=UserWarning)
-                                date_val = pd.to_datetime(value)
-
-                        row_data[str(col)] = date_val.isoformat()
-                    except (ValueError, TypeError):
-                        # Если не дата, то строка
-                        row_data[str(col)] = str(value)
-                else:
-                    # По умолчанию строка
-                    row_data[str(col)] = str(value)
-
-            row_create = TableRowCreate(row_data=row_data)
-            rows_to_create.append(row_create)
-
-        except Exception:
-            failed_count += 1
-            continue
-
-    if rows_to_create:
-        created_count = await data_repo.bulk_create_table_row(
-            table_id=table_id, rows_data=rows_to_create
-        )
-    else:
-        created_count = 0
-
-    return {"total": len(df), "success": created_count, "failed": failed_count}
+    @staticmethod
+    def _is_na(value: Any) -> bool:
+        """Безопасная проверка на NaN/None для скаляров и нескаляров."""
+        try:
+            return bool(pd.isna(value))
+        except (TypeError, ValueError):
+            return False
