@@ -18,14 +18,8 @@ from table_service.app.schemas import (
     DataTableResponse,
 )
 
-from tests.fixtures import (
-    valid_excel_file,
-    excel_file_with_mixed_types,
-)
-
 
 class TestGetAllTables:
-
     async def test_return_empty_list_when_no_tables_found(
         self, service, mock_table_repo
     ) -> None:
@@ -49,7 +43,6 @@ class TestGetAllTables:
 
 
 class TestGetTableById:
-
     async def test_returns_table_with_read_access(
         self,
         service,
@@ -149,7 +142,6 @@ class TestCreateTable:
 
 
 class TestCreateTableFromExcelFile:
-
     async def test_validates_file_extension(self, service):
         """Негативный тест: проверяем, что .txt не пройдет"""
         file = MagicMock(spec=UploadFile)
@@ -184,16 +176,11 @@ class TestCreateTableFromExcelFile:
         self, service, valid_excel_file, mock_table_repo, real_data_table
     ):
         """ВАЖНЫЙ ТЕСТ: Проверяем, что схема колонок генерируется правильно"""
-        # Сохраняем реальную функцию _generate_columns_schema_from_dataframe
-        from table_service.app.services.excel_processor import (
-            _generate_columns_schema_from_dataframe,
-        )
-
         mock_table_repo.create_table.return_value = real_data_table
 
-        # Шпионим за _generate_columns_schema_from_dataframe
-        with patch(
-            "table_service.app.services.table._generate_columns_schema_from_dataframe"
+        # Шпионим за build_columns_schema у excel-процессора сервиса
+        with patch.object(
+            service.excel_processor, "build_columns_schema"
         ) as mock_generate:
             mock_generate.return_value = [
                 {"name": "Name", "type": "string", "required": False}
@@ -203,7 +190,7 @@ class TestCreateTableFromExcelFile:
                 excel_file=valid_excel_file, user_id=100
             )
 
-            # Проверяем, что функция была вызвана с DataFrame
+            # Проверяем, что метод был вызван с DataFrame
             assert mock_generate.called
             call_args = mock_generate.call_args[0][0]
             assert isinstance(call_args, pd.DataFrame)

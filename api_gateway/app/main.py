@@ -57,11 +57,8 @@ app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(RateLimiterMiddleware, limiter=limiter)
 app.add_middleware(JWTAuthMiddleware)
 
-# Роутеры
 app.include_router(health_router, tags=["health"])
-app.include_router(proxy_router, tags=["proxy"])
-# app.include_router(auth_proxy.router, prefix="/api/v1", tags=["auth-proxy"])
-# app.include_router(tables_proxy.router, prefix="/api/v1", tags=["tables-proxy"])
+app.include_router(proxy_router)
 
 
 @app.get("/")

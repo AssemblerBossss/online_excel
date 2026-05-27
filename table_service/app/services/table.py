@@ -10,10 +10,7 @@ from table_service.app.schemas import (
 )
 from table_service.app.repository import TableRepository, DataRepository
 from table_service.app.models import DataTable
-from table_service.app.services.excel_processor import (
-    _generate_columns_schema_from_dataframe,
-    _import_excel_data_to_table,
-)
+from table_service.app.services.excel_processor import ExcelProcessorService
 from table_service.app.services.search import SearchService
 from table_service.app.services.permission import PermissionService
 from table_service.app.exceptions import (
@@ -45,11 +42,13 @@ class TableService:
         data_repository: DataRepository,
         permission_service: PermissionService,
         search_service: SearchService | None = None,
+        excel_processor: ExcelProcessorService | None = None,
     ):
         self.table_repo = table_repository
         self.data_repo = data_repository
         self.permission_service = permission_service
         self.search_service = search_service
+        self.excel_processor = excel_processor or ExcelProcessorService()
 
     def _to_response(self, table: DataTable) -> DataTableResponse:
         return DataTableResponse(
@@ -184,7 +183,7 @@ class TableService:
                 table_name = excel_file.filename.rsplit(".", 1)[0]
 
             # Генерация схемы колонок на основе DataFrame
-            columns_schema = _generate_columns_schema_from_dataframe(df)
+            columns_schema = self.excel_processor.build_columns_schema(df)
 
             if not description:
                 description = f"Таблица создана из файла {excel_file.filename}"
@@ -221,14 +220,20 @@ class TableService:
                     "Table %s indexed in Elasticsearch from Excel import", table.id
                 )
 
-            await _import_excel_data_to_table(self.data_repo, table.id, df)
+            rows, failed = self.excel_processor.build_rows(df)
+            created = await self.data_repo.bulk_create_table_row(
+                table_id=table.id, rows_data=rows
+            )
             logger.info(
-                "User %s created table %s from Excel '%s' (%s rows, %s columns)",
+                "User %s created table %s from Excel '%s' "
+                "(%s columns, %s rows: %s imported, %s failed)",
                 user_id,
                 table.id,
                 excel_file.filename,
-                len(df),
                 len(df.columns),
+                len(df),
+                created,
+                failed,
             )
             return self._to_response(table)
 

@@ -9,6 +9,7 @@ from table_service.app.services import (
     TableService,
     SearchService,
     PermissionService,
+    ExcelProcessorService,
 )
 from table_service.app.repository import (
     TableRepository,
@@ -39,23 +40,6 @@ async def get_session_with_commit() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-async def get_session_without_commit() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Получить асинхронную сессию без автоматического коммита.
-
-    Returns:
-        AsyncGenerator[AsyncSession, None]: Асинхронная сессия без автокоммита.
-    """
-    async with AsyncSessionFactory() as session:
-        try:
-            yield session
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
-
-
 def get_table_repository(
     session: Annotated[AsyncSession, Depends(get_session_with_commit)],
 ) -> TableRepository:
@@ -71,7 +55,7 @@ def get_data_repository(
 
 
 def get_user_repository(
-    session: Annotated[AsyncSession, Depends(get_session_without_commit)],
+    session: Annotated[AsyncSession, Depends(get_session_with_commit)],
 ) -> UserRepository:
     """Получить экземпляр репозитория пользователей."""
     return UserRepository(session=session)
@@ -106,11 +90,19 @@ def get_permission_service(
     return PermissionService(table_repo=table_repo, permission_repo=permission_repo)
 
 
+def get_excel_processor_service() -> ExcelProcessorService:
+    """Получить экземпляр сервиса обработки Excel."""
+    return ExcelProcessorService()
+
+
 def get_table_service(
     table_repo: Annotated[TableRepository, Depends(get_table_repository)],
     data_repo: Annotated[DataRepository, Depends(get_data_repository)],
     permission_service: Annotated[PermissionService, Depends(get_permission_service)],
     search_service: Annotated[SearchService, Depends(get_search_service)],
+    excel_processor: Annotated[
+        ExcelProcessorService, Depends(get_excel_processor_service)
+    ],
 ) -> TableService:
     """Получить экземпляр сервиса таблиц."""
     return TableService(
@@ -118,6 +110,7 @@ def get_table_service(
         data_repository=data_repo,
         permission_service=permission_service,
         search_service=search_service,
+        excel_processor=excel_processor,
     )
 
 

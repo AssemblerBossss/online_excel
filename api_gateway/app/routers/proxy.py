@@ -9,6 +9,8 @@ router = APIRouter()
 @router.api_route(
     "/auth/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    tags=["Auth"],
+    description="Перенаправляет все запросы к /auth/* в Auth Service",
 )
 async def proxy_auth(request: Request, path: str):
     """Проксирует /auth/* запросы к Auth Service"""
@@ -22,6 +24,8 @@ async def proxy_auth(request: Request, path: str):
 @router.api_route(
     "/users/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    tags=["Auth", "Users"],
+    description="Перенаправляет все запросы к /users/* в Auth Service",
 )
 async def proxy_users(request: Request, path: str):
     """Проксирует /users/* запросы к Auth Service"""
@@ -35,10 +39,16 @@ async def proxy_users(request: Request, path: str):
 @router.api_route(
     "/tables",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    tags=["Tables"],
+    summary="Прокси для таблиц (коллекция)",
+    description="Перенаправляет запросы к /tables в Main Service",
 )
 @router.api_route(
     "/tables/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    tags=["Tables"],
+    summary="Прокси для таблиц (элемент)",
+    description="Перенаправляет запросы к /tables/* в Main Service",
 )
 async def proxy_tables(request: Request, path: str = ""):
     """Проксирует /tables/* запросы к Main Service"""
@@ -52,6 +62,9 @@ async def proxy_tables(request: Request, path: str = ""):
 @router.api_route(
     "/search",
     methods=["GET"],
+    tags=["Search"],
+    summary="Поиск",
+    description="Перенаправляет поисковые запросы в Main Service",
 )
 async def proxy_search(request: Request):
     """Проксирует /search* запросы к Main Service"""
@@ -67,8 +80,11 @@ async def proxy_search(request: Request):
 @router.api_route(
     "/data/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE"],
+    tags=["Data"],
+    summary="Прокси для данных",
+    description="Перенаправляет запросы к /data/* в Main Service",
 )
-async def proxy_categories(request: Request, path: str):
+async def proxy_data(request: Request, path: str):
     """Проксирует /data/* запросы к Main Service"""
     return await proxy_request(
         request=request,

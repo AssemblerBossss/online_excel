@@ -1,7 +1,13 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from contextlib import contextmanager
-
+from tests.fixtures.excel_factories import (  # noqa: F401
+    valid_excel_file,
+    excel_file_with_empty_sheet,
+    excel_file_with_mixed_types,
+    excel_file_large,
+    excel_file_special_chars,
+)
 from table_service.app.models import DataTable
 from table_service.app.services.table import TableService
 
