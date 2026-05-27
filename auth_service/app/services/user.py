@@ -17,6 +17,7 @@ class UserService:
             raise ForbiddenException()
 
     async def get_all_users(self, uow_session: UnitOfWork) -> list[SUserInfo]:
+        """Возвращает список всех пользователей"""
         return [
             SUserInfo.model_validate(t) for t in (await uow_session.user.find_all())
         ]
@@ -24,6 +25,7 @@ class UserService:
     async def get_user_by_id(
         self, uow_session: UnitOfWork, user_id: int
     ) -> SUserInfo | None:
+        """Возвращает пользователя по ID или None, если не найден"""
         async with uow_session.start():
             user = uow_session.user.find_one_or_none_by_id(user_id=user_id)
             if not user:
@@ -34,6 +36,7 @@ class UserService:
     async def get_user_by_email(
         self, uow_session: UnitOfWork, email: str
     ) -> SUserInfo | None:
+        """Возвращает пользователя по email или None, если не найден"""
         user = await uow_session.user.find_by_email(email=email)
         if not user:
             return None
@@ -87,5 +90,5 @@ class UserService:
             if not updated:
                 await avatar_storage.delete(object_name)
                 return None
-        user = await uow_session.user.find_one_or_none_by_id(user_id=user_id)
-        return SUserInfo.model_validate(user)
+            user = await uow_session.user.find_one_or_none_by_id(user_id=user_id)
+            return SUserInfo.model_validate(user)

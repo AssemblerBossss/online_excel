@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from "react";
 import {useNavigate} from "react-router-dom";
-import {getUserProfile, UserProfile} from "../api/users";
+import {getUserProfile, uploadAvatar, UserProfile} from "../api/users";
 import SidebarWithToggle from '../components/SidebarWithToggle';
 
 const ProfilePage: React.FC = () => {
@@ -8,6 +8,7 @@ const ProfilePage: React.FC = () => {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -24,6 +25,21 @@ const ProfilePage: React.FC = () => {
         fetchProfile();
     }, []);
 
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !profile) return;
+        setUploading(true);
+        setError("");
+        try {
+            const updated = await uploadAvatar(profile.id, file);
+            setProfile(updated);
+        } catch (err: any) {
+            setError(err.response?.data?.detail || "Не удалось загрузить аватар");
+        } finally {
+            setUploading(false);
+            e.target.value = "";            // чтобы можно было выбрать тот же файл снова
+        }
+    };
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleDateString("ru-RU", {
@@ -79,6 +95,30 @@ const ProfilePage: React.FC = () => {
             <div style={styles.container}>  {/* ← ДОБАВИТЬ внутренний container */}
                 <div style={styles.card}>
                     <h2 style={styles.title}>Профиль пользователя</h2>
+                    {profile && (
+                        <div style={styles.avatarSection}>
+                            <img
+                                src={profile.avatar_url ?? "/default-avatar.png"}
+                                alt="Аватар"
+                                style={styles.avatar}
+                                onError={(e) => {
+                                    const img = e.target as HTMLImageElement;
+                                    img.onerror = null;
+                                    img.src = "/default-avatar.png";
+                                }}
+                            />
+                            <label style={styles.avatarUploadBtn}>
+                                {uploading ? "Загрузка..." : "Изменить фото"}
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    onChange={handleAvatarChange}
+                                    disabled={uploading}
+                                    style={{display: "none"}}
+                                />
+                            </label>
+                        </div>
+                    )}
 
                     {profile && (
                         <div style={styles.profileInfo}>
@@ -238,5 +278,26 @@ const styles: Record<string, React.CSSProperties> = {
         fontWeight: 600,
         cursor: "pointer",
         transition: "background-color 0.2s",
+    },
+    avatarSection: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 12,
+        marginBottom: 28,
+    },
+    avatar: {
+        width: 120,
+        height: 120,
+        borderRadius: "50%",
+        objectFit: "cover",
+        border: "3px solid #4CAF50",
+        background: "#f0f2f5",
+    },
+    avatarUploadBtn: {
+        fontSize: 14,
+        fontWeight: 600,
+        color: "#4CAF50",
+        cursor: "pointer",
     },
 };

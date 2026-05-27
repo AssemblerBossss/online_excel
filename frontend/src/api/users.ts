@@ -8,9 +8,19 @@ export interface UserProfile {
     role: string;
     is_active: boolean;
     created_at: string;
+    avatar_url: string | null;
 }
 
 export const getUserProfile = async (): Promise<UserProfile> => {
     const response = await api.get("/users/me/");
     return response.data;
 };
+
+export const uploadAvatar = async (userId: number, file: File): Promise<UserProfile> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const { data } = await api.post(`/users/${userId}/avatar`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  };
