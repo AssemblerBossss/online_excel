@@ -12,8 +12,15 @@ from auth_service.app.exceptions import UserNotFoundException
 router = APIRouter()
 
 
+@router.get("/me", response_model=SUserInfo)
+async def read_users_me(
+    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
+):
+    return current_user
+
+
 @router.get(
-    "/users/{user_id}",
+    "/{user_id}",
     response_model=SUserInfo,
     dependencies=[Depends(get_current_active_user)],
 )
@@ -30,7 +37,7 @@ async def get_user_by_id(
 
 
 @router.get(
-    "/users/email/{email}",
+    "/email/{email}",
     response_model=SUserInfo,
     dependencies=[Depends(get_current_active_user)],
 )
@@ -46,7 +53,7 @@ async def get_user_by_email(
     return user
 
 
-@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,
     current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
@@ -61,7 +68,7 @@ async def delete_user(
         raise UserNotFoundException()
 
 
-@router.post("/users/{user_id}/deactivate", response_model=SUserInfo)
+@router.post("/{user_id}/deactivate", response_model=SUserInfo)
 async def deactivate_user(
     user_id: int,
     current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
@@ -89,14 +96,7 @@ async def get_all_users(
     return await user_service.get_all_users(uow_session=uow_session)
 
 
-@router.get("/users/me")
-async def read_users_me(
-    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
-):
-    return current_user
-
-
-@router.post("/users/{user_id}/avatar", response_model=SUserInfo)
+@router.post("/{user_id}/avatar", response_model=SUserInfo)
 async def upload_avatar(
     user_id: int,
     file: Annotated[UploadFile, File(...)],
@@ -109,7 +109,7 @@ async def upload_avatar(
         uow_session=uow_session,
         current_user=current_user,
         user_id=user_id,
-        avatar=content,
+        content=content,
         content_type=file.content_type,
     )
     if not user:

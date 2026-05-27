@@ -30,7 +30,6 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Auth Service...")
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
-    # Инициализация БД
     await init_db()
     logger.info("✅ Database initialized")
 
@@ -61,7 +60,7 @@ app.add_middleware(
 
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(user_router, prefix="/user", tags=["user"])
+app.include_router(user_router, prefix="/users", tags=["users"])
 app.include_router(health_router, prefix="/health", tags=["health"])
 
 
