@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     RATE_LIMIT_REFRESH: str = "10/minute"
     RATE_LIMIT_LOGOUT: str = "20/minute"
 
+    # MinIO / S3 storage
+    MINIO_ENDPOINT: str = "minio:9000"  # адрес для SDK внутри сети
+    MINIO_PUBLIC_URL: str = "http://localhost:9000"  # база для ссылок в браузере
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_BUCKET: str = "avatars"
+    MINIO_SECURE: bool = False
+
+    MAX_AVATAR_SIZE: int = 5 * 1024 * 1024
+    ALLOWED_AVATAR_TYPES: set[str] = {"image/jpeg", "image/png", "image/webp"}
+
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 

@@ -41,11 +41,6 @@ class Settings(BaseSettings):
     RABBITMQ_USER: str = "guest"
     RABBITMQ_PASSWORD: str = "guest"
 
-    GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_CLIENT_ID: str = ""
-    GOOGLE_REDIRECT_URI: str = ""
-    GOOGLE_TOKEN_URL: str = "https://accounts.google.com/o/oauth2/token"
-
     MAX_FILE_SIZE_MB: int = 10  # Максимальный размер файла в MB
     MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB в байтах
 
@@ -56,10 +51,6 @@ class Settings(BaseSettings):
     @cached_property
     def RABBITMQ_URL(self) -> str:
         return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/"
-
-    @cached_property
-    def google_redirect_url(self) -> str:
-        return f"https://accounts.google.com/o/oauth2/auth?response_type=code&client_id={self.GOOGLE_CLIENT_ID}&redirect_uri={self.GOOGLE_REDIRECT_URI}&scope=openid%20profile%20email&access_type=offline"
 
     model_config = SettingsConfigDict(
         env_file=[".env.development", "local.env"],
