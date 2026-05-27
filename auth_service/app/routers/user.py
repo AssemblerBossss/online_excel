@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, UploadFile, File
 from auth_service.app.schemas import SUserInfo
 from auth_service.app.services import UserService
 from auth_service.app.dependency import (
@@ -94,3 +94,24 @@ async def read_users_me(
     current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
 ):
     return current_user
+
+
+@router.post("/users/{user_id}/avatar", response_model=SUserInfo)
+async def upload_avatar(
+    user_id: int,
+    file: Annotated[UploadFile, File(...)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+):
+    content = await file.read()
+    user = await user_service.update_avatar(
+        uow_session=uow_session,
+        current_user=current_user,
+        user_id=user_id,
+        avatar=content,
+        content_type=file.content_type,
+    )
+    if not user:
+        raise UserNotFoundException()
+    return user

@@ -1,21 +1,22 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    model_validator,
+    field_validator,
+)
 from typing import Optional
 from datetime import datetime
 import enum
+
+from auth_service.app.config import auth_service_settings
 
 
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
     USER = "user"
     VIEWER = "viewer"
-
-
-# OAuth2 Schemas
-class TokenData(BaseModel):
-    id: int
-    email: str
-    role: UserRole
-    is_active: bool
 
 
 class TokenRefresh(BaseModel):
@@ -92,3 +93,11 @@ class SUserInfo(UserBase):
     is_active: Optional[bool] = None
     role: UserRole = Field(description="Роль пользователя")
     created_at: datetime = Field(description="Дата регистрации")
+    avatar_url: str | None = Field(default=None, description="Ссылка на аватар")
+
+    @field_validator("avatar_url")
+    @classmethod
+    def to_public_url(cls, v: str | None) -> str | None:
+        if not v or v.startswith("http"):
+            return v
+        return f"{auth_service_settings.MINIO_PUBLIC_URL}/{auth_service_settings.MINIO_BUCKET}/{v}"

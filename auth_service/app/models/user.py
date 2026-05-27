@@ -21,6 +21,7 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
     first_name: Mapped[str] = mapped_column(String, nullable=False)
     last_name: Mapped[str] = mapped_column(String, nullable=False)
+    avatar_url: Mapped[str] = mapped_column(String, nullable=True)
 
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole), default=UserRole.VIEWER, nullable=False

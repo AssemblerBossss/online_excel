@@ -63,11 +63,7 @@ class TableService:
         )
 
     async def get_all_tables(self) -> list[DataTableResponse]:
-        """
-        Получить список всех таблиц
-        Returns:
-            list[DataTableResponse]: Список таблиц
-        """
+        """Получить список всех таблиц"""
         tables = await self.table_repo.get_all_tables()
         if not tables:
             return []
@@ -215,9 +211,6 @@ class TableService:
                     description=table.description,
                     is_public=table.is_public,
                     created_by_id=table.created_by_id,
-                )
-                logger.info(
-                    "Table %s indexed in Elasticsearch from Excel import", table.id
                 )
 
             rows, failed = self.excel_processor.build_rows(df)

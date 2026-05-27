@@ -36,45 +36,10 @@ class IncorrectEmailOrPasswordException(AppException):
     detail = "Неверная почта или пароль"
 
 
-# Токен истек
-class TokenExpiredException(AppException):
-    status_code = status.HTTP_401_UNAUTHORIZED
-    detail = "Токен истек"
-
-
-# Некорректный формат токена
-class InvalidTokenFormatException(AppException):
-    status_code = status.HTTP_400_BAD_REQUEST
-    detail = "Некорректный формат токена"
-
-
-# Токен отсутствует в заголовке
-class TokenNotFoundException(AppException):
-    status_code = status.HTTP_400_BAD_REQUEST
-    detail = "Токен отсутствует в заголовке"
-
-
-# Невалидный JWT токен
-class NoJwtException(AppException):
-    status_code = status.HTTP_401_UNAUTHORIZED
-    detail = "Токен не валидный"
-
-
-# Не найден ID пользователя
-class NoUserIdException(AppException):
-    status_code = status.HTTP_404_NOT_FOUND
-    detail = "Не найден ID пользователя"
-
-
 # Недостаточно прав
 class ForbiddenException(AppException):
     status_code = status.HTTP_403_FORBIDDEN
     detail = "Недостаточно прав"
-
-
-class TokenInvalidFormatException(AppException):
-    status_code = status.HTTP_400_BAD_REQUEST
-    detail = "Неверный формат токена. Ожидается 'Bearer <токен>'"
 
 
 # Нет доступа к данной таблице
@@ -99,3 +64,15 @@ class InvalidRefreshTokenException(AppException):
 class UserInactiveException(AppException):
     status_code = status.HTTP_401_UNAUTHORIZED
     detail = "User not found or inactive"
+
+
+# Неподдерживаемый тип файла
+class UnsupportedContentTypeException(AppException):
+    status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+    detail = "Неподдерживаемый формат файла"
+
+
+# Файл превышает допустимый размер
+class FileTooLargeException(AppException):
+    status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    detail = "Файл превышает допустимый размер"
