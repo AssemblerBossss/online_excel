@@ -37,12 +37,21 @@ class UserService:
             return None
         return SUserInfo.model_validate(user)
 
-    async def delete_user(self, uow_session: UnitOfWork, user_id: int) -> bool:
+    async def delete_user(
+        self, uow_session: UnitOfWork, current_user: SUserInfo, user_id: int
+    ) -> bool:
+        """Удалить пользователя. Админ — любого, обычный пользователь — только себя."""
+        await self._check_permissions(current_user, user_id)
         return await uow_session.user.delete_by_id(user_id=user_id)
 
     async def deactivate_user(
-        self, uow_session: UnitOfWork, user_id: int
+        self,
+        uow_session: UnitOfWork,
+        current_user: SUserInfo,
+        user_id: int,
     ) -> SUserInfo | None:
+        """Деактивировать пользователя. Админ — любого, пользователь — только себя."""
+        await self._check_permissions(current_user, user_id)
         result = await uow_session.user.deactivate_user(user_id=user_id)
         if not result:
             return None

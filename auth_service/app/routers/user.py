@@ -12,10 +12,13 @@ from auth_service.app.exceptions import UserNotFoundException
 router = APIRouter()
 
 
-@router.get("/users/{user_id}", response_model=SUserInfo)
+@router.get(
+    "/users/{user_id}",
+    response_model=SUserInfo,
+    dependencies=[Depends(get_current_active_user)],
+)
 async def get_user_by_id(
     user_id: int,
-    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
     user_service: Annotated[UserService, Depends(get_user_service)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> SUserInfo:
@@ -26,10 +29,13 @@ async def get_user_by_id(
     return user
 
 
-@router.get("/users/email/{email}", response_model=SUserInfo)
+@router.get(
+    "/users/email/{email}",
+    response_model=SUserInfo,
+    dependencies=[Depends(get_current_active_user)],
+)
 async def get_user_by_email(
     email: str,
-    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
     user_service: Annotated[UserService, Depends(get_user_service)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> SUserInfo:
@@ -48,7 +54,9 @@ async def delete_user(
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> None:
     """Удалить пользователя по ID"""
-    result = await user_service.delete_user(uow_session=uow_session, user_id=user_id)
+    result = await user_service.delete_user(
+        uow_session=uow_session, user_id=user_id, current_user=current_user
+    )
     if not result:
         raise UserNotFoundException()
 
@@ -61,15 +69,20 @@ async def deactivate_user(
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> SUserInfo:
     """Деактивировать пользователя по ID"""
-    user = await user_service.deactivate_user(uow_session=uow_session, user_id=user_id)
+    user = await user_service.deactivate_user(
+        uow_session=uow_session, current_user=current_user, user_id=user_id
+    )
     if not user:
         raise UserNotFoundException()
     return user
 
 
-@router.get("/all_users/", response_model=list[SUserInfo])
+@router.get(
+    "/all_users/",
+    response_model=list[SUserInfo],
+    dependencies=[Depends(get_current_active_user)],
+)
 async def get_all_users(
-    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
     user_service: Annotated[UserService, Depends(get_user_service)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> list[SUserInfo]:
