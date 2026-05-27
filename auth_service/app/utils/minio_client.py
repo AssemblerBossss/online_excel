@@ -4,6 +4,7 @@ from io import BytesIO
 from miniopy_async import Minio
 
 from auth_service.app.config import auth_service_settings as settings
+from auth_service.app.exceptions import UnsupportedContentTypeException
 
 
 class AvatarStorage:
@@ -38,6 +39,11 @@ class AvatarStorage:
 
     async def upload_avatar(self, content: bytes, content_type: str) -> str:
         """Загружает аватар, возвращает object key (его и храним в БД)."""
+        extension = self._EXTENSIONS.get(content_type)
+        if extension is None:
+            raise UnsupportedContentTypeException(
+                f"Неподдерживаемый формат файла: {content_type}"
+            )
         object_name = f"avatars/{uuid.uuid4().hex}{self._EXTENSIONS[content_type]}"
         await self._client.put_object(
             bucket_name=settings.MINIO_BUCKET,
