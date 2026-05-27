@@ -44,7 +44,7 @@ class AvatarStorage:
             raise UnsupportedContentTypeException(
                 f"Неподдерживаемый формат файла: {content_type}"
             )
-        object_name = f"avatars/{uuid.uuid4().hex}{self._EXTENSIONS[content_type]}"
+        object_name = f"avatars/{uuid.uuid4().hex}{extension}"
         await self._client.put_object(
             bucket_name=settings.MINIO_BUCKET,
             object_name=object_name,

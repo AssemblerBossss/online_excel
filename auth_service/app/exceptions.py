@@ -70,3 +70,9 @@ class UserInactiveException(AppException):
 class UnsupportedContentTypeException(AppException):
     status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
     detail = "Неподдерживаемый формат файла"
+
+
+# Файл превышает допустимый размер
+class FileTooLargeException(AppException):
+    status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    detail = "Файл превышает допустимый размер"
