@@ -40,7 +40,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pytest pytest-asyncio httpx pytest-timeout
+          pip install pytest pytest-asyncio httpx pytest-timeout pandas numpy
 
       # Валидация конфигурации (поймает ошибки подстановки переменных ДО запуска)
       - name: Validate docker-compose config
