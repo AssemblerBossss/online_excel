@@ -66,6 +66,10 @@ class UserRepository:
         await self._session.flush()
         return result.rowcount
 
+    async def set_avatar(self, user_id: int, object_name: str) -> bool:
+        """Сохранить ключ аватара пользователя"""
+        return await self.update_by_id(user_id, values={"avatar_url": object_name})
+
     async def update_by_id(self, user_id: int, values: dict) -> bool:
         """Обновить пользователя по ID"""
         if not values:
