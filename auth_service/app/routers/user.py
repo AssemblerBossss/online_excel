@@ -53,6 +53,22 @@ async def get_user_by_email(
     return user
 
 
+
+@router.patch("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def patch_user(
+    user_id: int,
+    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+) -> None:
+    """Обновить пользователя по ID"""
+    result = await user_service.(
+        uow_session=uow_session, user_id=user_id, current_user=current_user
+    )
+    if not result:
+        raise UserNotFoundException()
+
+
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,
@@ -93,6 +109,7 @@ async def get_all_users(
     user_service: Annotated[UserService, Depends(get_user_service)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> list[SUserInfo]:
+    """Получить список всех пользователей"""
     return await user_service.get_all_users(uow_session=uow_session)
 
 
@@ -104,6 +121,7 @@ async def upload_avatar(
     current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ):
+    """Обновить аватар пользователя"""
     content = await file.read()
     user = await user_service.update_avatar(
         uow_session=uow_session,
