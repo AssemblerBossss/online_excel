@@ -53,6 +53,59 @@ class UserService:
             return None
         return SUserInfo.model_validate(user)
 
+    async def change_role(
+        self,
+        uow_session: UnitOfWork,
+        current_user: SUserInfo,
+        user_id: int,
+        role: UserRole,
+    ) -> SUserInfo | None:
+        """Сменить роль пользователя. Доступно только админу."""
+        if current_user.role != UserRole.ADMIN:
+            raise ForbiddenException()
+        async with uow_session.start():
+            updated = uow_session.user.change_user_role(user_id=user_id, new_role=role)
+            if not updated:
+                return None
+            user = await uow_session.user.find_one_or_none_by_id(user_id)
+        await self.event_publisher.publish(
+            UserUpdateEvent(
+                user_id=user_id,
+                email=user.email,
+                role=str(user.role),
+                timestamp=datetime.now(timezone.utc),
+            )
+        )
+        return SUserInfo.model_validate(user)
+
+    async def update_avatar(
+        self,
+        uow_session: UnitOfWork,
+        current_user: SUserInfo,
+        user_id: int,
+        content: bytes,
+        content_type: str | None,
+    ) -> SUserInfo | None:
+        """Загрузить/заменить аватар. Админ — любому, пользователь — только себе."""
+        await self._check_permissions(current_user=current_user, target_user_id=user_id)
+
+        if len(content) > auth_service_settings.MAX_AVATAR_SIZE:
+            raise FileTooLargeException()
+
+        object_name: str = await avatar_storage.upload_avatar(
+            content=content, content_type=content_type
+        )
+
+        async with uow_session.start():
+            updated = await uow_session.user.set_avatar(
+                user_id=user_id, object_name=object_name
+            )
+            if not updated:
+                await avatar_storage.delete(object_name)
+                return None
+            user = await uow_session.user.find_one_or_none_by_id(user_id)
+            return SUserInfo.model_validate(user)
+
     async def update_user(
         self,
         uow_session: UnitOfWork,
@@ -109,31 +162,3 @@ class UserService:
         if not user:
             return None
         return SUserInfo.model_validate(user)
-
-    async def update_avatar(
-        self,
-        uow_session: UnitOfWork,
-        current_user: SUserInfo,
-        user_id: int,
-        content: bytes,
-        content_type: str | None,
-    ):
-        """Загрузить/заменить аватар. Админ — любому, пользователь — только себе."""
-        await self._check_permissions(current_user=current_user, target_user_id=user_id)
-
-        if len(content) > auth_service_settings.MAX_AVATAR_SIZE:
-            raise FileTooLargeException()
-
-        object_name: str = await avatar_storage.upload_avatar(
-            content=content, content_type=content_type
-        )
-
-        async with uow_session.start():
-            updated = await uow_session.user.set_avatar(
-                user_id=user_id, object_name=object_name
-            )
-            if not updated:
-                await avatar_storage.delete(object_name)
-                return None
-            user = await uow_session.user.find_one_or_none_by_id(user_id)
-            return SUserInfo.model_validate(user)

@@ -14,8 +14,12 @@ from auth_service.app.config import auth_service_settings
 
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
-    USER = "user"
+    EDITOR = "editor"
     VIEWER = "viewer"
+
+
+class SUserRoleUpdate(BaseModel):
+    role: UserRole
 
 
 class TokenRefresh(BaseModel):

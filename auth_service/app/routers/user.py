@@ -1,7 +1,7 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, status, UploadFile, File
 from auth_service.app.schemas import SUserInfo
-from auth_service.app.schemas.user import SUserProfileUpdate
+from auth_service.app.schemas.user import SUserProfileUpdate, SUserRoleUpdate
 from auth_service.app.services import UserService
 from auth_service.app.dependency import (
     get_current_active_user,
@@ -55,13 +55,33 @@ async def get_user_by_email(
 
 
 @router.patch("/{user_id}", response_model=SUserInfo, status_code=status.HTTP_200_OK)
+async def change_user_role(
+    user_id: int,
+    data: SUserRoleUpdate,
+    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+) -> SUserInfo:
+    """Сменить роль пользователя (admin)"""
+    user = await user_service.change_role(
+        uow_session=uow_session,
+        user_id=user_id,
+        current_user=current_user,
+        role=data.role,
+    )
+    if not user:
+        raise UserNotFoundException()
+    return user
+
+
+@router.patch("/{user_id}", response_model=SUserInfo, status_code=status.HTTP_200_OK)
 async def update_user(
     user_id: int,
     data: SUserProfileUpdate,
     current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
     user_service: Annotated[UserService, Depends(get_user_service)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
-) -> None:
+) -> SUserInfo:
     """Обновить профиль пользователя"""
     user = await user_service.update_user(
         uow_session=uow_session, user_id=user_id, current_user=current_user, data=data
