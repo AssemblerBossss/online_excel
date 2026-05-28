@@ -1,6 +1,7 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, status, UploadFile, File
 from auth_service.app.schemas import SUserInfo
+from auth_service.app.schemas.user import SUserProfileUpdate
 from auth_service.app.services import UserService
 from auth_service.app.dependency import (
     get_current_active_user,
@@ -53,20 +54,21 @@ async def get_user_by_email(
     return user
 
 
-
-@router.patch("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def patch_user(
+@router.patch("/{user_id}", response_model=SUserInfo, status_code=status.HTTP_200_OK)
+async def update_user(
     user_id: int,
+    data: SUserProfileUpdate,
     current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
     user_service: Annotated[UserService, Depends(get_user_service)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> None:
-    """Обновить пользователя по ID"""
-    result = await user_service.(
-        uow_session=uow_session, user_id=user_id, current_user=current_user
+    """Обновить профиль пользователя"""
+    user = await user_service.update_user(
+        uow_session=uow_session, user_id=user_id, current_user=current_user, data=data
     )
-    if not result:
+    if not user:
         raise UserNotFoundException()
+    return user
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
