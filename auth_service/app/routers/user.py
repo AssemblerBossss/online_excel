@@ -91,6 +91,28 @@ async def update_user(
     return user
 
 
+@router.delete(
+    "/{user_id}/avatar",
+    response_model=SUserInfo,
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_avatar(
+    user_id: int,
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+):
+    """Удалить аватар пользователя"""
+    user = await user_service.delete_avatar(
+        uow_session=uow_session,
+        current_user=current_user,
+        user_id=user_id,
+    )
+    if not user:
+        raise UserNotFoundException()
+    return user
+
+
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,

@@ -85,6 +85,10 @@ class UserRepository:
         await self._session.flush()
         return result.rowcount > 0
 
+    async def clear_avatar(self, user_id) -> bool:
+        """Сбросить аватар пользователя"""
+        return await self.update_by_id(user_id, values={"avatar_url": None})
+
     async def delete(self, filters: dict | None = None) -> int:
         """Удалить пользователей по фильтрам"""
         if not filters:
