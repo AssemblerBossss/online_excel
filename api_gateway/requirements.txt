@@ -9,3 +9,4 @@ loguru==0.7.0
 python-multipart==0.0.20
 aiobreaker==1.2.0
 redis==4.2.0
+prometheus-fastapi-instrumentator==7.1.0

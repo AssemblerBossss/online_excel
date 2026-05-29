@@ -69,15 +69,7 @@ def _check_authorization(request: Request) -> JSONResponse | None:
 class JWTAuthMiddleware(BaseHTTPMiddleware):
     """
     Middleware для проверки JWT токенов
-
     Применяется ко ВСЕМ запросам, кроме публичных endpoints.
-
-    Публичные endpoints (не требуют токен):
-    - POST /auth/register
-    - POST /auth/login
-    - POST /auth/refresh
-    - GET /health
-    - GET /
 
     Для защищенных endpoints:
     1. Извлекает токен из Authorization header
@@ -99,6 +91,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/auth/logout",
         "/health",
         "/health/circuit-breakers",
+        "/metrics",
     }
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
@@ -113,7 +106,6 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                 normalized_path=normalized_path,
             )
 
-        # Проверка публичных путей
         if normalized_path in self.PUBLIC_PATHS:
             return await call_next(request)
 
@@ -121,6 +113,5 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         if isinstance(auth_result, JSONResponse):
             return auth_result
 
-        # Продолжаем обработку запроса
         response = await call_next(request)
         return response
