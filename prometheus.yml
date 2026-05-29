@@ -19,10 +19,6 @@ scrape_configs:
     static_configs:
       - targets: [ "table_service:8000" ]
 
-  - job_name: "api_gateway"
-    static_configs:
-      - targets: [ "api_gateway:8080" ]
-
   - job_name: "minio"
     static_configs:
       - targets: [ "minio:9000" ]

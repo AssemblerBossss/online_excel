@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from slowapi.errors import RateLimitExceeded
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from api_gateway.app.config import settings
 from api_gateway.app.middleware import (
@@ -59,6 +60,9 @@ app.add_middleware(JWTAuthMiddleware)
 
 app.include_router(health_router, tags=["health"])
 app.include_router(proxy_router)
+Instrumentator().instrument(app).expose(
+    app, endpoint="/metrics", include_in_schema=False
+)
 
 
 @app.get("/")

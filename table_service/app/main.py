@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 from redis.asyncio import Redis
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from table_service.app.api.endpoints import (
     data_router,
@@ -156,6 +157,10 @@ def create_app() -> FastAPI:
 
     register_routers(app)
     register_exception_handlers(app)
+
+    Instrumentator().instrument(app).expose(
+        app, endpoint="/metrics", include_in_schema=False
+    )
 
     return app
 
