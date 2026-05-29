@@ -6,7 +6,6 @@ from pydantic import (
     model_validator,
     field_validator,
 )
-from typing import Optional
 from datetime import datetime
 import enum
 
@@ -15,8 +14,12 @@ from auth_service.app.config import auth_service_settings
 
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
-    USER = "user"
+    EDITOR = "editor"
     VIEWER = "viewer"
+
+
+class SUserRoleUpdate(BaseModel):
+    role: UserRole
 
 
 class TokenRefresh(BaseModel):
@@ -31,10 +34,10 @@ class Token(BaseModel):
 
 
 class SUserFilter(BaseModel):
-    id: Optional[int] = None
-    email: Optional[EmailStr] = None
-    role: Optional[UserRole] = None
-    is_active: Optional[bool] = None
+    id: int | None = None
+    email: EmailStr | None = None
+    role: UserRole | None = None
+    is_active: bool | None = None
 
 
 class EmailModel(BaseModel):
@@ -43,21 +46,13 @@ class EmailModel(BaseModel):
 
 
 class UserBase(EmailModel):
-    first_name: str = Field(
-        min_length=3, max_length=50, description="Имя, от 3 до 50 символов"
-    )
-    last_name: str = Field(
-        min_length=3, max_length=50, description="Фамилия, от 3 до 50 символов"
-    )
+    first_name: str = Field(min_length=3, max_length=50)
+    last_name: str = Field(min_length=3, max_length=50)
 
 
 class SUserRegister(UserBase):
-    password: str = Field(
-        min_length=5, max_length=50, description="Пароль, от 5 до 50 знаков"
-    )
-    confirm_password: str = Field(
-        min_length=5, max_length=50, description="Повторите пароль"
-    )
+    password: str = Field(min_length=5, max_length=50)
+    confirm_password: str = Field(min_length=5, max_length=50)
 
     @model_validator(mode="after")
     def check_password(self):
@@ -78,21 +73,27 @@ class SUserAuth(EmailModel):
     )
 
 
+class SUserProfileUpdate(BaseModel):
+    email: EmailStr | None = None
+    first_name: str | None = Field(default=None, min_length=3, max_length=50)
+    last_name: str | None = Field(default=None, min_length=3, max_length=50)
+
+
 class SUserUpdate(BaseModel):
-    email: Optional[EmailStr] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    password: Optional[str] = None
-    confirm_password: Optional[str] = None
-    role: Optional[UserRole] = None
-    is_active: Optional[bool] = None
+    email: EmailStr | None = None
+    first_name: str | None = Field(default=None, min_length=3, max_length=50)
+    last_name: str | None = Field(default=None, min_length=3, max_length=50)
+    password: str | None = None
+    confirm_password: str | None = None
+    role: UserRole | None = None
+    is_active: bool | None = None
 
 
 class SUserInfo(UserBase):
-    id: int = Field(description="Идентификатор пользователя")
-    is_active: Optional[bool] = None
-    role: UserRole = Field(description="Роль пользователя")
-    created_at: datetime = Field(description="Дата регистрации")
+    id: int
+    is_active: bool | None = None
+    role: UserRole
+    created_at: datetime
     avatar_url: str | None = Field(default=None, description="Ссылка на аватар")
 
     @field_validator("avatar_url")

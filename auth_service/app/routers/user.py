@@ -1,6 +1,7 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, status, UploadFile, File
 from auth_service.app.schemas import SUserInfo
+from auth_service.app.schemas.user import SUserProfileUpdate, SUserRoleUpdate
 from auth_service.app.services import UserService
 from auth_service.app.dependency import (
     get_current_active_user,
@@ -53,6 +54,67 @@ async def get_user_by_email(
     return user
 
 
+@router.patch(
+    "/{user_id}/role", response_model=SUserInfo, status_code=status.HTTP_200_OK
+)
+async def change_user_role(
+    user_id: int,
+    data: SUserRoleUpdate,
+    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+) -> SUserInfo:
+    """Сменить роль пользователя (admin)"""
+    user = await user_service.change_role(
+        uow_session=uow_session,
+        user_id=user_id,
+        current_user=current_user,
+        role=data.role,
+    )
+    if not user:
+        raise UserNotFoundException()
+    return user
+
+
+@router.patch("/{user_id}", response_model=SUserInfo, status_code=status.HTTP_200_OK)
+async def update_user(
+    user_id: int,
+    data: SUserProfileUpdate,
+    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+) -> SUserInfo:
+    """Обновить профиль пользователя"""
+    user = await user_service.update_user(
+        uow_session=uow_session, user_id=user_id, current_user=current_user, data=data
+    )
+    if not user:
+        raise UserNotFoundException()
+    return user
+
+
+@router.delete(
+    "/{user_id}/avatar",
+    response_model=SUserInfo,
+    status_code=status.HTTP_200_OK,
+)
+async def delete_avatar(
+    user_id: int,
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> SUserInfo:
+    """Удалить аватар пользователя"""
+    user = await user_service.delete_avatar(
+        uow_session=uow_session,
+        current_user=current_user,
+        user_id=user_id,
+    )
+    if not user:
+        raise UserNotFoundException()
+    return user
+
+
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,
@@ -93,6 +155,7 @@ async def get_all_users(
     user_service: Annotated[UserService, Depends(get_user_service)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> list[SUserInfo]:
+    """Получить список всех пользователей"""
     return await user_service.get_all_users(uow_session=uow_session)
 
 
@@ -104,6 +167,7 @@ async def upload_avatar(
     current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ):
+    """Обновить аватар пользователя"""
     content = await file.read()
     user = await user_service.update_avatar(
         uow_session=uow_session,

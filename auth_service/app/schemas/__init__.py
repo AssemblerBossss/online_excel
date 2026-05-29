@@ -1,6 +1,8 @@
 from .user import (
     UserBase,
     SUserUpdate,
+    SUserProfileUpdate,
+    SUserRoleUpdate,
     SUserFilter,
     EmailModel,
     SUserRegister,
@@ -16,6 +18,8 @@ from .events import UserRegisterEvent, UserUpdateEvent, UserDeletedEvent
 __all__ = [
     "UserBase",
     "SUserUpdate",
+    "SUserProfileUpdate",
+    "SUserRoleUpdate",
     "SUserFilter",
     "EmailModel",
     "SUserRegister",

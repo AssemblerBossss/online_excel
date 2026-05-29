@@ -42,12 +42,6 @@ class ForbiddenException(AppException):
     detail = "Недостаточно прав"
 
 
-# Нет доступа к данной таблице
-class AccessDeniedException(AppException):
-    status_code = status.HTTP_403_FORBIDDEN
-    detail = "Нет доступа к данной таблице"
-
-
 # Не найдено
 class NotFoundException(AppException):
     status_code = status.HTTP_404_NOT_FOUND
