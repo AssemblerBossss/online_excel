@@ -3,6 +3,8 @@ import sys
 import json
 from datetime import datetime
 
+_STANDARD_ATTRS = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
+
 
 class ServiceJsonFormatter(logging.Formatter):
     def __init__(self, service_name: str):
@@ -19,6 +21,10 @@ class ServiceJsonFormatter(logging.Formatter):
             "line": record.lineno,
             "message": record.getMessage(),
         }
+
+        for key, value in record.__dict__.items():
+            if key not in _STANDARD_ATTRS:
+                log_record[key] = value
 
         if record.exc_info:
             log_record["exception"] = self.formatException(record.exc_info)

@@ -10,15 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware для логирования всех запросов
-    """
+    """Middleware для логирования всех запросов"""
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Генерируем request_id для отслеживания
         request_id = str(uuid.uuid4())[:8]
 
-        # Логируем входящий запрос
         logger.info(
             "Incoming request",
             extra={
@@ -36,7 +32,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             process_time = (time.time() - start_time) * 1000
 
-            # Логируем завершение запроса
             logger.info(
                 "Request completed",
                 extra={

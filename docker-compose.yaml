@@ -210,7 +210,6 @@ services:
       - ./postgresql.conf:/etc/postgresql/postgresql.conf
     command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
 
-
   rabbitmq:
     image: rabbitmq:4.2.4-alpine
     container_name: online_excel_rabbitmq
@@ -300,6 +299,20 @@ services:
       retries: 5
       start_period: 10s
 
+  prometheus:
+    image: prom/prometheus:v3.11.3
+    container_name: online_excel_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    networks:
+      - appnet
+
 networks:
   appnet:
     driver: bridge
@@ -310,3 +323,4 @@ volumes:
   rabbitmq_data:
   es_data:
   minio_data:
+  prom_data:

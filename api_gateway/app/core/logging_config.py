@@ -4,6 +4,8 @@ from typing import Any
 from datetime import datetime, UTC
 import json
 
+_STANDARD_ATTRS = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
+
 
 class CustomJsonFormatter(logging.Formatter):
     """Кастомный JSON форматер для логов"""
@@ -19,8 +21,9 @@ class CustomJsonFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
 
-        if hasattr(record, "request_id"):
-            log_record["request_id"] = record.request_id
+        for key, value in record.__dict__.items():
+            if key not in _STANDARD_ATTRS:
+                log_record[key] = value
 
         if record.exc_info:
             log_record["exception"] = self.formatException(record.exc_info)
