@@ -132,6 +132,69 @@ class TableService:
         logger.info("User %s updated table %s", user_id, table_id)
         return self._to_response(updated)
 
+    async def duplicate_table(
+        self,
+        source_table_id: int,
+        user_id: int,
+        user_role: str,
+        with_rows: bool = False,
+        new_name: str | None = None,
+    ) -> DataTableResponse:
+        """
+        Клонировать таблицу: копирует columns_schema, опционально строки.
+
+        Клон создаётся приватным (is_public=False) и принадлежит текущему пользователю.
+        """
+
+        source_table = await self.table_repo.get_table_by_id(source_table_id)
+        if not source_table:
+            raise NotFoundException("Table not found or access denied")
+
+        if not await self.permission_service.check_read_access(
+            table=source_table, user_id=user_id, user_role=user_role
+        ):
+            raise AccessDeniedException()
+
+        new_name = new_name or f"Копия {source_table.name}"
+
+        payload = {
+            "name": new_name,
+            "description": source_table.description,
+            "is_public": False,
+            "columns_schema": source_table.columns_schema,
+        }
+
+        new_table = await self.table_repo.create_table(
+            table_data=payload, user_id=user_id
+        )
+        if not new_table:
+            raise CanNotCreateTableException()
+
+        copied = 0
+        if with_rows:
+            copied = await self.data_repo.copy_rows(
+                source_table_id=source_table.id, target_table_id=new_table.id
+            )
+
+        if self.search_service:
+            await self.search_service.index_table(
+                table_id=new_table.id,
+                name=new_table.name,
+                description=new_table.description,
+                is_public=new_table.is_public,
+                created_by_id=new_table.created_by_id,
+            )
+
+        logger.info(
+            "User %s duplicated table %s -> %s (with_rows=%s, rows copied=%s)",
+            user_id,
+            source.id,
+            new_table.id,
+            with_rows,
+            copied,
+        )
+        return self._to_response(new_table)
+
     async def create_table_from_excel_file(
         self,
         excel_file: UploadFile,

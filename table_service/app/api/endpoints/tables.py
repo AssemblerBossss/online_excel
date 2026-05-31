@@ -15,6 +15,7 @@ from table_service.app.schemas import (
     DataTableResponse,
     SCurrentUser,
     DataTableUpdate,
+    DataTableDuplicate,
 )
 from table_service.app.services import TableService
 from table_service.app.api.dependencies import (
@@ -94,6 +95,25 @@ async def create_table(
 ) -> DataTableResponse:
     result = await table_service.create_table(
         table_data=table_data, user_id=current_user.user_id
+    )
+    await invalidate_tables_cache(redis)
+    return result
+
+
+@router.post(
+    "/{table_id}/duplicate",
+    response_model=DataTableResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def duplicate_table(
+    table_id: int,
+    payload: DataTableDuplicate,
+    table_service: Annotated[TableService, Depends(get_table_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    redis: Annotated[Redis, Depends(get_redis)],
+) -> DataTableResponse:
+    result = await table_service.duplicate_table(
+        table_id=table_id, payload=payload, user_id=current_user.user_id
     )
     await invalidate_tables_cache(redis)
     return result
