@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
 from tests.fixtures.excel_factories import (  # noqa: F401
     valid_excel_file,
     excel_file_with_empty_sheet,
@@ -10,6 +10,22 @@ from tests.fixtures.excel_factories import (  # noqa: F401
 )
 from table_service.app.models import DataTable
 from table_service.app.services.table import TableService
+
+
+@pytest.fixture
+def mock_uow(mock_table_repo, mock_data_repo, mock_permission_service):
+    uow = MagicMock()
+    uow.tables = mock_table_repo  # uow_session.tables -> тот же мок
+    uow.data = mock_data_repo  # uow_session.data
+    uow.permissions = AsyncMock()
+    uow.users = AsyncMock()
+
+    @asynccontextmanager
+    async def _start():
+        yield uow  # поддерживает и вложенный start()
+
+    uow.start = _start
+    return uow
 
 
 @pytest.fixture(autouse=True)
@@ -87,8 +103,6 @@ def real_data_table() -> DataTable:
 @pytest.fixture
 def service(mock_table_repo, mock_data_repo, mock_permission_service) -> TableService:
     return TableService(
-        table_repository=mock_table_repo,
-        data_repository=mock_data_repo,
         permission_service=mock_permission_service,
     )
 
@@ -98,8 +112,6 @@ def service_with_search(
     mock_table_repo, mock_data_repo, mock_permission_service, mock_search_service
 ) -> TableService:
     return TableService(
-        table_repository=mock_table_repo,
-        data_repository=mock_data_repo,
         permission_service=mock_permission_service,
         search_service=mock_search_service,
     )
