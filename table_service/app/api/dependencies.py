@@ -1,7 +1,6 @@
 from elasticsearch import AsyncElasticsearch
 from fastapi import Depends, Request, HTTPException
 from typing import AsyncGenerator, Annotated
-from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
 from table_service.app.core.unit_of_work import UnitOfWork
@@ -15,24 +14,6 @@ from table_service.app.services import (
 from table_service.app.core import AsyncSessionFactory, get_redis_client, get_es_client
 from table_service.app.schemas import SCurrentUser, SUserFilter
 from table_service.app.services.data_validation import DataValidationService
-
-
-async def get_session_with_commit() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Получить асинхронную сессию с автоматическим коммитом.
-
-    Returns:
-        AsyncGenerator[AsyncSession, None]: Асинхронная сессия с автокоммитом.
-    """
-    async with AsyncSessionFactory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
 
 
 async def get_async_uow_session() -> AsyncGenerator[UnitOfWork, None]:
@@ -113,18 +94,20 @@ async def get_current_user(request: Request) -> SUserFilter:
 
 async def get_current_active_user(
     payload: Annotated[SUserFilter, Depends(get_current_user)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> SCurrentUser:
     """Проверяет актуальность пользователя в БД (UserProjection синхронизируется через RabbitMQ)."""
-    user = await user_repo.get_by_id(payload.user_id)
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="Inactive user")
-    return SCurrentUser(
-        user_id=user.id,
-        email=user.email,
-        role=user.role,
-        is_active=user.is_active,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-    )
+    async with uow_session.start():
+        user = await uow_session.users.get_by_id(payload.user_id)
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="Inactive user")
+        return SCurrentUser(
+            user_id=user.id,
+            email=user.email,
+            role=user.role,
+            is_active=user.is_active,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+        )

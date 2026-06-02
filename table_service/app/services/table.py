@@ -76,7 +76,10 @@ class TableService:
                 )
                 raise NotFoundException("Table not found or access denied")
             if not await self.permission_service.check_read_access(
-                table=table, user_id=user_id, user_role=user_role
+                uow_session=uow_session,
+                table=table,
+                user_id=user_id,
+                user_role=user_role,
             ):
                 raise AccessDeniedException()
 
@@ -122,7 +125,10 @@ class TableService:
                 raise NotFoundException("Table not found or access denied")
 
             if not await self.permission_service.check_write_access(
-                table=table, user_id=user_id, user_role=user_role
+                uow_session=uow_session,
+                table=table,
+                user_id=user_id,
+                user_role=user_role,
             ):
                 raise AccessDeniedException()
 
@@ -157,7 +163,10 @@ class TableService:
                 raise NotFoundException("Table not found or access denied")
 
             if not await self.permission_service.check_read_access(
-                table=source_table, user_id=user_id, user_role=user_role
+                uow_session=uow_session,
+                table=source_table,
+                user_id=user_id,
+                user_role=user_role,
             ):
                 raise AccessDeniedException()
 
@@ -325,7 +334,10 @@ class TableService:
                 raise NotFoundException("Table not found")
 
             if not await self.permission_service.check_write_access(
-                table=table, user_id=user_id, user_role=user_role
+                uow_session=uow_session,
+                table=table,
+                user_id=user_id,
+                user_role=user_role,
             ):
                 raise AccessDeniedException()
 

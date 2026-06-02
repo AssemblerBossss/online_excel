@@ -18,6 +18,13 @@ class UnitOfWork:
 
     @asynccontextmanager
     async def start(self):
+        # Вложенный вызов: сессия уже открыта — переиспользуем её,
+        # не создаём новую и не коммитим/не закрываем раньше времени.
+        # Границей транзакции владеет самый внешний start().
+        if self._session is not None:
+            yield self
+            return
+
         self._session = self.session_factory()
         try:
             yield self
@@ -27,6 +34,7 @@ class UnitOfWork:
             raise e
         finally:
             await self._session.close()
+            self._session = None
 
     @property
     def tables(self) -> TableRepository:
