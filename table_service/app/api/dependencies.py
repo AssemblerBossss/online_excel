@@ -4,18 +4,13 @@ from typing import AsyncGenerator, Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
+from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.services import (
     DataService,
     TableService,
     SearchService,
     PermissionService,
     ExcelProcessorService,
-)
-from table_service.app.repository import (
-    TableRepository,
-    DataRepository,
-    UserRepository,
-    PermissionRepository,
 )
 from table_service.app.core import AsyncSessionFactory, get_redis_client, get_es_client
 from table_service.app.schemas import SCurrentUser, SUserFilter
@@ -40,32 +35,8 @@ async def get_session_with_commit() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-def get_table_repository(
-    session: Annotated[AsyncSession, Depends(get_session_with_commit)],
-) -> TableRepository:
-    """Получить экземпляр репозитория таблиц."""
-    return TableRepository(session=session)
-
-
-def get_data_repository(
-    session: Annotated[AsyncSession, Depends(get_session_with_commit)],
-) -> DataRepository:
-    """Получить экземпляр репозитория данных."""
-    return DataRepository(session=session)
-
-
-def get_user_repository(
-    session: Annotated[AsyncSession, Depends(get_session_with_commit)],
-) -> UserRepository:
-    """Получить экземпляр репозитория пользователей."""
-    return UserRepository(session=session)
-
-
-def get_permission_repository(
-    session: Annotated[AsyncSession, Depends(get_session_with_commit)],
-) -> PermissionRepository:
-    """Получить экземпляр репозитория разрешения пользователей."""
-    return PermissionRepository(session=session)
+async def get_async_uow_session() -> AsyncGenerator[UnitOfWork, None]:
+    yield UnitOfWork(AsyncSessionFactory)
 
 
 def get_search_service(
@@ -80,14 +51,9 @@ async def get_validation_service() -> DataValidationService:
     return DataValidationService()
 
 
-def get_permission_service(
-    table_repo: Annotated[TableRepository, Depends(get_table_repository)],
-    permission_repo: Annotated[
-        PermissionRepository, Depends(get_permission_repository)
-    ],
-) -> PermissionService:
+def get_permission_service() -> PermissionService:
     """Получить экземпляр сервиса разрешений пользователей."""
-    return PermissionService(table_repo=table_repo, permission_repo=permission_repo)
+    return PermissionService()
 
 
 def get_excel_processor_service() -> ExcelProcessorService:
@@ -96,8 +62,6 @@ def get_excel_processor_service() -> ExcelProcessorService:
 
 
 def get_table_service(
-    table_repo: Annotated[TableRepository, Depends(get_table_repository)],
-    data_repo: Annotated[DataRepository, Depends(get_data_repository)],
     permission_service: Annotated[PermissionService, Depends(get_permission_service)],
     search_service: Annotated[SearchService, Depends(get_search_service)],
     excel_processor: Annotated[
@@ -106,8 +70,6 @@ def get_table_service(
 ) -> TableService:
     """Получить экземпляр сервиса таблиц."""
     return TableService(
-        table_repository=table_repo,
-        data_repository=data_repo,
         permission_service=permission_service,
         search_service=search_service,
         excel_processor=excel_processor,
@@ -115,8 +77,6 @@ def get_table_service(
 
 
 def get_data_service(
-    data_repo: Annotated[DataRepository, Depends(get_data_repository)],
-    table_repo: Annotated[TableRepository, Depends(get_table_repository)],
     permission_service: Annotated[PermissionService, Depends(get_permission_service)],
     validation_service: Annotated[
         DataValidationService, Depends(get_validation_service)
@@ -124,8 +84,6 @@ def get_data_service(
 ) -> DataService:
     """Получить экземпляр сервиса данных."""
     return DataService(
-        data_repo=data_repo,
-        table_repo=table_repo,
         permission_service=permission_service,
         validation_service=validation_service,
     )
@@ -155,7 +113,6 @@ async def get_current_user(request: Request) -> SUserFilter:
 
 async def get_current_active_user(
     payload: Annotated[SUserFilter, Depends(get_current_user)],
-    user_repo: Annotated[UserRepository, Depends(get_user_repository)],
 ) -> SCurrentUser:
     """Проверяет актуальность пользователя в БД (UserProjection синхронизируется через RabbitMQ)."""
     user = await user_repo.get_by_id(payload.user_id)
