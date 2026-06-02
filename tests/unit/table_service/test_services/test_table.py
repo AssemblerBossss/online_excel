@@ -21,20 +21,20 @@ from table_service.app.schemas import (
 
 class TestGetAllTables:
     async def test_return_empty_list_when_no_tables_found(
-        self, service, mock_table_repo
+        self, service, mock_table_repo, mock_uow
     ) -> None:
         mock_table_repo.get_all_tables.return_value = []
-        result = await service.get_all_tables()
+        result = await service.get_all_tables(uow_session=mock_uow)
         assert result == []
         mock_table_repo.get_all_tables.assert_called_once()
 
     async def tests_maps_tables_correctly(
-        self, service, mock_table_repo, real_data_table: DataTable
+        self, service, mock_table_repo, real_data_table: DataTable, mock_uow
     ) -> None:
         """Корректно преобразует DataTable в DataTableResponse."""
         mock_table_repo.get_all_tables.return_value = [real_data_table]
 
-        result = await service.get_all_tables()
+        result = await service.get_all_tables(uow_session=mock_uow)
 
         assert len(result) == 1
         assert isinstance(result[0], DataTableResponse)
@@ -48,33 +48,41 @@ class TestGetTableById:
         service,
         mock_table_repo,
         mock_permission_service,
+        mock_uow,
         real_data_table: DataTable,
     ) -> None:
         """Возвращает таблицу при наличии прав на чтение."""
         mock_table_repo.get_table_by_id.return_value = real_data_table
         mock_permission_service.check_read_access.return_value = True
 
-        result = await service.get_table_by_id(1, user_id=100, user_role="USER")
+        result = await service.get_table_by_id(
+            uow_session=mock_uow, table_id=1, user_id=100, user_role="USER"
+        )
 
         assert result.id == real_data_table.id
+        from unittest.mock import ANY
+
         mock_permission_service.check_read_access.assert_called_once_with(
-            table=real_data_table, user_id=100, user_role="USER"
+            uow_session=ANY, table=real_data_table, user_id=100, user_role="USER"
         )
 
     async def test_raises_not_found_when_table_missing(
-        self, service, mock_table_repo
+        self, service, mock_table_repo, mock_uow
     ) -> None:
         """Выбрасывает NotFoundException, если таблица не найдена."""
         mock_table_repo.get_table_by_id.return_value = None
 
         with pytest.raises(NotFoundException) as exc:
-            await service.get_table_by_id(1, user_id=100, user_role="USER")
+            await service.get_table_by_id(
+                uow_session=mock_uow, table_id=1, user_id=100, user_role="USER"
+            )
 
         assert "not found" in str(exc.value).lower()
 
     async def test_raises_access_denied_when_no_permission(
         self,
         service,
+        mock_uow,
         mock_table_repo,
         mock_permission_service,
         real_data_table: DataTable,
@@ -84,13 +92,16 @@ class TestGetTableById:
         mock_permission_service.check_read_access.return_value = False
 
         with pytest.raises(AccessDeniedException):
-            await service.get_table_by_id(1, user_id=999, user_role="USER")
+            await service.get_table_by_id(
+                uow_session=mock_uow, table_id=1, user_id=999, user_role="USER"
+            )
 
 
 class TestCreateTable:
     async def test_creates_table_successfully(
         self,
         service_with_search,
+        mock_uow,
         mock_table_repo,
         mock_search_service,
         real_data_table: DataTable,
@@ -102,7 +113,7 @@ class TestCreateTable:
         )
 
         result = await service_with_search.create_table(
-            table_data=table_data, user_id=100
+            uow_session=mock_uow, table_data=table_data, user_id=100
         )
 
         assert result.id == real_data_table.id
@@ -116,7 +127,7 @@ class TestCreateTable:
         )
 
     async def test_raises_exception_when_creation_fails(
-        self, service, mock_table_repo
+        self, service, mock_table_repo, mock_uow
     ) -> None:
         """Выбрасывает CanNotCreateTableException при неудачном создании таблицы."""
         mock_table_repo.create_table.return_value = None
@@ -125,10 +136,12 @@ class TestCreateTable:
         )
 
         with pytest.raises(CanNotCreateTableException):
-            await service.create_table(table_data=table_data, user_id=100)
+            await service.create_table(
+                uow_session=mock_uow, table_data=table_data, user_id=100
+            )
 
     async def test_works_without_search_service(
-        self, service, mock_table_repo, real_data_table: DataTable
+        self, service, mock_uow, mock_table_repo, real_data_table: DataTable
     ) -> None:
         """Корректно создает таблицу даже если поисковый сервис не настроен."""
         mock_table_repo.create_table.return_value = real_data_table
@@ -136,30 +149,36 @@ class TestCreateTable:
             name="Table", description="", is_public=False, columns_schema=[]
         )
 
-        result = await service.create_table(table_data=table_data, user_id=100)
+        result = await service.create_table(
+            uow_session=mock_uow, table_data=table_data, user_id=100
+        )
 
         assert result.id == real_data_table.id
 
 
 class TestCreateTableFromExcelFile:
-    async def test_validates_file_extension(self, service):
+    async def test_validates_file_extension(self, service, mock_uow):
         """Негативный тест: проверяем, что .txt не пройдет"""
         file = MagicMock(spec=UploadFile)
         file.filename = "data.txt"
         file.content_type = "text/plain"
 
         with pytest.raises(InvalidFileFormatException) as exc:
-            await service.create_table_from_excel_file(excel_file=file, user_id=100)
+            await service.create_table_from_excel_file(
+                uow_session=mock_uow, excel_file=file, user_id=100
+            )
 
         assert "Excel" in str(exc.value)
 
-    async def test_validates_mime_type(self, service):
+    async def test_validates_mime_type(self, service, mock_uow):
         file = MagicMock(spec=UploadFile)
         file.filename = "data.xlsx"
         file.content_type = "image/png"
 
         with pytest.raises(InvalidFileMimeTypeException):
-            await service.create_table_from_excel_file(excel_file=file, user_id=100)
+            await service.create_table_from_excel_file(
+                uow_session=mock_uow, excel_file=file, user_id=100
+            )
 
     # async def test_handles_empty_excel_file(
     #     self, service, excel_file_with_empty_sheet, mock_table_repo
@@ -173,7 +192,7 @@ class TestCreateTableFromExcelFile:
     #         )
 
     async def test_generates_correct_columns_schema(
-        self, service, valid_excel_file, mock_table_repo, real_data_table
+        self, service, mock_uow, valid_excel_file, mock_table_repo, real_data_table
     ):
         """ВАЖНЫЙ ТЕСТ: Проверяем, что схема колонок генерируется правильно"""
         mock_table_repo.create_table.return_value = real_data_table
@@ -187,7 +206,7 @@ class TestCreateTableFromExcelFile:
             ]
 
             await service.create_table_from_excel_file(
-                excel_file=valid_excel_file, user_id=100
+                uow_session=mock_uow, excel_file=valid_excel_file, user_id=100
             )
 
             # Проверяем, что метод был вызван с DataFrame
@@ -197,12 +216,15 @@ class TestCreateTableFromExcelFile:
             assert list(call_args.columns) == ["Name", "Age", "Email", "Active"]
 
     async def test_creates_table_with_custom_name(
-        self, service, valid_excel_file, mock_table_repo, real_data_table
+        self, service, mock_uow, valid_excel_file, mock_table_repo, real_data_table
     ):
         mock_table_repo.create_table.return_value = real_data_table
 
         await service.create_table_from_excel_file(
-            valid_excel_file, user_id=100, table_name="Custom Name"
+            uow_session=mock_uow,
+            excel_file=valid_excel_file,
+            user_id=100,
+            table_name="Custom Name",
         )
 
         # Проверяем, что в create_table передано правильное имя
@@ -215,11 +237,13 @@ class TestCreateTableFromExcelFile:
         assert table_data["name"] == "Custom Name"
 
     async def test_uses_filename_as_default_name(
-        self, service, valid_excel_file, mock_table_repo, real_data_table
+        self, service, mock_uow, valid_excel_file, mock_table_repo, real_data_table
     ):
         mock_table_repo.create_table.return_value = real_data_table
 
-        await service.create_table_from_excel_file(valid_excel_file, user_id=100)
+        await service.create_table_from_excel_file(
+            uow_session=mock_uow, excel_file=valid_excel_file, user_id=100
+        )
 
         call_args = mock_table_repo.create_table.call_args
         table_data = (
@@ -230,13 +254,18 @@ class TestCreateTableFromExcelFile:
         assert table_data["name"] == "test_data"  # Без расширения
 
     async def test_handles_mixed_data_types_correctly(
-        self, service, excel_file_with_mixed_types, mock_table_repo, real_data_table
+        self,
+        service,
+        excel_file_with_mixed_types,
+        mock_uow,
+        mock_table_repo,
+        real_data_table,
     ):
         """Проверяем, что схема колонок правильно определяет типы"""
         mock_table_repo.create_table.return_value = real_data_table
 
         await service.create_table_from_excel_file(
-            excel_file_with_mixed_types, user_id=100
+            uow_session=mock_uow, excel_file=excel_file_with_mixed_types, user_id=100
         )
 
         call_args = mock_table_repo.create_table.call_args
@@ -256,6 +285,7 @@ class TestCreateTableFromExcelFile:
         self,
         service_with_search,
         valid_excel_file,
+        mock_uow,
         mock_table_repo,
         mock_search_service,
         real_data_table: DataTable,
@@ -263,7 +293,7 @@ class TestCreateTableFromExcelFile:
         mock_table_repo.create_table.return_value = real_data_table
 
         await service_with_search.create_table_from_excel_file(
-            valid_excel_file, user_id=100
+            uow_session=mock_uow, excel_file=valid_excel_file, user_id=100
         )
 
         mock_search_service.index_table.assert_called_once()
@@ -286,7 +316,7 @@ class TestCreateTableFromExcelFile:
     #     # Создание не должно было произойти
     #     mock_table_repo.create_table.assert_called_once()
 
-    async def test_handles_corrupted_excel_file(self, service):
+    async def test_handles_corrupted_excel_file(self, service, mock_uow):
         """Проверяем обработку битого Excel файла"""
         corrupted_buffer = BytesIO(b"this is not an excel file\x00\x01\x02")
         file = MagicMock(spec=UploadFile)
@@ -298,12 +328,19 @@ class TestCreateTableFromExcelFile:
 
         # pd.read_excel выбросит исключение
         with pytest.raises(FileParseException):
-            await service.create_table_from_excel_file(file, user_id=100)
+            await service.create_table_from_excel_file(
+                uow_session=mock_uow, excel_file=file, user_id=100
+            )
 
 
 class TestUpdateTable:
     async def test_updates_only_provided_fields(
-        self, service, mock_table_repo, mock_permission_service, real_data_table
+        self,
+        service,
+        mock_uow,
+        mock_table_repo,
+        mock_permission_service,
+        real_data_table,
     ):
         mock_table_repo.get_table_by_id.return_value = real_data_table
         updated_table = real_data_table
@@ -313,7 +350,11 @@ class TestUpdateTable:
         update_data = DataTableUpdate(name="Updated Name")
 
         result = await service.update_table(
-            1, user_id=100, user_role="USER", update_data=update_data
+            uow_session=mock_uow,
+            table_id=1,
+            user_id=100,
+            user_role="USER",
+            update_data=update_data,
         )
 
         assert result.name == "Updated Name"
@@ -322,7 +363,12 @@ class TestUpdateTable:
         assert call_args[0][1] == {"name": "Updated Name"}  # exclude_none=True
 
     async def test_does_not_update_when_no_changes(
-        self, service, mock_table_repo, mock_permission_service, real_data_table
+        self,
+        service,
+        mock_uow,
+        mock_table_repo,
+        mock_permission_service,
+        real_data_table,
     ):
         mock_table_repo.get_table_by_id.return_value = real_data_table
         mock_table_repo.update_table.return_value = real_data_table
@@ -330,7 +376,11 @@ class TestUpdateTable:
         update_data = DataTableUpdate()  # Пустые данные
 
         await service.update_table(
-            1, user_id=100, user_role="USER", update_data=update_data
+            uow_session=mock_uow,
+            table_id=1,
+            user_id=100,
+            user_role="USER",
+            update_data=update_data,
         )
 
         # Проверяем, что update_table был вызван с пустым словарем
@@ -338,7 +388,12 @@ class TestUpdateTable:
         assert call_args[0][1] == {} or call_args[0][1] is None
 
     async def test_skips_search_update_when_no_changes(
-        self, service_with_search, mock_table_repo, mock_search_service, real_data_table
+        self,
+        service_with_search,
+        mock_uow,
+        mock_table_repo,
+        mock_search_service,
+        real_data_table,
     ):
         mock_table_repo.get_table_by_id.return_value = real_data_table
         mock_table_repo.update_table.return_value = real_data_table
@@ -346,7 +401,11 @@ class TestUpdateTable:
         update_data = DataTableUpdate()  # Нет изменений
 
         await service_with_search.update_table(
-            1, user_id=100, user_role="USER", update_data=update_data
+            uow_session=mock_uow,
+            table_id=1,
+            user_id=100,
+            user_role="USER",
+            update_data=update_data,
         )
 
         # Если payload пустой, search_service.update_table не вызывается
@@ -355,7 +414,12 @@ class TestUpdateTable:
 
 class TestDeleteTable:
     async def test_deletes_from_search_before_db(
-        self, service_with_search, mock_table_repo, mock_search_service, real_data_table
+        self,
+        service_with_search,
+        mock_uow,
+        mock_table_repo,
+        mock_search_service,
+        real_data_table,
     ):
         """Проверяем порядок операций: сначала search, потом БД?"""
         # В текущем коде сначала БД, потом search — это может быть проблемой
@@ -363,7 +427,9 @@ class TestDeleteTable:
         mock_table_repo.get_table_by_id.return_value = real_data_table
         mock_table_repo.delete_table.return_value = True
 
-        await service_with_search.delete_table(1, user_id=100, user_role="USER")
+        await service_with_search.delete_table(
+            uow_session=mock_uow, table_id=1, user_id=100, user_role="USER"
+        )
 
         # В текущей реализации порядок: delete_table -> delete_from_index
         calls = mock_table_repo.method_calls
@@ -371,7 +437,12 @@ class TestDeleteTable:
         assert mock_search_service.delete_from_index.called
 
     async def test_handles_search_failure_gracefully(
-        self, service_with_search, mock_table_repo, mock_search_service, real_data_table
+        self,
+        service_with_search,
+        mock_uow,
+        mock_table_repo,
+        mock_search_service,
+        real_data_table,
     ):
         """Что произойдет, если search_service упадет?"""
         mock_table_repo.get_table_by_id.return_value = real_data_table
@@ -382,7 +453,9 @@ class TestDeleteTable:
 
         # Сейчас код не обрабатывает ошибку search — таблица уже удалена из БД
         # Это проблема: данные в search останутся orphaned
-        await service_with_search.delete_table(1, user_id=100, user_role="USER")
+        await service_with_search.delete_table(
+            uow_session=mock_uow, table_id=1, user_id=100, user_role="USER"
+        )
 
         # Таблица удалена, но search не в курсе
         mock_table_repo.delete_table.assert_called_once()
@@ -390,7 +463,7 @@ class TestDeleteTable:
 
 class TestEdgeCases:
     async def test_handles_very_large_excel_file(
-        self, service, mock_table_repo, real_data_table: DataTable
+        self, service, mock_uow, mock_table_repo, real_data_table: DataTable
     ):
         """Симулируем большой файл (100k+ строк)"""
         # Генерируем большой DataFrame
@@ -412,12 +485,14 @@ class TestEdgeCases:
         # Используем реальный объект DataTable чтобы избежать проблем с Pydantic
         mock_table_repo.create_table.return_value = real_data_table
 
-        result = await service.create_table_from_excel_file(file, user_id=100)
+        result = await service.create_table_from_excel_file(
+            uow_session=mock_uow, excel_file=file, user_id=100
+        )
         assert result is not None
         assert result.id == real_data_table.id
 
     async def test_handles_excel_with_special_characters(
-        self, service, mock_table_repo, real_data_table: DataTable
+        self, service, mock_uow, mock_table_repo, real_data_table: DataTable
     ):
         """Excel файл с русскими, эмодзи и спецсимволами"""
         df = pd.DataFrame(
@@ -444,6 +519,8 @@ class TestEdgeCases:
         mock_table_repo.create_table.return_value = real_data_table
 
         # Не должно упасть из-за кодировки
-        result = await service.create_table_from_excel_file(file, user_id=100)
+        result = await service.create_table_from_excel_file(
+            uow_session=mock_uow, excel_file=file, user_id=100
+        )
         assert result is not None
         assert result.id == real_data_table.id

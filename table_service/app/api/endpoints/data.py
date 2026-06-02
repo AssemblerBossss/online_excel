@@ -16,11 +16,13 @@ from table_service.app.schemas import (
     TableRowUpdate,
     SCurrentUser,
 )
+from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.services import DataService
 from table_service.app.api.dependencies import (
     get_data_service,
     get_current_active_user,
     get_redis,
+    get_async_uow_session,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,7 @@ async def list_table_rows(
     data_service: Annotated[DataService, Depends(get_data_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
     skip: int = Query(0, description="Количество пропускаемых строк", ge=0),
     limit: int = Query(100, description="Максимальное количество строк", ge=1, le=1000),
     sort_by: str | None = Query(None),
@@ -58,6 +61,7 @@ async def list_table_rows(
             return json.loads(cached)
 
     rows = await data_service.get_table_rows(
+        uow_session=uow_session,
         table_id=table_id,
         user_id=current_user.user_id,
         user_role=current_user.role,
@@ -85,11 +89,13 @@ async def list_table_rows(
 async def get_row(
     data_service: Annotated[DataService, Depends(get_data_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
     table_id: int = Path(..., description="ID таблицы", ge=1),
     row_id: int = Path(..., description="ID строки", ge=1),
 ) -> TableRowResponse | None:
     """Получить строку по ID"""
     return await data_service.get_table_row(
+        uow_session=uow_session,
         table_id=table_id,
         user_id=current_user.user_id,
         row_id=row_id,
@@ -107,10 +113,12 @@ async def create_table_row(
     data_service: Annotated[DataService, Depends(get_data_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
     table_id: int = Path(description="ID таблицы", ge=1),
 ) -> TableRowResponse:
     """Создать строку таблицы"""
     result = await data_service.create_table_row(
+        uow_session=uow_session,
         table_id=table_id,
         user_id=current_user.user_id,
         row_data=row_data,
@@ -130,11 +138,13 @@ async def update_row(
     data_service: Annotated[DataService, Depends(get_data_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
     table_id: int = Path(..., description="ID таблицы", ge=1),
     row_id: int = Path(..., description="ID строки", ge=1),
 ) -> TableRowResponse | None:
     """Обновить строку таблицы"""
     result = await data_service.update_table_row(
+        uow_session=uow_session,
         table_id=table_id,
         row_id=row_id,
         user_id=current_user.user_id,
@@ -150,11 +160,13 @@ async def delete_row(
     data_service: Annotated[DataService, Depends(get_data_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
     table_id: int = Path(..., description="ID таблицы", ge=1),
     row_id: int = Path(..., description="ID строки", ge=1),
 ):
     """Удалить строку таблицы"""
     await data_service.delete_table_row(
+        uow_session=uow_session,
         table_id=table_id,
         row_id=row_id,
         user_id=current_user.user_id,

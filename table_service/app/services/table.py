@@ -3,12 +3,12 @@ from fastapi import UploadFile
 import pandas as pd
 from pydantic import ValidationError
 
+from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.schemas import (
     DataTableResponse,
     DataTableCreate,
     DataTableUpdate,
 )
-from table_service.app.repository import TableRepository, DataRepository
 from table_service.app.models import DataTable
 from table_service.app.services.excel_processor import ExcelProcessorService
 from table_service.app.services.search import SearchService
@@ -38,14 +38,10 @@ ALLOWED_EXCEL_MIME_TYPES = {
 class TableService:
     def __init__(
         self,
-        table_repository: TableRepository,
-        data_repository: DataRepository,
         permission_service: PermissionService,
         search_service: SearchService | None = None,
         excel_processor: ExcelProcessorService | None = None,
     ):
-        self.table_repo = table_repository
-        self.data_repo = data_repository
         self.permission_service = permission_service
         self.search_service = search_service
         self.excel_processor = excel_processor or ExcelProcessorService()
@@ -62,78 +58,161 @@ class TableService:
             updated_at=table.updated_at,
         )
 
-    async def get_all_tables(self) -> list[DataTableResponse]:
+    async def get_all_tables(self, uow_session: UnitOfWork) -> list[DataTableResponse]:
         """Получить список всех таблиц"""
-        tables = await self.table_repo.get_all_tables()
-        if not tables:
-            return []
-        return [self._to_response(table) for table in tables]
+        async with uow_session.start():
+            tables = await uow_session.tables.get_all_tables()
+            return [self._to_response(t) for t in tables] if tables else []
 
     async def get_table_by_id(
-        self, table_id: int, user_id: int, user_role: str
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> DataTableResponse:
         """Получить таблицу по ID с проверкой прав на чтение."""
-        table = await self.table_repo.get_table_by_id(table_id)
-        if not table:
-            logger.warning(
-                "Table %s not found or access denied for user %s", table_id, user_id
-            )
-            raise NotFoundException("Table not found or access denied")
-        if not await self.permission_service.check_read_access(
-            table=table, user_id=user_id, user_role=user_role
-        ):
-            raise AccessDeniedException()
+        async with uow_session.start():
+            table = await uow_session.tables.get_table_by_id(table_id)
+            if not table:
+                logger.warning(
+                    "Table %s not found or access denied for user %s", table_id, user_id
+                )
+                raise NotFoundException("Table not found or access denied")
+            if not await self.permission_service.check_read_access(
+                uow_session=uow_session,
+                table=table,
+                user_id=user_id,
+                user_role=user_role,
+            ):
+                raise AccessDeniedException()
 
-        return self._to_response(table)
+            return self._to_response(table)
 
     async def create_table(
-        self, table_data: DataTableCreate, user_id: int
+        self, uow_session: UnitOfWork, table_data: DataTableCreate, user_id: int
     ) -> DataTableResponse:
         """Создать новую таблицу"""
-
-        payload = table_data.model_dump()
-        table = await self.table_repo.create_table(table_data=payload, user_id=user_id)
-        if not table:
-            raise CanNotCreateTableException()
-
-        if self.search_service:
-            await self.search_service.index_table(
-                table_id=table.id,
-                name=table.name,
-                description=table.description,
-                is_public=table.is_public,
-                created_by_id=table.created_by_id,
+        async with uow_session.start():
+            payload = table_data.model_dump()
+            table = await uow_session.tables.create_table(
+                table_data=payload, user_id=user_id
             )
-        logger.info(
-            "User %s created table %s (name: '%s')", user_id, table.id, table.name
-        )
-        return self._to_response(table)
+            if not table:
+                raise CanNotCreateTableException()
+
+            if self.search_service:
+                await self.search_service.index_table(
+                    table_id=table.id,
+                    name=table.name,
+                    description=table.description,
+                    is_public=table.is_public,
+                    created_by_id=table.created_by_id,
+                )
+            logger.info(
+                "User %s created table %s (name: '%s')", user_id, table.id, table.name
+            )
+            return self._to_response(table)
 
     async def update_table(
-        self, table_id: int, user_id: int, user_role: str, update_data: DataTableUpdate
+        self,
+        uow_session: UnitOfWork,
+        table_id: int,
+        user_id: int,
+        user_role: str,
+        update_data: DataTableUpdate,
     ) -> DataTableResponse:
+        async with uow_session.start():
+            if not (
+                table := await uow_session.tables.get_table_by_id(table_id=table_id)
+            ):
+                raise NotFoundException("Table not found or access denied")
 
-        if not (table := await self.table_repo.get_table_by_id(table_id=table_id)):
-            raise NotFoundException("Table not found or access denied")
+            if not await self.permission_service.check_write_access(
+                uow_session=uow_session,
+                table=table,
+                user_id=user_id,
+                user_role=user_role,
+            ):
+                raise AccessDeniedException()
 
-        if not await self.permission_service.check_write_access(
-            table=table, user_id=user_id, user_role=user_role
-        ):
-            raise AccessDeniedException()
+            payload = update_data.model_dump(exclude_none=True)
+            updated = await uow_session.tables.update_table(table_id, payload)
+            if not updated:
+                raise CanNotUpdateTableException()
 
-        payload = update_data.model_dump(exclude_none=True)
-        updated = await self.table_repo.update_table(table_id, payload)
-        if not updated:
-            raise CanNotUpdateTableException()
+            if self.search_service and payload:
+                await self.search_service.update_table(table_id=updated.id, **payload)
 
-        if self.search_service and payload:
-            await self.search_service.update_table(table_id=updated.id, **payload)
+            logger.info("User %s updated table %s", user_id, table_id)
+            return self._to_response(updated)
 
-        logger.info("User %s updated table %s", user_id, table_id)
-        return self._to_response(updated)
+    async def duplicate_table(
+        self,
+        uow_session: UnitOfWork,
+        source_table_id: int,
+        user_id: int,
+        user_role: str,
+        with_rows: bool = False,
+        new_name: str | None = None,
+    ) -> DataTableResponse:
+        """
+        Клонировать таблицу: копирует columns_schema, опционально строки.
+
+        Клон создаётся приватным (is_public=False) и принадлежит текущему пользователю.
+        """
+        async with uow_session.start():
+            source_table = await uow_session.tables.get_table_by_id(source_table_id)
+            if not source_table:
+                raise NotFoundException("Table not found or access denied")
+
+            if not await self.permission_service.check_read_access(
+                uow_session=uow_session,
+                table=source_table,
+                user_id=user_id,
+                user_role=user_role,
+            ):
+                raise AccessDeniedException()
+
+            new_name = new_name or f"Копия {source_table.name}"
+
+            payload = {
+                "name": new_name,
+                "description": source_table.description,
+                "is_public": False,
+                "columns_schema": source_table.columns_schema,
+            }
+
+            new_table = await uow_session.tables.create_table(
+                table_data=payload, user_id=user_id
+            )
+            if not new_table:
+                raise CanNotCreateTableException()
+
+            copied = 0
+            if with_rows:
+                copied = await uow_session.data.copy_rows(
+                    source_table_id=source_table.id, target_table_id=new_table.id
+                )
+
+            if self.search_service:
+                await self.search_service.index_table(
+                    table_id=new_table.id,
+                    name=new_table.name,
+                    description=new_table.description,
+                    is_public=new_table.is_public,
+                    created_by_id=new_table.created_by_id,
+                )
+
+            logger.info(
+                "User %s duplicated table %s -> %s (with_rows=%s, rows copied=%s)",
+                user_id,
+                source_table.id,
+                new_table.id,
+                with_rows,
+                copied,
+            )
+            return self._to_response(new_table)
 
     async def create_table_from_excel_file(
         self,
+        uow_session: UnitOfWork,
         excel_file: UploadFile,
         user_id: int,
         table_name: str | None = None,
@@ -183,52 +262,52 @@ class TableService:
 
             if not description:
                 description = f"Таблица создана из файла {excel_file.filename}"
+            async with uow_session.start():
+                table_data = DataTableCreate(
+                    name=table_name,
+                    description=description,
+                    is_public=False,
+                    columns_schema=columns_schema,
+                )
 
-            table_data = DataTableCreate(
-                name=table_name,
-                description=description,
-                is_public=False,
-                columns_schema=columns_schema,
-            )
+                payload = table_data.model_dump()
+                table = await uow_session.tables.create_table(
+                    table_data=payload, user_id=user_id
+                )
 
-            payload = table_data.model_dump()
-            table = await self.table_repo.create_table(
-                table_data=payload, user_id=user_id
-            )
+                if not table:
+                    logger.error(
+                        "Failed to create table from Excel '%s' for user %s",
+                        excel_file.filename,
+                        user_id,
+                    )
+                    raise CanNotCreateTableException()
 
-            if not table:
-                logger.error(
-                    "Failed to create table from Excel '%s' for user %s",
-                    excel_file.filename,
+                if self.search_service:
+                    await self.search_service.index_table(
+                        table_id=table.id,
+                        name=table.name,
+                        description=table.description,
+                        is_public=table.is_public,
+                        created_by_id=table.created_by_id,
+                    )
+
+                rows, failed = self.excel_processor.build_rows(df)
+                created = await uow_session.data.bulk_create_table_row(
+                    table_id=table.id, rows_data=rows
+                )
+                logger.info(
+                    "User %s created table %s from Excel '%s' "
+                    "(%s columns, %s rows: %s imported, %s failed)",
                     user_id,
+                    table.id,
+                    excel_file.filename,
+                    len(df.columns),
+                    len(df),
+                    created,
+                    failed,
                 )
-                raise CanNotCreateTableException()
-
-            if self.search_service:
-                await self.search_service.index_table(
-                    table_id=table.id,
-                    name=table.name,
-                    description=table.description,
-                    is_public=table.is_public,
-                    created_by_id=table.created_by_id,
-                )
-
-            rows, failed = self.excel_processor.build_rows(df)
-            created = await self.data_repo.bulk_create_table_row(
-                table_id=table.id, rows_data=rows
-            )
-            logger.info(
-                "User %s created table %s from Excel '%s' "
-                "(%s columns, %s rows: %s imported, %s failed)",
-                user_id,
-                table.id,
-                excel_file.filename,
-                len(df.columns),
-                len(df),
-                created,
-                failed,
-            )
-            return self._to_response(table)
+                return self._to_response(table)
 
         except pd.errors.EmptyDataError:
             logger.warning(
@@ -245,30 +324,36 @@ class TableService:
             )
             raise FileParseException("Ошибка парсинга Excel файла")
 
-    async def delete_table(self, table_id: int, user_id: int, user_role: str) -> None:
+    async def delete_table(
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
+    ) -> None:
         """Удалить таблицу."""
-        table: DataTable | None = await self.table_repo.get_table_by_id(table_id)
-        if not table:
-            raise NotFoundException("Table not found")
+        async with uow_session.start():
+            table: DataTable | None = await uow_session.tables.get_table_by_id(table_id)
+            if not table:
+                raise NotFoundException("Table not found")
 
-        if not await self.permission_service.check_write_access(
-            table=table, user_id=user_id, user_role=user_role
-        ):
-            raise AccessDeniedException()
+            if not await self.permission_service.check_write_access(
+                uow_session=uow_session,
+                table=table,
+                user_id=user_id,
+                user_role=user_role,
+            ):
+                raise AccessDeniedException()
 
-        if not await self.table_repo.delete_table(table_id=table_id):
-            raise CanNotDeleteTableException()
+            if not await uow_session.tables.delete_table(table_id=table_id):
+                raise CanNotDeleteTableException()
 
-        if self.search_service:
-            try:
-                await self.search_service.delete_from_index(table_id=table_id)
-            except Exception:
-                logger.warning(
-                    "Failed to delete table %s from search index, "
-                    "data may be orphaned until next sync",
-                    table_id,
-                )
+            if self.search_service:
+                try:
+                    await self.search_service.delete_from_index(table_id=table_id)
+                except Exception:
+                    logger.warning(
+                        "Failed to delete table %s from search index, "
+                        "data may be orphaned until next sync",
+                        table_id,
+                    )
 
-        logger.info(
-            "User %s deleted table %s (name: %s)", user_id, table_id, table.name
-        )
+            logger.info(
+                "User %s deleted table %s (name: %s)", user_id, table_id, table.name
+            )
