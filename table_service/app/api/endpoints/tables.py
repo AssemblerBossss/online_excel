@@ -17,11 +17,13 @@ from table_service.app.schemas import (
     DataTableUpdate,
     DataTableDuplicate,
 )
+from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.services import TableService
 from table_service.app.api.dependencies import (
     get_table_service,
     get_current_active_user,
     get_redis,
+    get_async_uow_session,
 )
 
 router = APIRouter()
@@ -38,12 +40,13 @@ async def invalidate_tables_cache(redis: Redis) -> None:
 async def get_tables(
     table_service: Annotated[TableService, Depends(get_table_service)],
     redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> list[DataTableResponse]:
     cached = await redis.get(TABLES_CACHE_KEY)
     if cached:
         return json.loads(cached)
 
-    tables = await table_service.get_all_tables()
+    tables = await table_service.get_all_tables(uow_session)
     await redis.setex(
         TABLES_CACHE_KEY,
         TABLES_CACHE_TTL,
@@ -57,8 +60,10 @@ async def get_table(
     table_id: int,
     table_service: Annotated[TableService, Depends(get_table_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> DataTableResponse:
     return await table_service.get_table_by_id(
+        uow_session=uow_session,
         table_id=table_id,
         user_id=current_user.user_id,
         user_role=current_user.role,
@@ -72,8 +77,10 @@ async def update_table(
     table_service: Annotated[TableService, Depends(get_table_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> DataTableResponse:
     result = await table_service.update_table(
+        uow_session=uow_session,
         table_id=table_id,
         user_id=current_user.user_id,
         user_role=current_user.role,
@@ -92,9 +99,10 @@ async def create_table(
     table_service: Annotated[TableService, Depends(get_table_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> DataTableResponse:
     result = await table_service.create_table(
-        table_data=table_data, user_id=current_user.user_id
+        uow_session=uow_session, table_data=table_data, user_id=current_user.user_id
     )
     await invalidate_tables_cache(redis)
     return result
@@ -111,9 +119,15 @@ async def duplicate_table(
     table_service: Annotated[TableService, Depends(get_table_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> DataTableResponse:
     result = await table_service.duplicate_table(
-        table_id=table_id, payload=payload, user_id=current_user.user_id
+        uow_session=uow_session,
+        source_table_id=table_id,
+        user_id=current_user.user_id,
+        user_role=current_user.role,
+        with_rows=payload.with_rows,
+        new_name=payload.name,
     )
     await invalidate_tables_cache(redis)
     return result
@@ -127,12 +141,14 @@ async def duplicate_table(
 async def create_table_from_excel(
     table_service: Annotated[TableService, Depends(get_table_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
     redis: Annotated[Redis, Depends(get_redis)],
     table_name: str = Form(...),
     description: str = Form(None),
     file: UploadFile = File(..., description="Excel file to process"),
 ) -> DataTableResponse:
     result = await table_service.create_table_from_excel_file(
+        uow_session=uow_session,
         excel_file=file,
         user_id=current_user.user_id,
         table_name=table_name,
@@ -151,8 +167,10 @@ async def delete_table(
     table_service: Annotated[TableService, Depends(get_table_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ):
     await table_service.delete_table(
+        uow_session=uow_session,
         table_id=table_id,
         user_id=current_user.user_id,
         user_role=current_user.role,
