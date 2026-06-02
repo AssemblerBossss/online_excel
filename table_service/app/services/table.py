@@ -188,7 +188,7 @@ class TableService:
         logger.info(
             "User %s duplicated table %s -> %s (with_rows=%s, rows copied=%s)",
             user_id,
-            source.id,
+            source_table.id,
             new_table.id,
             with_rows,
             copied,

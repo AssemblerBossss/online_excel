@@ -1,4 +1,5 @@
-from sqlalchemy import select, update, delete, asc, desc, Sequence
+from sqlalchemy import select, update, delete, asc, desc, Sequence, literal, insert
+
 from table_service.app.models import TableRow
 from table_service.app.repository.base import Base
 from table_service.app.schemas import TableRowCreate, TableRowUpdate
@@ -99,6 +100,15 @@ class DataRepository(Base):
         self._session.add_all(rows_to_insert)
         await self._session.flush()
         return len(rows_to_insert)
+
+    async def copy_rows(self, source_table_id: int, target_table_id: int) -> int:
+        """Скопировать все строки из одной таблицы в другую."""
+        select_stmt = select(literal(target_table_id), TableRow.row_data).where(
+            TableRow.table_id == source_table_id
+        )
+        stmt = insert(TableRow).from_select(["table_id", "row_data"], select_stmt)
+        result = await self._session.execute(stmt)
+        return result.rowcount
 
     async def update_table_row(
         self,
