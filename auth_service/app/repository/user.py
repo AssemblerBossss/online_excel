@@ -133,9 +133,14 @@ class UserRepository:
         filters = {"role": role}
         return await self.find_all(filters=filters)
 
-    async def deactivate_user(self, user_id: int) -> bool:
-        """Деактивировать пользователя по ID"""
-        values = {"is_active": False}
+    # async def deactivate_user(self, user_id: int) -> bool:
+    #     """Деактивировать пользователя по ID"""
+    #     values = {"is_active": False}
+    #     return await self.update_by_id(user_id, values=values)
+
+    async def change_user_active_status(self, user_id: int, is_active: bool) -> bool:
+        """Установить статус активности пользователя"""
+        values = {"is_active": is_active}
         return await self.update_by_id(user_id, values=values)
 
     async def change_user_role(self, user_id: int, new_role: UserRole) -> bool:

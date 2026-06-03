@@ -21,10 +21,16 @@ class UserService:
     def __init__(self):
         self.event_publisher = event_publisher
 
+    @staticmethod
     async def _check_permissions(
-        self, current_user: SUserInfo, target_user_id: int
+            current_user: SUserInfo, target_user_id: int
     ) -> None:
         if current_user.role != UserRole.ADMIN and current_user.id != target_user_id:
+            raise ForbiddenException()
+
+    @staticmethod
+    async def _check_is_admin(current_user: SUserInfo) -> None:
+        if current_user.role != UserRole.ADMIN:
             raise ForbiddenException()
 
     async def get_all_users(self, uow_session: UnitOfWork) -> list[SUserInfo]:
@@ -178,7 +184,7 @@ class UserService:
         await self._check_permissions(current_user, user_id)
 
         async with uow_session.start():
-            result = await uow_session.user.deactivate_user(user_id)
+            result = await uow_session.user.change_user_active_status(user_id, False)
             if not result:
                 return None
             user = await uow_session.user.find_one_or_none_by_id(user_id)
@@ -186,3 +192,23 @@ class UserService:
                 return None
 
         return SUserInfo.model_validate(user)
+
+    async def activate_user(
+            self,
+            uow_session: UnitOfWork,
+            current_user: SUserInfo,
+            user_id: int,
+    ) -> SUserInfo | None:
+        """Активировать пользователя. Может только админ"""
+        await self._check_is_admin(current_user)
+
+        async with uow_session.start():
+            result = await uow_session.user.change_user_active_status(user_id, True)
+            if not result:
+                return None
+            user = await uow_session.user.find_one_or_none_by_id(user_id)
+            if not user:
+                return None
+
+        return SUserInfo.model_validate(user)
+
