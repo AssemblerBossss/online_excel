@@ -146,6 +146,21 @@ async def deactivate_user(
     return user
 
 
+@router.post("/{user_id}/activate}", response_model=SUserInfo)
+async def activate_user(
+        user_id: int,
+        current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
+        user_service: Annotated[UserService, Depends(get_user_service)],
+        uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+) -> SUserInfo:
+    """Активировать пользователя по ID"""
+    user = await user_service.activate_user(
+        uow_session=uow_session,current_user=current_user, user_id=user_id)
+    if not user:
+        raise UserNotFoundException()
+    return user
+
+
 @router.get(
     "/all_users/",
     response_model=list[SUserInfo],
