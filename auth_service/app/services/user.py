@@ -6,14 +6,17 @@ from auth_service.app.exceptions import (
     ForbiddenException,
     FileTooLargeException,
     UserAlreadyExistsException,
+    UserNotFoundException,
+    IncorrectPasswordException,
 )
 from auth_service.app.schemas import (
     SUserInfo,
     UserRole,
     SUserProfileUpdate,
     UserUpdateEvent,
+    SUserChangePassword,
 )
-from auth_service.app.utils import avatar_storage
+from auth_service.app.utils import avatar_storage, get_password_hash, verify_password
 from auth_service.app.сore import UnitOfWork
 
 
@@ -22,9 +25,7 @@ class UserService:
         self.event_publisher = event_publisher
 
     @staticmethod
-    async def _check_permissions(
-            current_user: SUserInfo, target_user_id: int
-    ) -> None:
+    async def _check_permissions(current_user: SUserInfo, target_user_id: int) -> None:
         if current_user.role != UserRole.ADMIN and current_user.id != target_user_id:
             raise ForbiddenException()
 
@@ -194,10 +195,10 @@ class UserService:
         return SUserInfo.model_validate(user)
 
     async def activate_user(
-            self,
-            uow_session: UnitOfWork,
-            current_user: SUserInfo,
-            user_id: int,
+        self,
+        uow_session: UnitOfWork,
+        current_user: SUserInfo,
+        user_id: int,
     ) -> SUserInfo | None:
         """Активировать пользователя. Может только админ"""
         await self._check_is_admin(current_user)
@@ -212,3 +213,21 @@ class UserService:
 
         return SUserInfo.model_validate(user)
 
+    async def change_password(
+        self,
+        uow_session: UnitOfWork,
+        current_user: SUserInfo,
+        data: SUserChangePassword,
+    ) -> None:
+        """Сменить пароль текущего пользователя"""
+        async with uow_session.start():
+            user = await uow_session.user.find_one_or_none_by_id(current_user.id)
+            if not user:
+                raise UserNotFoundException()
+            if not verify_password(data.old_password, user.hashed_password):
+                raise IncorrectPasswordException()
+
+            await uow_session.user.update_by_id(
+                current_user.id,
+                values={"hashed_password": get_password_hash(data.new_password)},
+            )

@@ -1,7 +1,11 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, status, UploadFile, File
 from auth_service.app.schemas import SUserInfo
-from auth_service.app.schemas.user import SUserProfileUpdate, SUserRoleUpdate
+from auth_service.app.schemas.user import (
+    SUserProfileUpdate,
+    SUserRoleUpdate,
+    SUserChangePassword,
+)
 from auth_service.app.services import UserService
 from auth_service.app.dependency import (
     get_current_active_user,
@@ -18,6 +22,19 @@ async def read_users_me(
     current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
 ):
     return current_user
+
+
+@router.post("/me/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    data: SUserChangePassword,
+    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+) -> None:
+    """Сменить пароль текущего пользователя"""
+    await user_service.change_password(
+        uow_session=uow_session, current_user=current_user, data=data
+    )
 
 
 @router.get(
@@ -148,14 +165,15 @@ async def deactivate_user(
 
 @router.post("/{user_id}/activate}", response_model=SUserInfo)
 async def activate_user(
-        user_id: int,
-        current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
-        user_service: Annotated[UserService, Depends(get_user_service)],
-        uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+    user_id: int,
+    current_user: Annotated[SUserInfo, Depends(get_current_active_user)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> SUserInfo:
     """Активировать пользователя по ID"""
     user = await user_service.activate_user(
-        uow_session=uow_session,current_user=current_user, user_id=user_id)
+        uow_session=uow_session, current_user=current_user, user_id=user_id
+    )
     if not user:
         raise UserNotFoundException()
     return user

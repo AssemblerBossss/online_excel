@@ -70,3 +70,9 @@ class UnsupportedContentTypeException(AppException):
 class FileTooLargeException(AppException):
     status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
     detail = "Файл превышает допустимый размер"
+
+
+# Неверный текущий пароль
+class IncorrectPasswordException(AppException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Неверный текущий пароль"
