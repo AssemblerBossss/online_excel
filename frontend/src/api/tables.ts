@@ -32,6 +32,21 @@ export interface CreateTableRequest {
     columns_schema?: ColumnSchema[];
 }
 
+interface ExportResult {
+        blob: Blob;
+        filename: string;
+}
+
+ // Достаёт имя файла из заголовка Content-Disposition (поддержка filename*=UTF-8'')
+  function parseFilename(disposition: string): string | null {
+      const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+      if (utf8Match) {
+          return decodeURIComponent(utf8Match[1]);
+      }
+      const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
+      return plainMatch ? plainMatch[1] : null;
+  }
+
 export const tablesAPI = {
     getAllTables: async (): Promise<DataTableResponse[]> => {
         const response = await api.get('/tables');
@@ -55,6 +70,30 @@ export const tablesAPI = {
     getTableRows: async (tableId: number): Promise<TableRow[]> => {
         const response = await api.get(`/data/${tableId}/rows`);
         return response.data;
+    },
+
+//     exportTable: async (id: number): Promise<blob: Blob; filename: string> => {
+//         const response = await api.get(`/tables/${id}/export`, {
+//             responseType: 'blob',
+//         });
+//
+//         const disposition = response.headers['content-disposition'] || '';
+//         const filename = parseFilename(disposition) || `table_${id}.xlsx`;
+//         return { blob: response.data, filename};
+//     },
+
+    // Определите тип возвращаемого объекта
+
+
+    exportTable: async (id: number): Promise<ExportResult> => {
+        const response = await api.get(`/tables/${id}/export`, {
+            responseType: 'blob',
+        });
+
+        const disposition = response.headers['content-disposition'] || '';
+        const filename = parseFilename(disposition) || `table_${id}.xlsx`;
+
+        return { blob: response.data, filename };
     },
 
     createRow: async (tableId: number, rowData: Record<string, any>): Promise<TableRow> => {

@@ -2,6 +2,9 @@ import logging
 import warnings
 from typing import Any
 import pandas as pd
+from io import BytesIO
+
+from openpyxl.workbook import Workbook
 
 from table_service.app.exceptions import EmptyFileException
 from table_service.app.schemas import TableRowCreate
@@ -154,3 +157,28 @@ class ExcelProcessorService:
             return bool(pd.isna(value))
         except (TypeError, ValueError):
             return False
+
+    def build_workbook(
+        self, columns_schema: list[dict[str, Any]], rows: list[dict[str, Any]]
+    ) -> BytesIO:
+        """
+        Построить Excel-файл (.xlsx) из схемы колонок и данных строк.
+
+        Шапка берётся из имён колонок схемы, значения каждой строки
+        выбираются по этим именам из row_data (отсутствующие — пустые).
+        Возвращает буфер, готовый к отдаче клиенту.
+        """
+        workbook = Workbook()
+        # По умолчанию в новой книге уже есть 1 лист с названием "Sheet"
+        # workbook.active возвращает этот лист
+        sheet = workbook.active
+        column_names = [str(column["name"]) for column in columns_schema]
+        sheet.append(column_names)
+
+        for row_data in rows:
+            sheet.append([row_data.get(name) for name in column_names])
+
+        buffer = BytesIO()
+        workbook.save(buffer)
+        buffer.seek(0)
+        return buffer
