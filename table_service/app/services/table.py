@@ -1,4 +1,6 @@
 import logging
+from io import BytesIO
+
 from fastapi import UploadFile
 import pandas as pd
 from pydantic import ValidationError
@@ -323,6 +325,39 @@ class TableService:
                 excel_file.filename,
             )
             raise FileParseException("Ошибка парсинга Excel файла")
+
+    async def export_table_to_excel(
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
+    ) -> tuple[BytesIO, str]:
+        """Сформировать Excel-файл таблицы. Требует прав на чтение"""
+        async with uow_session.start():
+            table = await uow_session.tables.get_table_by_id(table_id)
+            if not table:
+                raise NotFoundException(
+                    "Table '%s' not found or access denied" % table_id
+                )
+
+            if not self.permission_service.check_read_access(
+                uow_session=uow_session,
+                table=table,
+                user_id=user_id,
+                user_role=user_role,
+            ):
+                raise AccessDeniedException()
+
+            rows = await uow_session.data.get_all_rows_by_table_id(table_id)
+            workbook = self.excel_processor.build_workbook(
+                columns_schema=table.columns_schema,
+                rows=[row.row_data for row in rows],
+            )
+
+            logger.info(
+                "User %s exported table %s to Excel (%s rows)",
+                user_id,
+                table_id,
+                len(rows),
+            )
+            return workbook, f"{table.name}.xlsx"
 
     async def delete_table(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str

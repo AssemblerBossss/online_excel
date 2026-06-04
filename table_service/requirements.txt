@@ -74,4 +74,4 @@ urllib3==2.6.3
 uvicorn==0.38.0
 wrapt==2.1.2
 yarl==1.22.0
-prometheus-fastapi-instrumentator==7.1.0
+prometheus-fastapi-instrumentator==6.1.0

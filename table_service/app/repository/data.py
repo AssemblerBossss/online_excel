@@ -156,3 +156,13 @@ class DataRepository(Base):
 
         result = await self._session.execute(stmt)
         return result.rowcount > 0
+
+    async def get_all_rows_by_table_id(self, table_id: int) -> Sequence[TableRow]:
+        """Получить все строки таблицы, отсортированные по id (для экспорта)"""
+        stmt = (
+            select(TableRow)
+            .where(TableRow.table_id == table_id)
+            .order_by(asc(TableRow.id))
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().all()

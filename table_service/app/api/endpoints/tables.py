@@ -1,5 +1,7 @@
 import json
 from typing import Annotated
+from urllib.parse import quote
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -8,6 +10,7 @@ from fastapi import (
     File,
     Form,
 )
+from fastapi.responses import StreamingResponse
 from redis.asyncio import Redis
 
 from table_service.app.schemas import (
@@ -30,6 +33,7 @@ router = APIRouter()
 
 TABLES_CACHE_KEY = "tables:all"
 TABLES_CACHE_TTL = 120
+XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 async def invalidate_tables_cache(redis: Redis) -> None:
@@ -156,6 +160,28 @@ async def create_table_from_excel(
     )
     await invalidate_tables_cache(redis)
     return result
+
+
+@router.get("/{table_id}/export")
+async def export_table(
+    table_id: int,
+    table_service: Annotated[TableService, Depends(get_table_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+) -> StreamingResponse:
+    """Скачать таблицу в формате Excel (.xlsx)."""
+    workbook, filename = await table_service.export_table_to_excel(
+        uow_session=uow_session,
+        table_id=table_id,
+        user_id=current_user.user_id,
+        user_role=current_user.role,
+    )
+    encoded = quote(filename)
+    return StreamingResponse(
+        workbook,
+        media_type=XLSX_MEDIA_TYPE,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded}"},
+    )
 
 
 @router.delete(

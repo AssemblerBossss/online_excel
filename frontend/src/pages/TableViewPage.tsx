@@ -19,6 +19,7 @@ const TableViewPage: React.FC = () => {
     const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
     const [editingValue, setEditingValue] = useState("");
     const [saving, setSaving] = useState<number | null>(null); // rowId который сохраняется
+    const [exporting, setExporting] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -149,19 +150,47 @@ const TableViewPage: React.FC = () => {
         );
     }
 
+    const exportTable = async () => {
+          try {
+              setExporting(true);
+              const { blob, filename } = await tablesAPI.exportTable(tableId);
+
+              const url = window.URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = filename;
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+              window.URL.revokeObjectURL(url);
+          } catch (err) {
+              console.error('exportTable error:', err);
+              setError("Не удалось экспортировать таблицу");
+          } finally {
+              setExporting(false);
+          }
+      };
+
     return (
         <div style={styles.container}>
             <header style={styles.header}>
                 <div style={styles.headerContent}>
                     <h1 style={styles.title}>Таблица №{id}</h1>
                     <div style={styles.headerActions}>
-                        <button style={styles.addButton} onClick={addRow}>
-                            + Добавить строку
-                        </button>
-                        <button style={styles.backButton} onClick={() => navigate("/tables")}>
-                            ← Назад
-                        </button>
-                    </div>
+                          <button
+                              style={styles.exportButton}
+                              onClick={exportTable}
+                              disabled={exporting}
+                          >
+                              {exporting ? "Экспорт…" : "⬇ Экспорт в Excel"}
+                          </button>
+                          <button style={styles.addButton} onClick={addRow}>
+                              + Добавить строку
+                          </button>
+                          <button style={styles.backButton} onClick={() => navigate("/tables")}>
+                              ← Назад
+                          </button>
+                      </div>
                 </div>
             </header>
 
@@ -291,6 +320,16 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: "14px",
         fontWeight: "600",
     },
+     exportButton: {
+          background: "#3b82f6",
+          color: "white",
+          border: "none",
+          padding: "8px 16px",
+          borderRadius: "6px",
+          cursor: "pointer",
+          fontSize: "14px",
+          fontWeight: "600",
+     },
     main: {maxWidth: "1400px", margin: "0 auto", padding: "30px 20px"},
     loadingContainer: {
         minHeight: "50vh",
