@@ -41,9 +41,11 @@ services:
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_RATE_LIMIT_DB=${REDIS_RATE_LIMIT_DB:-1}
       - REDIS_CACHE_DB=${REDIS_CACHE_DB:-2}
-      # JWT (обязательно через секрет!)
+      # JWT (RS256 — подпись приватным ключом, Traefik проверяет публичным)
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-local_dev_secret}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
+      - JWT_PRIVATE_KEY_PATH=/run/secrets/jwt_private.pem
+      - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public.pem
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-30}
       # Meta
@@ -68,6 +70,8 @@ services:
         condition: service_healthy
     volumes:
       - ./auth_service:/app/auth_service
+      - ./keys/jwt_private.pem:/run/secrets/jwt_private.pem:ro
+      - ./keys/jwt_public.pem:/run/secrets/jwt_public.pem:ro
     healthcheck:
       test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/health/\")' || exit 1" ]
       interval: 10s
