@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from "react";
 import {useNavigate} from "react-router-dom";
-import {getUserProfile, uploadAvatar, UserProfile} from "../api/users";
+import {getUserProfile, updateUser, uploadAvatar, UserProfile} from "../api/users";
 import SidebarWithToggle from '../components/SidebarWithToggle';
 
 const ProfilePage: React.FC = () => {
@@ -9,6 +9,16 @@ const ProfilePage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [uploading, setUploading] = useState(false);
+
+    // Флаг: открыта ли форма редактирования (true) или режим просмотра (false)
+    const [isEditing, setIsEditing] = useState(false);
+    // Флаг: идёт ли сейчас отправка данных на сервер (для блокировки кнопки и показа спиннера)
+    const [saving, setSaving] = useState(false);
+    const [formData, setFormData] = useState({
+        first_name: "",
+        last_name: ""
+    });
+
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -40,6 +50,47 @@ const ProfilePage: React.FC = () => {
             e.target.value = "";            // чтобы можно было выбрать тот же файл снова
         }
     };
+
+    const handleEditClick = () => {
+        if (!profile) return;
+        // Заполняем форму текущими значениями профиля
+        setFormData({
+            first_name: profile.first_name,
+            last_name: profile.last_name
+        })
+        setIsEditing(true);
+    };
+
+    const handleCancel = () => {
+        setIsEditing(false);
+        setError("");
+    };
+
+    const handleSave = async () => {
+        if (!profile) return;
+        if (formData.first_name.trim().length < 3 || formData.last_name.trim().length < 3) {
+            setError("Имя и фамилия должны содержать не менее 3 символов");
+            return;
+        }
+        setSaving(true);
+        setError("");
+        try {
+            const updated = await updateUser(profile.id, formData);
+            setProfile(updated); //обновляем отображение
+            setIsEditing(false); //выходим из режима редактирования
+        } catch (err: any) {
+            const detail = err.response?.data?.detail;
+            if (Array.isArray(detail)) {
+                // Берём сообщение из первой ошибки
+                setError(detail[0]?.msg || "Не удалось сохранить изменения");
+            } else {
+                setError(detail || "Не удалось сохранить изменения");
+            }
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleDateString("ru-RU", {
@@ -69,20 +120,6 @@ const ProfilePage: React.FC = () => {
             </div>
         );
     }
-
-    if (error) {
-        return (
-            <div style={styles.container}>
-                <div style={styles.card}>
-                    <p style={styles.error}>{error}</p>
-                    <button style={styles.button} onClick={() => navigate("/tables")}>
-                        Вернуться к таблицам
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
 
     return (
         <div style={styles.pageContainer}>
@@ -129,44 +166,73 @@ const ProfilePage: React.FC = () => {
 
                             <div style={styles.infoRow}>
                                 <span style={styles.label}>Имя:</span>
-                                <span style={styles.value}>{profile.first_name}</span>
-                            </div>
-
-                            <div style={styles.infoRow}>
-                                <span style={styles.label}>Фамилия:</span>
-                                <span style={styles.value}>{profile.last_name}</span>
-                            </div>
-
-                            <div style={styles.infoRow}>
-                                <span style={styles.label}>Роль:</span>
-                                <span style={styles.value}>{getRoleText(profile.role)}</span>
-                            </div>
-
-                            <div style={styles.infoRow}>
-                                <span style={styles.label}>Статус:</span>
-                                <span style={styles.value}>
-                {profile.is_active ? (
-                    <span style={styles.statusActive}>Активен</span>
-                ) : (
-                    <span style={styles.statusInactive}>Неактивен</span>
-                )}
-              </span>
-                            </div>
-
-                            <div style={styles.infoRow}>
-                                <span style={styles.label}>Дата регистрации:</span>
-                                <span style={styles.value}>{formatDate(profile.created_at)}</span>
-                            </div>
+                                {isEditing ? (
+                                    <input
+                                        style={styles.input}
+                                        value={formData.first_name}
+                                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                                    />
+                                ) : (
+                                    <span style={styles.value}>{profile.first_name}</span>
+                            )}
                         </div>
-                    )}
 
+                        <div style={styles.infoRow}>
+                            <span style={styles.label}>Фамилия:</span>
+                            {isEditing ? (
+                                <input
+                                    style={styles.input}
+                                    value={formData.last_name}
+                                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                                />
+                            ) : (
+                                <span style={styles.value}>{profile.last_name}</span>
+                            )}
+                        </div>
+
+                        {/* Роль, Статус, Дата — только просмотр, без изменений */}
+                        <div style={styles.infoRow}>
+                            <span style={styles.label}>Роль:</span>
+                            <span style={styles.value}>{getRoleText(profile.role)}</span>
+                        </div>
+
+                        <div style={styles.infoRow}>
+                            <span style={styles.label}>Статус:</span>
+                            <span style={styles.value}>
+                            {profile.is_active
+                                ? <span style={styles.statusActive}>Активен</span>
+                                : <span style={styles.statusInactive}>Неактивен</span>
+                            }
+                            </span>
+                        </div>
+
+                        <div style={styles.infoRow}>
+                            <span style={styles.label}>Дата регистрации:</span>
+                            <span style={styles.value}>{formatDate(profile.created_at)}</span>
+                        </div>
+                    </div>
+                    )}
+                    {error && <p style={styles.error}>{error}</p>}
                     <div style={styles.buttonGroup}>
-                        <button
-                            style={styles.button}
-                            onClick={() => navigate("/tables")}
-                        >
-                            Вернуться к таблицам
-                        </button>
+                        {isEditing ? (
+                            <>
+                                <button style={styles.button} onClick={handleSave} disabled={saving}>
+                                    {saving ? "Сохранение..." : "Сохранить"}
+                                </button>
+                                <button style={{...styles.button, background: "#aaa"}} onClick={handleCancel}>
+                                    Отмена
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button style={styles.button} onClick={handleEditClick}>
+                                    Редактировать профиль
+                                </button>
+                                <button style={{...styles.button, background: "#aaa"}} onClick={() => navigate("/tables")}>
+                                    К таблицам
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -299,5 +365,15 @@ const styles: Record<string, React.CSSProperties> = {
         fontWeight: 600,
         color: "#4CAF50",
         cursor: "pointer",
+    },
+
+    input: {
+    fontSize: 15,
+    padding: "6px 10px",
+    borderRadius: 6,
+    border: "1px solid #4CAF50",
+    outline: "none",
+    width: 220,
+    color: "#333",
     },
 };
