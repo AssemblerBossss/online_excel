@@ -7,7 +7,6 @@ on:
   workflow_run:
     workflows:
       - "CI - Auth Service"
-      - "CI - API Gateway Service"
       - "CI - Table Service"
     types: [ completed ]
     branches: [ main, develop ]
