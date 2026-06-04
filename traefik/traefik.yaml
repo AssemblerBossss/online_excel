@@ -1,0 +1,30 @@
+entryPoints:
+  web:
+    address: ":80"
+
+api:
+  dashboard: true
+  insecure: true
+
+accessLog:
+  format: json
+
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+
+    # Добавляет лейбл "service" к метрикам
+    # Позволяет видеть метрики по каждому сервису отдельно
+    # Пример: traefik_service_requests_total{service="my-app"}
+    addServicesLabels: true
+
+providers:
+  file:
+    # Файловый провайдер — читает конфигурацию из YAML/TOML файлов
+    filename: /etc/traefik/dynamic.yaml
+
+    # Следит за изменениями файла и применяет их без перезапуска Traefik
+    watch: true
+
+log:
+  level: INFO
