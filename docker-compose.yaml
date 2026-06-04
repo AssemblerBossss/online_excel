@@ -1,53 +1,22 @@
 services:
-  # ==================== API Gateway ====================
-  api_gateway:
-    build:
-      context: .
-      dockerfile: api_gateway/Dockerfile
-    container_name: online_excel_gateway
-    ports:
-      - "8080:8080"
-    depends_on:
-      auth_service:
-        condition: service_healthy
-      table_service:
-        condition: service_healthy
-    networks:
-      - appnet
-    volumes:
-      - ./api_gateway:/app/api_gateway
-    env_file:
-      - path: ./api_gateway/.env
-        required: false
-    environment:
-      # JWT (секрет — только через GitHub Secrets)
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-local_dev_secret}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      # URLs сервисов
-      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://auth_service:8001}
-      - MAIN_SERVICE_URL=${MAIN_SERVICE_URL:-http://table_service:8000}
-      # Redis
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      # Rate limiting & CORS
-      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
-      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
-      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000"]}
-      # Environment meta
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - ENVIRONMENT=${ENVIRONMENT:-local}
-    healthcheck:
-      test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8080/health/\")' || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
   # ==================== Auth Service ====================
   auth_service:
     build:
       context: .
       dockerfile: auth_service/Dockerfile
-    container_name: online_excel_auth_service
+    labels:
+      - "traefik.enable=true"
+      # публичные: login/register/refresh/logout — БЕЗ jwt
+      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
+      - "traefik.http.routers.auth.entrypoints=web"
+      - "traefik.http.routers.auth.service=auth_service"
+      - "traefik.http.routers.auth.middlewares=ratelimit@file,body-limit@file,cors@file"
+      # защищённые: /users/* — С jwt
+      - "traefik.http.routers.users.rule=PathPrefix(`/users`)"
+      - "traefik.http.routers.users.entrypoints=web"
+      - "traefik.http.routers.users.service=auth_service"
+      - "traefik.http.routers.users.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
+      - "traefik.http.services.auth_service.loadbalancer.server.port=8001"
     ports:
       - "8001:8001"
     env_file:
@@ -72,9 +41,11 @@ services:
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_RATE_LIMIT_DB=${REDIS_RATE_LIMIT_DB:-1}
       - REDIS_CACHE_DB=${REDIS_CACHE_DB:-2}
-      # JWT (обязательно через секрет!)
+      # JWT (RS256 — подпись приватным ключом, Traefik проверяет публичным)
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-local_dev_secret}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
+      - JWT_PRIVATE_KEY_PATH=/run/secrets/jwt_private.pem
+      - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public.pem
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-30}
       # Meta
@@ -97,10 +68,10 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    networks:
-      - appnet
     volumes:
       - ./auth_service:/app/auth_service
+      - ./keys/jwt_private.pem:/run/secrets/jwt_private.pem:ro
+      - ./keys/jwt_public.pem:/run/secrets/jwt_public.pem:ro
     healthcheck:
       test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/health/\")' || exit 1" ]
       interval: 10s
@@ -113,7 +84,13 @@ services:
     build:
       context: .
       dockerfile: table_service/Dockerfile
-    container_name: online_excel_table_service
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.table.rule=PathPrefix(`/tables`) || PathPrefix(`/data`) || PathPrefix(`/search`)"
+      - "traefik.http.services.table_service.loadbalancer.server.port=8000"
+      - "traefik.http.routers.table.entrypoints=web"
+      - "traefik.http.routers.table.service=table_service"
+      - "traefik.http.routers.table.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
     env_file:
       - path: ./table_service/.env
         required: false
@@ -152,8 +129,6 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
-    networks:
-      - appnet
     volumes:
       - ./table_service:/app/table_service
     healthcheck:
@@ -180,8 +155,6 @@ services:
       retries: 5
     ports:
       - "8010:5432"
-    networks:
-      - appnet
 
     volumes:
       - auth_pgdata:/var/lib/postgresql/data
@@ -203,8 +176,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - appnet
+
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgresql.conf:/etc/postgresql/postgresql.conf
@@ -222,8 +194,6 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
-    networks:
-      - appnet
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 10s
@@ -237,8 +207,6 @@ services:
     container_name: online_excel_redis
     ports:
       - "6379:6379"
-    networks:
-      - appnet
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
@@ -249,13 +217,11 @@ services:
     build: ./frontend
     container_name: online_excel_frontend
     depends_on:
-      - api_gateway
+      - traefik
     environment:
       VITE_API_URL: http://localhost:3000/api
     ports:
       - "3000:80"
-    networks:
-      - appnet
 
   elasticsearch:
     image: elasticsearch:9.3.0
@@ -272,8 +238,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
-    networks:
-      - appnet
+
     volumes:
       - es_data:/usr/share/elasticsearch/data
 
@@ -290,8 +255,7 @@ services:
       - "9001:9001"   # Web-консоль
     volumes:
       - minio_data:/data
-    networks:
-      - appnet
+
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1" ]
       interval: 10s
@@ -310,11 +274,24 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
-    networks:
-      - appnet
+
+  traefik:
+    image: traefik:v3.7
+    container_name: online_excel_traefik
+    ports:
+      - "8081:80"
+      - "8090:8080"
+    volumes:
+      - ./traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - ./traefik/dynamic.yaml:/etc/traefik/dynamic.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      auth_service:
+        condition: service_healthy
 
 networks:
-  appnet:
+  default:
+    name: appnet
     driver: bridge
 
 volumes:

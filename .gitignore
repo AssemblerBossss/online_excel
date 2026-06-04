@@ -4,3 +4,6 @@ __pycache__
 .env
 .env.local
 .qwen/
+
+# JWT signing key (RS256) — не коммитим приватный ключ
+keys/jwt_private.pem
