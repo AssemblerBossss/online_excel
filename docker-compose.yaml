@@ -12,8 +12,6 @@ services:
         condition: service_healthy
       table_service:
         condition: service_healthy
-    networks:
-      - appnet
     volumes:
       - ./api_gateway:/app/api_gateway
     env_file:
@@ -47,7 +45,13 @@ services:
     build:
       context: .
       dockerfile: auth_service/Dockerfile
-    container_name: online_excel_auth_service
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`) || PathPrefix(`/users`)"
+      - "traefik.http.routers.auth.entrypoints=web"
+      - "traefik.http.routers.auth.service=auth_service"
+      - "traefik.http.routers.auth.middlewares=ratelimit@file,body-limit@file,cors@file"
+      - "traefik.http.services.auth_service.loadbalancer.server.port=8001"
     ports:
       - "8001:8001"
     env_file:
@@ -97,8 +101,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    networks:
-      - appnet
     volumes:
       - ./auth_service:/app/auth_service
     healthcheck:
@@ -113,7 +115,13 @@ services:
     build:
       context: .
       dockerfile: table_service/Dockerfile
-    container_name: online_excel_table_service
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.table.rule=PathPrefix(`/tables`) || PathPrefix(`/data`) || PathPrefix(`/search`)"
+      - "traefik.http.services.table_service.loadbalancer.server.port=8000"
+      - "traefik.http.routers.table.entrypoints=web"
+      - "traefik.http.routers.table.service=table_service"
+      - "traefik.http.routers.table.middlewares=ratelimit@file,body-limit@file,cors@file"
     env_file:
       - path: ./table_service/.env
         required: false
@@ -152,8 +160,6 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
-    networks:
-      - appnet
     volumes:
       - ./table_service:/app/table_service
     healthcheck:
@@ -180,8 +186,6 @@ services:
       retries: 5
     ports:
       - "8010:5432"
-    networks:
-      - appnet
 
     volumes:
       - auth_pgdata:/var/lib/postgresql/data
@@ -203,8 +207,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - appnet
+
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgresql.conf:/etc/postgresql/postgresql.conf
@@ -222,8 +225,6 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
-    networks:
-      - appnet
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 10s
@@ -237,8 +238,6 @@ services:
     container_name: online_excel_redis
     ports:
       - "6379:6379"
-    networks:
-      - appnet
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
@@ -254,8 +253,6 @@ services:
       VITE_API_URL: http://localhost:3000/api
     ports:
       - "3000:80"
-    networks:
-      - appnet
 
   elasticsearch:
     image: elasticsearch:9.3.0
@@ -272,8 +269,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
-    networks:
-      - appnet
+
     volumes:
       - es_data:/usr/share/elasticsearch/data
 
@@ -290,8 +286,7 @@ services:
       - "9001:9001"   # Web-консоль
     volumes:
       - minio_data:/data
-    networks:
-      - appnet
+
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1" ]
       interval: 10s
@@ -310,11 +305,24 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
-    networks:
-      - appnet
+
+  traefik:
+    image: traefik:v3.7
+    container_name: online_excel_traefik
+    ports:
+      - "8081:80"
+      - "8090:8080"
+    volumes:
+      - ./traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - ./traefik/dynamic.yaml:/etc/traefik/dynamic.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      auth_service:
+        condition: service_healthy
 
 networks:
-  appnet:
+  default:
+    name: appnet
     driver: bridge
 
 volumes:
