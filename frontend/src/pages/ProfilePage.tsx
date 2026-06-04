@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from "react";
 import {useNavigate} from "react-router-dom";
-import {getUserProfile, updateUser, uploadAvatar, UserProfile} from "../api/users";
+import {changePassword, getUserProfile, updateUser, uploadAvatar, UserProfile} from "../api/users";
 import SidebarWithToggle from '../components/SidebarWithToggle';
 
 const ProfilePage: React.FC = () => {
@@ -18,6 +18,15 @@ const ProfilePage: React.FC = () => {
         first_name: "",
         last_name: ""
     });
+
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [passwordForm, setPasswordForm] = useState({
+        old_password: "",
+        new_password: "",
+        confirm_password: ""
+    });
+    const [passwordError, setPasswordError] = useState("");
+    const [passwordSaving, setPasswordSaving] = useState(false);
 
 
     useEffect(() => {
@@ -88,6 +97,52 @@ const ProfilePage: React.FC = () => {
             }
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handlePasswordOpen = () => {
+        setIsChangingPassword(true);
+        setPasswordError("");
+        setPasswordForm({
+            old_password: "",
+            new_password: "",
+            confirm_password: ""
+        });
+    };
+
+    const handlePasswordCancel = () => {
+        setIsChangingPassword(false);
+        setPasswordError("");
+    };
+
+    const handlePasswordSave = async () => {
+        if (passwordForm.new_password !== passwordForm.confirm_password) {
+            setPasswordError("Новый пароль и подтверждение не совпадают");
+            return;
+        }
+        if (passwordForm.new_password === passwordForm.old_password) {
+            setPasswordError("Новый пароль совпадает со старым");
+            return;
+        }
+        if (passwordForm.new_password.length < 5) {
+            setPasswordError("Пароль должен содержать не менее 5 символов");
+            return;
+        }
+
+        setPasswordSaving(true);
+        setPasswordError("");
+        try {
+            await changePassword(passwordForm);
+            setIsChangingPassword(false);
+        } catch (err: any) {
+            const detail = err.response?.data?.detail;
+            if (Array.isArray(detail)) {
+                setPasswordError(detail[0]?.msg || "Не удалось сменить пароль");
+            } else {
+                setPasswordError(detail || "Не удалось сменить пароль");
+            }
+        } finally {
+            setPasswordSaving(false);
         }
     };
 
@@ -213,6 +268,49 @@ const ProfilePage: React.FC = () => {
                     </div>
                     )}
                     {error && <p style={styles.error}>{error}</p>}
+                    {/* Блок безопасности */}
+                    <div style={styles.securitySection}>
+                        <span style={styles.sectionTitle}>🔒 Безопасность</span>
+
+                        {isChangingPassword ? (
+                            <div style={styles.passwordForm}>
+                                <input
+                                    style={styles.input}
+                                    type="password"
+                                    placeholder="Текущий пароль"
+                                    value={passwordForm.old_password}
+                                    onChange={(e) => setPasswordForm({...passwordForm, old_password: e.target.value})}
+                                />
+                                <input
+                                    style={styles.input}
+                                    type="password"
+                                    placeholder="Новый пароль"
+                                    value={passwordForm.new_password}
+                                    onChange={(e) => setPasswordForm({...passwordForm, new_password: e.target.value})}
+                                />
+                                <input
+                                    style={styles.input}
+                                    type="password"
+                                    placeholder="Подтвердите новый пароль"
+                                    value={passwordForm.confirm_password}
+                                    onChange={(e) => setPasswordForm({...passwordForm, confirm_password: e.target.value})}
+                                />
+                                {passwordError && <p style={styles.error}>{passwordError}</p>}
+                                <div style={styles.passwordButtons}>
+                                    <button style={styles.button} onClick={handlePasswordSave} disabled={passwordSaving}>
+                                        {passwordSaving ? "Сохранение..." : "Сохранить"}
+                                    </button>
+                                    <button style={{...styles.button, background: "#aaa"}} onClick={handlePasswordCancel}>
+                                        Отмена
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <button style={styles.passwordButton} onClick={handlePasswordOpen}>
+                                Сменить пароль
+                            </button>
+                        )}
+                    </div>
                     <div style={styles.buttonGroup}>
                         {isEditing ? (
                             <>
@@ -368,12 +466,52 @@ const styles: Record<string, React.CSSProperties> = {
     },
 
     input: {
-    fontSize: 15,
-    padding: "6px 10px",
-    borderRadius: 6,
-    border: "1px solid #4CAF50",
-    outline: "none",
-    width: 220,
-    color: "#333",
+        fontSize: 15,
+        padding: "6px 10px",
+        borderRadius: 6,
+        border: "1px solid #4CAF50",
+        outline: "none",
+        width: 220,
+        color: "#333",
+    },
+
+    securitySection: {
+        marginTop: 28,
+        paddingTop: 24,
+        borderTop: "1px solid #e0e0e0",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+    },
+
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: 600,
+        color: "#555",
+    },
+
+    passwordForm: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+    },
+
+    passwordButtons: {
+        display: "flex",
+        gap: 12,
+        marginTop: 4,
+    },
+    
+    passwordButton: {
+        width: "100%",
+        padding: "10px 20px",
+        borderRadius: 6,
+        border: "1px solid #4CAF50",
+        background: "transparent",
+        color: "#4CAF50",
+        fontSize: 14,
+        fontWeight: 600,
+        cursor: "pointer",
+        alignSelf: "flex-start",
     },
 };

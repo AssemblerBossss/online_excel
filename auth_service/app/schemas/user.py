@@ -61,6 +61,20 @@ class SUserRegister(UserBase):
         return self
 
 
+class SUserChangePassword(BaseModel):
+    old_password: str = Field(min_length=5, max_length=50)
+    new_password: str = Field(min_length=5, max_length=50)
+    confirm_password: str = Field(min_length=5, max_length=50)
+
+    @model_validator(mode="after")
+    def check_password(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError("Пароли не совпадают")
+        if self.new_password == self.old_password:
+            raise ValueError("Новый пароль совпадает со старым")
+        return self
+
+
 class SUserAddDB(UserBase):
     hashed_password: str = Field(
         min_length=5, description="Пароль в формате HASH-строки"

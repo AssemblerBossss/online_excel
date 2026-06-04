@@ -17,10 +17,19 @@ export interface UserProfileUpdate {
     last_name?: string;
 }
 
+
+export interface ChangePasswordPayload {
+    old_password: string;
+    new_password: string;
+    confirm_password: string;
+}
+
+
 export const getUserProfile = async (): Promise<UserProfile> => {
     const response = await api.get("/users/me/");
     return response.data;
 };
+
 
 export const uploadAvatar = async (userId: number, file: File): Promise<UserProfile> => {
     const formData = new FormData();
@@ -37,4 +46,11 @@ export const updateUser = async (userId: number, data: UserProfileUpdate): Promi
     const response = await api.patch(`/users/${userId}`, data);
     return response.data
 };
+
+
+export const changePassword = async (payload: ChangePasswordPayload): Promise<void> => {
+    await api.post(`/users/me/change-password`, payload);
+}
+
+
 
