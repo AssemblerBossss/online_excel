@@ -1,45 +1,4 @@
 services:
-  # ==================== API Gateway ====================
-  api_gateway:
-    build:
-      context: .
-      dockerfile: api_gateway/Dockerfile
-    container_name: online_excel_gateway
-    ports:
-      - "8080:8080"
-    depends_on:
-      auth_service:
-        condition: service_healthy
-      table_service:
-        condition: service_healthy
-    volumes:
-      - ./api_gateway:/app/api_gateway
-    env_file:
-      - path: ./api_gateway/.env
-        required: false
-    environment:
-      # JWT (секрет — только через GitHub Secrets)
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-local_dev_secret}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      # URLs сервисов
-      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://auth_service:8001}
-      - MAIN_SERVICE_URL=${MAIN_SERVICE_URL:-http://table_service:8000}
-      # Redis
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      # Rate limiting & CORS
-      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
-      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
-      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000"]}
-      # Environment meta
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - ENVIRONMENT=${ENVIRONMENT:-local}
-    healthcheck:
-      test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8080/health/\")' || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
   # ==================== Auth Service ====================
   auth_service:
     build:
@@ -47,10 +6,16 @@ services:
       dockerfile: auth_service/Dockerfile
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`) || PathPrefix(`/users`)"
+      # публичные: login/register/refresh/logout — БЕЗ jwt
+      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
       - "traefik.http.routers.auth.entrypoints=web"
       - "traefik.http.routers.auth.service=auth_service"
       - "traefik.http.routers.auth.middlewares=ratelimit@file,body-limit@file,cors@file"
+      # защищённые: /users/* — С jwt
+      - "traefik.http.routers.users.rule=PathPrefix(`/users`)"
+      - "traefik.http.routers.users.entrypoints=web"
+      - "traefik.http.routers.users.service=auth_service"
+      - "traefik.http.routers.users.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
       - "traefik.http.services.auth_service.loadbalancer.server.port=8001"
     ports:
       - "8001:8001"
@@ -121,7 +86,7 @@ services:
       - "traefik.http.services.table_service.loadbalancer.server.port=8000"
       - "traefik.http.routers.table.entrypoints=web"
       - "traefik.http.routers.table.service=table_service"
-      - "traefik.http.routers.table.middlewares=ratelimit@file,body-limit@file,cors@file"
+      - "traefik.http.routers.table.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
     env_file:
       - path: ./table_service/.env
         required: false

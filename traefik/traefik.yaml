@@ -30,11 +30,11 @@ providers:
     # Следит за изменениями файла и применяет их без перезапуска Traefik
     watch: true
 
-  experimental:
-    plugins:
-      jwt:
-        moduleName: github.com/traefik-plugins/traefik-jwt-plugin
-        version: v0.10.0
+experimental:
+  plugins:
+    jwt:
+      moduleName: github.com/traefik-plugins/traefik-jwt-plugin
+      version: v0.10.0
 
 
 log:

@@ -9,6 +9,14 @@ http:
           ipStrategy:
             depth: 1          # за nginx — берём реальный IP из X-Forwarded-For
 
+    strip-user-headers:
+      headers:
+        customRequestHeaders:
+          X-User-ID: ""
+          X-User-Email: ""
+          X-User-Role: ""
+          X-User-Active: ""
+
     body-limit:
       buffering:
         maxRequestBodyBytes: 10485760   # 10 MB
@@ -16,16 +24,17 @@ http:
     jwt-auth:
       plugin:
         jwt:
-          required: true
-          alg: HS256
-          keys:
-            - local_dev_secret       # тот же JWT_SECRET_KEY, что в auth_service
-          payloadFields:
-            - exp                     # обязательные поля в payload
-          forwardHeaders:
-            X-User-Id: sub
+          Required: true
+          Alg: HS256
+          Keys:
+            - '{"kty":"oct","alg":"HS256","k":"bG9jYWxfZGV2X3NlY3JldA"}'
+          PayloadFields:
+            - exp
+          JwtHeaders:
+            X-User-ID: user_id
             X-User-Email: email
             X-User-Role: role
+            X-User-Active: is_active
 
     cors:
       headers:
