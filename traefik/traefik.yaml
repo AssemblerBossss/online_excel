@@ -19,6 +19,10 @@ metrics:
     addServicesLabels: true
 
 providers:
+  docker:
+    exposedByDefault: false
+    network: appnet
+
   file:
     # Файловый провайдер — читает конфигурацию из YAML/TOML файлов
     filename: /etc/traefik/dynamic.yaml
