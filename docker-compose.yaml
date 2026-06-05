@@ -99,6 +99,8 @@ services:
     depends_on:
       auth_db:
         condition: service_healthy
+      auth_migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       rabbitmq:
@@ -158,6 +160,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      table_migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
