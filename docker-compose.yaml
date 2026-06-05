@@ -1,4 +1,41 @@
 services:
+  # ==================== Table migration ====================
+
+  table_migrate:
+    build:
+      context: .
+      dockerfile: table_service/Dockerfile
+    command: alembic -c table_service/alembic.ini upgrade head
+
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - EXCEL_APP__DB_HOST=${TABLE_DB_HOST:-db}
+      - EXCEL_APP__DB_PORT=${TABLE_DB_PORT:-5432}
+      - EXCEL_APP__DB_USER=${TABLE_DB_USER:-postgres}
+      - EXCEL_APP__DB_PASSWORD=${TABLE_DB_PASSWORD:-online_excel}
+      - EXCEL_APP__DB_NAME=${TABLE_DB_NAME:-online_excel}
+      - EXCEL_APP__DB_DRIVER=${TABLE_DB_DRIVER:-postgresql+asyncpg}
+    restart: "no"
+
+  auth_migrate:
+    build:
+      context: .
+      dockerfile: auth_service/Dockerfile
+    command: alembic -c auth_service/alembic.ini upgrade head
+    depends_on:
+      auth_db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=${AUTH_DB_HOST:-auth_db}
+      - DB_PORT=${AUTH_DB_PORT:-5432}
+      - DB_USER=${AUTH_DB_USER:-postgres}
+      - DB_PASSWORD=${AUTH_DB_PASSWORD:-postgres}
+      - DB_NAME=${AUTH_DB_NAME:-auth_db}
+      - DB_DRIVER=${AUTH_DB_DRIVER:-postgresql+asyncpg}
+    restart: "no"
+
   # ==================== Auth Service ====================
   auth_service:
     build:
