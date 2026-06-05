@@ -10,7 +10,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from auth_service.app.config import auth_service_settings
 from auth_service.app.utils import avatar_storage
-from auth_service.app.сore import init_db, setup_service_logging, limiter
+from auth_service.app.сore import setup_service_logging, limiter
 from auth_service.app.routers import auth_router, user_router, health_router
 from auth_service.app.events import event_publisher
 from auth_service.app.exceptions import AppException
@@ -33,9 +33,6 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Auth Service...")
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
-
-    await init_db()
-    logger.info("✅ Database initialized")
 
     await event_publisher.connect()
     logger.info("✅ Event publisher connected")

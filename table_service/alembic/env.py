@@ -9,7 +9,7 @@ from alembic import context
 
 from table_service.app.core.settings import app_settings
 from table_service.app.core.database import Base
-
+import table_service.app.models  # noqa: F401
 
 config = context.config
 

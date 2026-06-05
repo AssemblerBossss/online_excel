@@ -17,7 +17,6 @@ from table_service.app.api.endpoints import (
     health_router,
 )
 from table_service.app.core import (
-    init_db,
     app_settings,
     user_event_consumer,
     setup_service_logging,
@@ -111,7 +110,6 @@ def register_exception_handlers(app: FastAPI) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
-    await init_db()
     await init_es_index()
 
     redis = Redis(
