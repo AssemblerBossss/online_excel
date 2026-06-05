@@ -7,9 +7,9 @@ scrape_configs:
     static_configs:
       - targets: [ "localhost:9090" ]
 
-  - job_name: "api_gateway"
+  - job_name: "traefik"
     static_configs:
-      - targets: [ "api_gateway:8080" ]
+      - targets: [ "traefik:8080" ]
 
   - job_name: "auth_service"
     static_configs:
