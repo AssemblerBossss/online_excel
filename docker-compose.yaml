@@ -260,9 +260,9 @@ services:
     depends_on:
       - traefik
     environment:
-      VITE_API_URL: http://localhost:3000/api
+      VITE_API_URL: http://localhost:11000/api
     ports:
-      - "3000:80"
+      - "11000:80"
 
   elasticsearch:
     image: elasticsearch:9.3.0
@@ -316,6 +316,14 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
+
+  grafana:
+    image: grafana/grafana:12.2.9
+    container_name: online_excel_grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - "./grafana_data:/var/lib/grafana"
 
   traefik:
     image: traefik:v3.7
