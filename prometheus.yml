@@ -23,3 +23,7 @@ scrape_configs:
     static_configs:
       - targets: [ "minio:9000" ]
     metrics_path: "/minio/v2/metrics/cluster"
+    
+  - job_name: "rabbitmq"
+    static_configs:
+      - targets: [ "rabbitmq:15692" ]

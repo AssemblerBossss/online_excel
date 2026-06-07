@@ -36,6 +36,16 @@ services:
       - DB_DRIVER=${AUTH_DB_DRIVER:-postgresql+asyncpg}
     restart: "no"
 
+  frontend:
+    build: ./frontend
+    container_name: online_excel_frontend
+    depends_on:
+      - traefik
+    environment:
+      VITE_API_URL: http://localhost:11000/api
+    ports:
+      - "11000:80"
+
   # ==================== Auth Service ====================
   auth_service:
     build:
@@ -254,16 +264,6 @@ services:
       timeout: 3s
       retries: 5
 
-  frontend:
-    build: ./frontend
-    container_name: online_excel_frontend
-    depends_on:
-      - traefik
-    environment:
-      VITE_API_URL: http://localhost:11000/api
-    ports:
-      - "11000:80"
-
   elasticsearch:
     image: elasticsearch:9.3.0
     container_name: online_excel_elasticsearch
@@ -320,10 +320,17 @@ services:
   grafana:
     image: grafana/grafana:12.2.9
     container_name: online_excel_grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
     ports:
       - "3000:3000"
+    depends_on:
+      - prometheus
     volumes:
-      - "./grafana_data:/var/lib/grafana"
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
 
   traefik:
     image: traefik:v3.7
@@ -351,3 +358,4 @@ volumes:
   es_data:
   minio_data:
   prom_data:
+  grafana_data:
