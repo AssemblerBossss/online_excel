@@ -293,34 +293,44 @@ services:
     entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
-        # Проверяем, что файл с ключом существует
         if [ ! -f "$$JWT_PUBLIC_KEY_FILE" ]; then
           echo "ERROR: JWT public key file not found at $$JWT_PUBLIC_KEY_FILE"
           exit 1
         fi
 
-        # Читаем ключ и экранируем для YAML
-        JWT_PUBLIC_KEY=$$(cat $$JWT_PUBLIC_KEY_FILE | awk '{printf "%s\\n", $$0}')
+        echo "Generating dynamic.yaml from template..."
 
-        # Проверяем, что ключ не пустой
-        if [ -z "$$JWT_PUBLIC_KEY" ]; then
-          echo "ERROR: JWT public key is empty"
-          exit 1
-        fi
+        # Вставляем ключ на место ${JWT_PUBLIC_KEY}, сохраняя отступ строки-плейсхолдера
+        awk -v keyfile="$$JWT_PUBLIC_KEY_FILE" '
+          /\$\{JWT_PUBLIC_KEY\}/ {
+            match($$0, /^[[:space:]]*/)
+            indent = substr($$0, 1, RLENGTH)
+            while ((getline line < keyfile) > 0) print indent line
+            next
+          }
+          { print }
+        ' /etc/traefik/dynamic.yaml.tmpl > /etc/traefik/dynamic.yaml
 
         echo "Generating dynamic.yaml from template..."
 
-        # Генерируем конфиг и проверяем успешность
-        if envsubst '$$JWT_PUBLIC_KEY' < /etc/traefik/dynamic.yaml.tmpl > /etc/traefik/dynamic.yaml; then
-          echo "dynamic.yaml generated successfully"
-          echo "First few lines of generated config:"
-          head -n 10 /etc/traefik/dynamic.yaml
-        else
+        # Вставляем ключ на место ${JWT_PUBLIC_KEY}, сохраняя отступ строки-плейсхолдера
+        awk -v keyfile="$$JWT_PUBLIC_KEY_FILE" '
+          /\$\{JWT_PUBLIC_KEY\}/ {
+            match($$0, /^[[:space:]]*/)
+            indent = substr($$0, 1, RLENGTH)
+            while ((getline line < keyfile) > 0) print indent line
+            next
+          }
+          { print }
+        ' /etc/traefik/dynamic.yaml.tmpl > /etc/traefik/dynamic.yaml
+
+        if [ ! -s /etc/traefik/dynamic.yaml ]; then
           echo "ERROR: Failed to generate dynamic.yaml"
           exit 1
         fi
+        echo "dynamic.yaml generated successfully"
+        head -n 35 /etc/traefik/dynamic.yaml
 
-        # Запускаем Traefik
         traefik --configfile=/etc/traefik/traefik.yaml
     depends_on:
       auth_service:
