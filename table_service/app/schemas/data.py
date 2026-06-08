@@ -7,6 +7,9 @@ class TableRowBase(BaseModel):
     """Базовая схема для строки таблицы с данными в формате ключ-значение"""
 
     row_data: dict[str, Any]
+    # Исходные формулы ячеек. Ключ — имя колонки, значение — формула ("=5+5").
+    # None означает отсутствие формул в строке.
+    formulas: dict[str, str] | None = None
 
 
 class TableRowCreate(TableRowBase):

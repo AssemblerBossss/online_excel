@@ -21,6 +21,11 @@ class TableRow(Base):
 
     row_data: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
 
+    # Хранит исходные формулы ячеек с формуламию
+    # Ключ - имя колонки, значение - строка формулы (например "А1+В1").
+    # NULL - если строка не содержит формул
+    formulas: Mapped[Optional[Dict[str, str]]] = mapped_column(JSON, nullable=True)
+
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
