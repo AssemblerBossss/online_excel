@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB в байтах
 
     @cached_property
-    def db_url(self) -> str:
+    def DATABASE_URL(self) -> str:
         return f"{self.DB_DRIVER}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     @cached_property

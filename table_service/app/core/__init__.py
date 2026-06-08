@@ -1,4 +1,4 @@
-from .database import Base, get_db_session, AsyncSessionFactory, init_db
+from .database import Base, get_db_session, AsyncSessionFactory
 from .settings import app_settings
 from .rabbitmq import get_user_validator
 from .logging_config import setup_service_logging
@@ -11,7 +11,6 @@ __all__ = [
     "app_settings",
     "get_db_session",
     "AsyncSessionFactory",
-    "init_db",
     "get_user_validator",
     "setup_service_logging",
     "user_event_consumer",

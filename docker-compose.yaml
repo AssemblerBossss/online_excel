@@ -1,4 +1,51 @@
 services:
+  # ==================== Table migration ====================
+
+  table_migrate:
+    build:
+      context: .
+      dockerfile: table_service/Dockerfile
+    command: alembic -c table_service/alembic.ini upgrade head
+
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - EXCEL_APP__DB_HOST=${TABLE_DB_HOST:-db}
+      - EXCEL_APP__DB_PORT=${TABLE_DB_PORT:-5432}
+      - EXCEL_APP__DB_USER=${TABLE_DB_USER:-postgres}
+      - EXCEL_APP__DB_PASSWORD=${TABLE_DB_PASSWORD:-online_excel}
+      - EXCEL_APP__DB_NAME=${TABLE_DB_NAME:-online_excel}
+      - EXCEL_APP__DB_DRIVER=${TABLE_DB_DRIVER:-postgresql+asyncpg}
+    restart: "no"
+
+  auth_migrate:
+    build:
+      context: .
+      dockerfile: auth_service/Dockerfile
+    command: alembic -c auth_service/alembic.ini upgrade head
+    depends_on:
+      auth_db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=${AUTH_DB_HOST:-auth_db}
+      - DB_PORT=${AUTH_DB_PORT:-5432}
+      - DB_USER=${AUTH_DB_USER:-postgres}
+      - DB_PASSWORD=${AUTH_DB_PASSWORD:-postgres}
+      - DB_NAME=${AUTH_DB_NAME:-auth_db}
+      - DB_DRIVER=${AUTH_DB_DRIVER:-postgresql+asyncpg}
+    restart: "no"
+
+  frontend:
+    build: ./frontend
+    container_name: online_excel_frontend
+    depends_on:
+      - traefik
+    environment:
+      VITE_API_URL: http://localhost:11000/api
+    ports:
+      - "11000:80"
+
   # ==================== Auth Service ====================
   auth_service:
     build:
@@ -62,6 +109,8 @@ services:
     depends_on:
       auth_db:
         condition: service_healthy
+      auth_migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       rabbitmq:
@@ -121,6 +170,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      table_migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -213,17 +264,6 @@ services:
       timeout: 3s
       retries: 5
 
-  frontend:
-    build: ./frontend
-    container_name: online_excel_frontend
-    depends_on:
-      traefik:
-        condition: service_started  # или service_healthy, если добавите healthcheck traefik
-    environment:
-      VITE_API_URL: http://localhost:3000/api
-    ports:
-      - "3000:80"
-
   elasticsearch:
     image: elasticsearch:9.3.0
     container_name: online_excel_elasticsearch
@@ -276,6 +316,21 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
+
+  grafana:
+    image: grafana/grafana:12.2.9
+    container_name: online_excel_grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
 
   traefik:
     image: traefik:v3.7
@@ -348,3 +403,4 @@ volumes:
   es_data:
   minio_data:
   prom_data:
+  grafana_data:
