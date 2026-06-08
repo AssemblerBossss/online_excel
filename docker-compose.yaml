@@ -217,7 +217,8 @@ services:
     build: ./frontend
     container_name: online_excel_frontend
     depends_on:
-      - traefik
+      traefik:
+        condition: service_started  # или service_healthy, если добавите healthcheck traefik
     environment:
       VITE_API_URL: http://localhost:3000/api
     ports:
@@ -283,9 +284,44 @@ services:
       - "8081:80"
       - "8090:8080"
     volumes:
+      - ./keys/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+      - ./traefik/dynamic.yaml.tmpl:/etc/traefik/dynamic.yaml.tmpl:ro
       - ./traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
-      - ./traefik/dynamic.yaml:/etc/traefik/dynamic.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public.pem
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        # Проверяем, что файл с ключом существует
+        if [ ! -f "$$JWT_PUBLIC_KEY_FILE" ]; then
+          echo "ERROR: JWT public key file not found at $$JWT_PUBLIC_KEY_FILE"
+          exit 1
+        fi
+
+        # Читаем ключ и экранируем для YAML
+        JWT_PUBLIC_KEY=$$(cat $$JWT_PUBLIC_KEY_FILE | awk '{printf "%s\\n", $$0}')
+
+        # Проверяем, что ключ не пустой
+        if [ -z "$$JWT_PUBLIC_KEY" ]; then
+          echo "ERROR: JWT public key is empty"
+          exit 1
+        fi
+
+        echo "Generating dynamic.yaml from template..."
+
+        # Генерируем конфиг и проверяем успешность
+        if envsubst '$$JWT_PUBLIC_KEY' < /etc/traefik/dynamic.yaml.tmpl > /etc/traefik/dynamic.yaml; then
+          echo "dynamic.yaml generated successfully"
+          echo "First few lines of generated config:"
+          head -n 10 /etc/traefik/dynamic.yaml
+        else
+          echo "ERROR: Failed to generate dynamic.yaml"
+          exit 1
+        fi
+
+        # Запускаем Traefik
+        traefik --configfile=/etc/traefik/traefik.yaml
     depends_on:
       auth_service:
         condition: service_healthy
