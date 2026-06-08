@@ -46,7 +46,6 @@ services:
     ports:
       - "11000:80"
 
-  # ==================== Auth Service ====================
   auth_service:
     build:
       context: .
@@ -64,6 +63,9 @@ services:
       - "traefik.http.routers.users.service=auth_service"
       - "traefik.http.routers.users.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
       - "traefik.http.services.auth_service.loadbalancer.server.port=8001"
+
+      - "prometheus.scrape=true"
+      - "prometheus.port=8001"
     ports:
       - "8001:8001"
     env_file:
@@ -140,6 +142,9 @@ services:
       - "traefik.http.routers.table.entrypoints=web"
       - "traefik.http.routers.table.service=table_service"
       - "traefik.http.routers.table.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
+
+      - "prometheus.scrape=true"
+      - "prometheus.port=8000"
     env_file:
       - path: ./table_service/.env
         required: false
@@ -239,6 +244,9 @@ services:
     ports:
       - "5672:5672"      # AMQP protocol
       - "15672:15672"    # Management UI
+    labels:
+      - "prometheus.scrape=true"
+      - "prometheus.port=15692"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
@@ -291,7 +299,10 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_PROMETHEUS_AUTH_TYPE: "public"
-
+    labels:
+      - "prometheus.scrape=true"
+      - "prometheus.port=9000"
+      - "prometheus.path=/minio/v2/metrics/cluster"
     ports:
       - "9000:9000"   # S3 API
       - "9001:9001"   # Web-консоль
@@ -308,11 +319,13 @@ services:
   prometheus:
     image: prom/prometheus:v3.11.3
     container_name: online_excel_prometheus
+    user: root
     ports:
       - "9090:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prom_data:/prometheus
+      - /var/run/docker.sock:/var/run/docker.sock
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -343,6 +356,9 @@ services:
       - ./infra/traefik/dynamic.yaml.tmpl:/etc/traefik/dynamic.yaml.tmpl:ro
       - ./infra/traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - "prometheus.scrape=true"
+      - "prometheus.port=8080"
     environment:
       - JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public.pem
     entrypoint: [ "/bin/sh", "-c" ]

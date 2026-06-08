@@ -2,81 +2,32 @@ global:
   scrape_interval: 10s
 
 scrape_configs:
-  - job_name: "prometheus"
-    static_configs:
-      - targets: [ "localhost:9090" ]
-    relabel_configs:
-      - source_labels: [ __address__ ]
-        regex: "(.*):(.*)"
-        replacement: "$2"
-        target_label: port
-      - source_labels: [ __address__ ]
-        regex: "(.*):(.*)"
-        replacement: "$1"
-        target_label: host
 
-  - job_name: "traefik"
-    static_configs:
-      - targets: [ "traefik:8080" ]
-    relabel_configs:
-      - source_labels: [ __address__ ]
-        regex: "(.*):(.*)"
-        replacement: "$2"
-        target_label: port
-      - source_labels: [ __address__ ]
-        regex: "(.*):(.*)"
-        replacement: "$1"
-        target_label: host
+  - job_name: "docker-sd"
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
 
-  - job_name: "auth_service"
-    static_configs:
-      - targets: [ "auth_service:8001" ]
     relabel_configs:
-      - source_labels: [ __address__ ]
-        regex: "(.*):(.*)"
-        replacement: "$2"
-        target_label: port
-      - source_labels: [ __address__ ]
-        regex: "(.*):(.*)"
-        replacement: "$1"
-        target_label: host
+      # Оставить только контейнеры с лейблом prometheus.scrape=true
+      - source_labels: [ __meta_docker_container_label_prometheus_scrape ]
+        regex: "true"
+        action: keep
 
-  - job_name: "table_service"
-    static_configs:
-      - targets: [ "table_service:8000" ]
-    relabel_configs:
-      - source_labels: [ __address__ ]
-        regex: "(.*):(.*)"
-        replacement: "$2"
-        target_label: port
-      - source_labels: [ __address__ ]
-        regex: "(.*):(.*)"
-        replacement: "$1"
-        target_label: host
+      # Взять путь /metrics из лейбла (если указан)
+      - source_labels: [ __meta_docker_container_label_prometheus_path ]
+        regex: "(.+)"
+        target_label: __metrics_path__
 
-  - job_name: "minio"
-    static_configs:
-      - targets: [ "minio:9000" ]
-    metrics_path: "/minio/v2/metrics/cluster"
-    relabel_configs:
-      - source_labels: [ __address__ ]
-        regex: "(.*):(.*)"
-        replacement: "$2"
-        target_label: port
-      - source_labels: [ __address__ ]
-        regex: "(.*):(.*)"
-        replacement: "$1"
-        target_label: host
+      # Взять порт из лейбла контейнера
+      - source_labels: [ __address__, __meta_docker_container_label_prometheus_port ]
+        regex: "([^:]+)(?::\\d+)?;(\\d+)"
+        replacement: "$1:$2"
+        target_label: __address__
 
-  - job_name: "rabbitmq"
-    static_configs:
-      - targets: [ "rabbitmq:15692" ]
-    relabel_configs:
-      - source_labels: [ __address__ ]
-        regex: "(.*):(.*)"
-        replacement: "$2"
+      # Имя контейнера → лейбл job
+      - source_labels: [ __meta_docker_container_name ]
+        regex: "/?(.*)"
+        target_label: job
+
+      - source_labels: [ __meta_docker_container_label_prometheus_port ]
         target_label: port
-      - source_labels: [ __address__ ]
-        regex: "(.*):(.*)"
-        replacement: "$1"
-        target_label: host
