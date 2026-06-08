@@ -30,9 +30,10 @@ api_gateway (:8080)  ── JWT auth, rate limit, circuit breaker, request loggi
 ## Landmines (read before editing)
 
 - **`auth_service/app/сore/` is spelled with a Cyrillic `с`**, not Latin `core`. Imports read `from auth_service.app.сore import ...`. If an import "looks right but fails," check for the homoglyph. (table_service uses a normal Latin `core/`.)
-- **The root `alembic/` and `Makefile` are stale relics** from before the service split — `alembic/env.py` and the Makefile import a `backend.app.*` package that no longer exists. Do **not** run `alembic upgrade` or `make run`. Schema is created at startup by each service via `Base.metadata.create_all` inside its `init_db()` (`*/app/*ore/database.py`). Don't add a migration step expecting the root alembic to work.
+- **No root-level migration tooling.** The old root `alembic.ini` and `Makefile` (which imported a long-gone `backend.app.*` package) have been **removed** — don't recreate them or run `alembic upgrade`/`make run` from the repo root. Each service owns its own Alembic config at `<service>/alembic.ini` (this is what docker-compose runs), and schema bootstrapping otherwise happens at startup via `Base.metadata.create_all` inside each service's `init_db()` (`*/app/*ore/database.py`).
 - **Each service has its own dependencies** (`<service>/requirements.txt`) and its own Postgres DB. The root `pyproject.toml`/`poetry.lock` is the superset for local tooling; CI installs per-service requirements.
 - **table_service config uses a prefixed env scheme**: pydantic-settings with `env_prefix="EXCEL_APP__"` and `env_nested_delimiter="__"`, so its env vars look like `EXCEL_APP__DB_HOST`. auth_service and api_gateway use plain names (`DB_HOST`, `JWT_SECRET_KEY`, …). docker-compose maps both.
+- **Infra configs live under `infra/`, not the repo root.** Postgres/RabbitMQ/Prometheus/Grafana/Traefik configs were moved out of the root into `infra/{postgres,rabbitmq,prometheus,grafana,traefik}/` and are bind-mounted from there in `docker-compose.yaml`. If you add or rename one, update its `volumes:` path in compose to match.
 
 ## Commands
 

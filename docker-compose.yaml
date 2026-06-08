@@ -209,7 +209,7 @@ services:
 
     volumes:
       - auth_pgdata:/var/lib/postgresql/data
-      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
     command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
 
   db:
@@ -230,7 +230,7 @@ services:
 
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
     command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
 
   rabbitmq:
@@ -244,7 +244,7 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ./infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 10s
@@ -311,7 +311,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prom_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -329,8 +329,8 @@ services:
       - prometheus
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
 
   traefik:
     image: traefik:v3.7
@@ -340,8 +340,8 @@ services:
       - "8090:8080"
     volumes:
       - ./keys/jwt_public.pem:/run/secrets/jwt_public.pem:ro
-      - ./traefik/dynamic.yaml.tmpl:/etc/traefik/dynamic.yaml.tmpl:ro
-      - ./traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - ./infra/traefik/dynamic.yaml.tmpl:/etc/traefik/dynamic.yaml.tmpl:ro
+      - ./infra/traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public.pem
