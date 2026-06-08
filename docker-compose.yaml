@@ -339,9 +339,54 @@ services:
       - "8081:80"
       - "8090:8080"
     volumes:
+      - ./keys/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+      - ./traefik/dynamic.yaml.tmpl:/etc/traefik/dynamic.yaml.tmpl:ro
       - ./traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
-      - ./traefik/dynamic.yaml:/etc/traefik/dynamic.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public.pem
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        if [ ! -f "$$JWT_PUBLIC_KEY_FILE" ]; then
+          echo "ERROR: JWT public key file not found at $$JWT_PUBLIC_KEY_FILE"
+          exit 1
+        fi
+
+        echo "Generating dynamic.yaml from template..."
+
+        # Вставляем ключ на место ${JWT_PUBLIC_KEY}, сохраняя отступ строки-плейсхолдера
+        awk -v keyfile="$$JWT_PUBLIC_KEY_FILE" '
+          /\$\{JWT_PUBLIC_KEY\}/ {
+            match($$0, /^[[:space:]]*/)
+            indent = substr($$0, 1, RLENGTH)
+            while ((getline line < keyfile) > 0) print indent line
+            next
+          }
+          { print }
+        ' /etc/traefik/dynamic.yaml.tmpl > /etc/traefik/dynamic.yaml
+
+        echo "Generating dynamic.yaml from template..."
+
+        # Вставляем ключ на место ${JWT_PUBLIC_KEY}, сохраняя отступ строки-плейсхолдера
+        awk -v keyfile="$$JWT_PUBLIC_KEY_FILE" '
+          /\$\{JWT_PUBLIC_KEY\}/ {
+            match($$0, /^[[:space:]]*/)
+            indent = substr($$0, 1, RLENGTH)
+            while ((getline line < keyfile) > 0) print indent line
+            next
+          }
+          { print }
+        ' /etc/traefik/dynamic.yaml.tmpl > /etc/traefik/dynamic.yaml
+
+        if [ ! -s /etc/traefik/dynamic.yaml ]; then
+          echo "ERROR: Failed to generate dynamic.yaml"
+          exit 1
+        fi
+        echo "dynamic.yaml generated successfully"
+        head -n 35 /etc/traefik/dynamic.yaml
+
+        traefik --configfile=/etc/traefik/traefik.yaml
     depends_on:
       auth_service:
         condition: service_healthy
