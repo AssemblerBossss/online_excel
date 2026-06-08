@@ -47,7 +47,7 @@ http:
 
     cors:
       headers:
-        accessControlAllowOriginList: [ "http://localhost:3000" ]
+        accessControlAllowOriginList: [ "http://localhost:11000" ]
         accessControlAllowMethods: [ "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS" ]
         accessControlAllowHeaders: [ "*" ]
         accessControlAllowCredentials: true
