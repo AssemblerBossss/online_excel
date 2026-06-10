@@ -32,6 +32,7 @@ class DataService:
             id=row.id,
             table_id=row.table_id,
             row_data=row.row_data,
+            formulas=row.formulas,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
@@ -124,6 +125,7 @@ class DataService:
             ):
                 raise AccessDeniedException()
 
+            # row_data уже содержит вычисленные значения (фронтенд считает сам)
             validation_errors = self.validation_service.validate_row_data(
                 table_columns_schema=table.columns_schema,
                 row_data=row_data,
