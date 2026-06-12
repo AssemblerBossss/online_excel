@@ -102,27 +102,38 @@ class DataRepository(Base):
         numeric_fields = numeric_fields or set()
         sort_by = sort_by or "id"
 
-        conditions = []
-
-        if sort_order.lower() == "asc":
-            stmt = (
-                select(TableRow)
-                .where(TableRow.table_id == table_id)
-                .limit(limit)
-                .offset(skip)
-                .order_by(asc(sort_by))
-            )
-        else:
-            stmt = (
-                select(TableRow)
-                .where(TableRow.table_id == table_id)
-                .limit(limit)
-                .offset(skip)
-                .order_by(desc(sort_by))
-            )
+        conditions = self._build_conditions(
+            table_id=table_id, filters=filters, numeric_fields=numeric_fields
+        )
+        sort_expr = self._sortable_expr(sort_by, sort_by in numeric_fields)
+        direction = asc if (sort_order or "asc").lower() == "asc" else desc
+        stmt = (
+            select(TableRow)
+            .where(*conditions)
+            .order_by(direction(sort_expr), asc(TableRow.id))
+            .limit(limit)
+            .offset(skip)
+        )
 
         result = await self._session.execute(stmt)
         return result.scalars().all()
+
+    async def count_rows_by_table_id(
+        self,
+        table_id: int,
+        filters: list[RowFilter] | None = None,
+        numeric_fields: set[str] | None = None,
+    ) -> int:
+        """Посчитать строки таблицы с учётом тех же фильтров (без limit/offset)."""
+        conditions = self._build_conditions(
+            table_id=table_id,
+            filters=filters or [],
+            numeric_fields=numeric_fields or set(),
+        )
+
+        stmt = select(func.count()).select_from(TableRow).where(*conditions)
+        result = await self._session.execute(stmt)
+        return result.scalar()
 
     async def get_row_by_id(self, table_id: int, row_id: int) -> TableRow | None:
         """Получить строку по ID."""

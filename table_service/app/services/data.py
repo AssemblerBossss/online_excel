@@ -1,8 +1,16 @@
 import logging
 from typing import Literal
 
+
 from table_service.app.core.unit_of_work import UnitOfWork
-from table_service.app.schemas import TableRowResponse, TableRowCreate, TableRowUpdate
+from table_service.app.schemas import (
+    TableRowResponse,
+    TableRowCreate,
+    TableRowUpdate,
+    RowFilter,
+    COMPARISON_OPERATORS,
+    PaginatedRows,
+)
 from table_service.app.exceptions import (
     AccessDeniedException,
     ValidationException,
@@ -47,8 +55,11 @@ class DataService:
         limit: int = 100,
         sort_by: str | None = None,
         sort_order: Literal["asc", "desc"] = "asc",
-    ) -> list[TableRowResponse]:
+        filters: list[RowFilter] | None = None,
+    ) -> PaginatedRows:
         """Получить строки таблицы"""
+        filters = filters or []
+
         async with uow_session.start():
             table = await uow_session.tables.get_table_by_id(table_id)
             if not table:
@@ -62,18 +73,51 @@ class DataService:
             ):
                 raise AccessDeniedException()
 
-            if not sort_by:
-                sort_by = "id"
+            schema = table.columns_schema or []
+            column_names = {c["name"] for c in schema if c.get("name")}
+            allowed = column_names | {"id", "created_at", "updated_at"}
+            numeric_fields = {
+                c["name"] for c in schema if c.get("type") == "number" and c.get("name")
+            }
 
+            sort_by = sort_by or "id"
+            if sort_by not in allowed:
+                raise ValidationException(
+                    f"Недопустимая колонка сортировки: '{sort_by}'"
+                )
+
+            for f in filters:
+                if f.field not in allowed:
+                    raise ValidationException(
+                        f"Недопустимая колонка фильтра: '{f.field}'"
+                    )
+                # Числовые сравнения требуют числового значения
+                if f.field in numeric_fields and f.op in COMPARISON_OPERATORS:
+                    try:
+                        float(f.value)
+                    except ValueError:
+                        raise ValidationException(
+                            f"Значение фильтра по '{f.field}' должно быть числом"
+                        )
+            total = await uow_session.data.count_rows_by_table_id(
+                table_id=table_id, filters=filters, numeric_fields=numeric_fields
+            )
             rows = await uow_session.data.get_rows_by_table_id(
                 table_id=table_id,
                 skip=skip,
                 limit=limit,
                 sort_by=sort_by,
                 sort_order=sort_order,
+                filters=filters,
+                numeric_fields=numeric_fields,
             )
 
-            return [self._to_row_response(row) for row in rows]
+            return PaginatedRows(
+                items=[self._to_row_response(row) for row in rows],
+                total=total,
+                skip=skip,
+                limit=limit,
+            )
 
     async def get_table_row(
         self,
