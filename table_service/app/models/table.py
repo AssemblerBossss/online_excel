@@ -35,6 +35,13 @@ class DataTable(Base):
         "TableRow", back_populates="table", cascade="all, delete-orphan"
     )
 
+    # Для помещения в корзину
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    deleted_at: Mapped[Optional[DateTime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
 
 class TablePermission(Base):
     __tablename__ = "table_permissions"
@@ -53,5 +60,4 @@ class TablePermission(Base):
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-
     table: Mapped["DataTable"] = relationship("DataTable", back_populates="permissions")

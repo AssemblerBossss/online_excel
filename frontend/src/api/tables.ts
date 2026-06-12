@@ -19,6 +19,8 @@ export interface DataTableResponse {
     created_by: number;
     created_at: string;
     updated_at?: string;
+    is_deleted?: boolean; 
+    deleted_at?: string;
 }
 
 export interface TableRow {
@@ -141,6 +143,11 @@ export const tablesAPI = {
         return response.data;
     },
 
+    getTrash: async (): Promise<DataTableResponse[]> => {
+        const response = await api.get(`/tables/trash/`);
+        return response.data;
+    },
+
     createTable: async (data: CreateTableRequest): Promise<DataTableResponse> => {
         const response = await api.post('/tables/create', data);
         return response.data;
@@ -155,11 +162,19 @@ export const tablesAPI = {
         await api.delete(`/tables/delete/${id}`);
     },
 
+    permanentDelete: async (id: number): Promise<void> => {
+        await api.delete(`/tables/trash/${id}/`);
+    },
+
     getTableRows: async (tableId: number): Promise<TableRow[]> => {
         const response = await api.get(`/data/${tableId}/rows`);
         return response.data;
     },
 
+    restoreTable: async (id: number): Promise<void> => {
+        const response = await api.post(`/tables/trash/${id}/restore/`);
+
+    },
 
     exportTable: async (id: number): Promise<ExportResult> => {
         const response = await api.get(`/tables/${id}/export`, {

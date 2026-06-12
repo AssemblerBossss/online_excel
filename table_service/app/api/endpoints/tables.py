@@ -29,15 +29,15 @@ from table_service.app.api.dependencies import (
     get_async_uow_session,
 )
 
+from table_service.app.api.cache import (
+    TABLES_CACHE_KEY,
+    TRASH_CACHE_KEY,
+    TABLES_CACHE_TTL,
+    invalidate_tables_cache,
+)
+
+
 router = APIRouter()
-
-TABLES_CACHE_KEY = "tables:all"
-TABLES_CACHE_TTL = 120
-XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-
-async def invalidate_tables_cache(redis: Redis) -> None:
-    await redis.delete(TABLES_CACHE_KEY)
 
 
 @router.get("/", response_model=list[DataTableResponse])
@@ -202,4 +202,5 @@ async def delete_table(
         user_role=current_user.role,
     )
     await invalidate_tables_cache(redis)
+    await redis.delete(TRASH_CACHE_KEY)
     return None
