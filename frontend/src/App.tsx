@@ -5,6 +5,7 @@ import TablesPage from './pages/TablePage';
 import TableViewPage from './pages/TableViewPage';
 import ProfilePage from './pages/ProfilePage';
 import AboutPage from './pages/AboutPage';
+import TrashPage from "./pages/TrashPage";
 
 
 console.log("App loaded");
@@ -20,6 +21,7 @@ function App() {
                 <Route path="/profile" element={<ProfilePage/>}/>
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="*" element={<Navigate to="/login"/>}/>
+                <Route path="/trash" element={<TrashPage/>}/>
 
             </Routes>
         </BrowserRouter>

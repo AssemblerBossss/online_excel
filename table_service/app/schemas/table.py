@@ -31,6 +31,8 @@ class DataTableResponse(DataTableBase):
     created_at: datetime
     updated_at: datetime | None = None
     columns_schema: list[dict[str, Any]] | None = None
+    is_deleted: bool = False
+    deleted_at: datetime | None = None
 
 
 class DataTableDuplicate(BaseModel):

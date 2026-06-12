@@ -15,6 +15,7 @@ from table_service.app.api.endpoints import (
     search_router,
     permissions_router,
     health_router,
+    trash_router,
 )
 from table_service.app.core import (
     app_settings,
@@ -186,6 +187,7 @@ def register_routers(app: FastAPI) -> None:
         (data_router, "/data", "Data"),
         (tables_router, "/tables", "Tables"),
         (search_router, "/search", "Search"),
+        (trash_router, "/tables/trash", "Trash"),
         (permissions_router, "/tables/{table_id}/permissions", "Permissions"),
         (health_router, "/health", "Health"),
     ]
