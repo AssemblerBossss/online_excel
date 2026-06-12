@@ -78,7 +78,7 @@ async def restore_table_from_trash(
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> None:
-    result = await table_service.restore_table(
+    await table_service.restore_table(
         uow_session=uow_session,
         table_id=table_id,
         user_id=current_user.user_id,

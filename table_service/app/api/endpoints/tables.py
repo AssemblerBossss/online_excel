@@ -36,7 +36,7 @@ from table_service.app.api.cache import (
     invalidate_tables_cache,
 )
 
-
+XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 router = APIRouter()
 
 
