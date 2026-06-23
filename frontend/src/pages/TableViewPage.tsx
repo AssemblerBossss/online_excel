@@ -514,7 +514,24 @@ const styles: Record<string, React.CSSProperties> = {
         borderBottom: "2px solid #e2e8f0",
         borderRight: "1px solid #e2e8f0",
     },
-
+    filterCell: {
+        padding: "4px 8px", background: "#f8fafc",
+        borderBottom: "1px solid #e2e8f0",
+    },
+    filterInput: {
+        width: "100%", padding: "4px 8px", fontSize: "12px",
+        border: "1px solid #cbd5e1", borderRadius: "4px",
+        boxSizing: "border-box" as const,
+    },
+    pagination: {
+        display: "flex", alignItems: "center", justifyContent: "center",
+        gap: "16px", padding: "16px",
+    },
+    pageBtn: {
+        background: "#64748b", color: "white", border: "none",
+        padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "14px",
+    },
+    pageInfo: {fontSize: "14px", color: "#475569"},
 };
 
 const sheet = document.styleSheets[0];
