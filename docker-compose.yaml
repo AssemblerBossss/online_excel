@@ -91,7 +91,6 @@ services:
       - REDIS_RATE_LIMIT_DB=${REDIS_RATE_LIMIT_DB:-1}
       - REDIS_CACHE_DB=${REDIS_CACHE_DB:-2}
       # JWT (RS256 — подпись приватным ключом, Traefik проверяет публичным)
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-local_dev_secret}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
       - JWT_PRIVATE_KEY_PATH=/run/secrets/jwt_private.pem
       - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public.pem
@@ -371,7 +370,7 @@ services:
 
         echo "Generating dynamic.yaml from template..."
 
-        # Вставляем ключ на место ${JWT_PUBLIC_KEY}, сохраняя отступ строки-плейсхолдера
+        # Вставляем ключ на место $${JWT_PUBLIC_KEY}, сохраняя отступ строки-плейсхолдера
         awk -v keyfile="$$JWT_PUBLIC_KEY_FILE" '
           /\$\{JWT_PUBLIC_KEY\}/ {
             match($$0, /^[[:space:]]*/)
@@ -384,7 +383,7 @@ services:
 
         echo "Generating dynamic.yaml from template..."
 
-        # Вставляем ключ на место ${JWT_PUBLIC_KEY}, сохраняя отступ строки-плейсхолдера
+        # Вставляем ключ на место $${JWT_PUBLIC_KEY}, сохраняя отступ строки-плейсхолдера
         awk -v keyfile="$$JWT_PUBLIC_KEY_FILE" '
           /\$\{JWT_PUBLIC_KEY\}/ {
             match($$0, /^[[:space:]]*/)
