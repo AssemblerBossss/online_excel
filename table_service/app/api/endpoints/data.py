@@ -10,11 +10,15 @@ from fastapi import (
 )
 from redis.asyncio import Redis
 
+from table_service.app.exceptions import ValidationException
 from table_service.app.schemas import (
     TableRowResponse,
     TableRowCreate,
     TableRowUpdate,
     SCurrentUser,
+    PaginatedRows,
+    RowFilter,
+    FilterOperator,
 )
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.services import DataService
@@ -35,9 +39,25 @@ def _rows_cache_key(table_id: int) -> str:
     return f"rows:table:{table_id}"
 
 
+def _parse_filters(raw: list[str] | None) -> list[RowFilter]:
+    """Разобрать параметры вида `field:op:value` в список RowFilter."""
+    filters: list[RowFilter] = []
+    for item in raw or []:
+        parts = item.split(":", 2)
+        if len(parts) != 3:
+            raise ValidationException(
+                f"Неверный формат фильтра '{item}', ожидается field:op:value"
+            )
+        field, op, value = parts
+        if op not in FilterOperator.__members__:
+            raise ValidationException(f"Неизвестный оператор фильтра: '{op}'")
+        filters.append(RowFilter(field=field, op=FilterOperator(op), value=value))
+    return filters
+
+
 @router.get(
     "/{table_id}/rows",
-    response_model=list[TableRowResponse],
+    response_model=PaginatedRows,
     status_code=status.HTTP_200_OK,
 )
 async def list_table_rows(
@@ -49,10 +69,21 @@ async def list_table_rows(
     limit: int = Query(100, description="Максимальное количество строк", ge=1, le=1000),
     sort_by: str | None = Query(None),
     sort_order: Literal["asc", "desc"] = Query(default="asc"),
+    filter: list[str] | None = Query(
+        None, description="Фильтр в формате field:op:value (можно несколько)"
+    ),
     table_id: int = Path(..., description="ID таблицы", ge=1),
 ):
+
+    filters = _parse_filters(filter)
     # Кэшируем только дефолтный запрос (без пагинации и сортировки)
-    use_cache = skip == 0 and limit == 100 and sort_by is None and sort_order == "asc"
+    use_cache = (
+        skip == 0
+        and limit == 100
+        and sort_by is None
+        and sort_order == "asc"
+        and not filter
+    )
     cache_key = _rows_cache_key(table_id)
 
     if use_cache:
@@ -60,7 +91,7 @@ async def list_table_rows(
         if cached:
             return json.loads(cached)
 
-    rows = await data_service.get_table_rows(
+    result = await data_service.get_table_rows(
         uow_session=uow_session,
         table_id=table_id,
         user_id=current_user.user_id,
@@ -69,16 +100,13 @@ async def list_table_rows(
         limit=limit,
         sort_by=sort_by,
         sort_order=sort_order,
+        filters=filters,
     )
 
     if use_cache:
-        await redis.setex(
-            cache_key,
-            ROWS_CACHE_TTL,
-            json.dumps([r.model_dump(mode="json") for r in rows]),
-        )
+        await redis.setex(cache_key, ROWS_CACHE_TTL, result.model_dump_json())
 
-    return rows
+    return result
 
 
 @router.get(

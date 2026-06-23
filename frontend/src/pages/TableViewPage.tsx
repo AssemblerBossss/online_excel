@@ -1,7 +1,9 @@
 // frontend/src/pages/TableViewPage.tsx
 import React, {useEffect, useState, useRef} from "react";
 import {useParams, useNavigate} from "react-router-dom";
-import {tablesAPI, TableRow, ColumnSchema, isFormula, evaluateFormula} from "../api/tables";
+import {tablesAPI, TableRow, ColumnSchema, RowFilter, isFormula, evaluateFormula} from "../api/tables";
+
+const PAGE_SIZE = 50;
 
 interface EditingCell {
     rowId: number;
@@ -23,9 +25,17 @@ const TableViewPage: React.FC = () => {
     const [exporting, setExporting] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        loadData();
-    }, [id]);
+    // Сортировка / фильтрация / пагинация (серверные)
+    const [page, setPage] = useState(0);          // 0-based
+    const [total, setTotal] = useState(0);
+    const [sortBy, setSortBy] = useState<string | null>(null);
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    // черновик фильтров в инпутах (применяется по Enter/blur) и применённые фильтры
+    const [filterDraft, setFilterDraft] = useState<Record<string, string>>({});
+    const [filters, setFilters] = useState<RowFilter[]>([]);
+
+    useEffect(() => { loadTable(); }, [id]);
+    useEffect(() => { loadRows(); }, [id, page, sortBy, sortOrder, filters]);
 
     useEffect(() => {
         if (editingCell && inputRef.current) {
@@ -33,17 +43,30 @@ const TableViewPage: React.FC = () => {
         }
     }, [editingCell]);
 
-    const loadData = async () => {
+    const loadTable = async () => {
+        try {
+            const tableInfo = await tablesAPI.getTableById(tableId);
+            setColumns(tableInfo.columns_schema || []);
+        } catch (err) {
+            console.error('loadTable error:', err);
+            setError("Не удалось загрузить таблицу");
+        }
+    };
+
+    const loadRows = async () => {
         try {
             setLoading(true);
-            const [tableInfo, tableRows] = await Promise.all([
-                tablesAPI.getTableById(tableId),
-                tablesAPI.getTableRows(tableId),
-            ]);
-            setColumns(tableInfo.columns_schema || []);
-            setRows(tableRows);
+            const res = await tablesAPI.getTableRows(tableId, {
+                skip: page * PAGE_SIZE,
+                limit: PAGE_SIZE,
+                sortBy: sortBy ?? undefined,
+                sortOrder,
+                filters,
+            });
+            setRows(res.items);
+            setTotal(res.total);
         } catch (err) {
-            console.error('loadData error:', err);
+            console.error('loadRows error:', err);
             setError("Не удалось загрузить данные таблицы");
         } finally {
             setLoading(false);
@@ -51,6 +74,29 @@ const TableViewPage: React.FC = () => {
     };
 
     const colNames = columns.map(c => c.name);
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+    // ── Сортировка / фильтрация / пагинация ──
+
+    const toggleSort = (col: string) => {
+        if (sortBy === col) {
+            setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortBy(col);
+            setSortOrder('asc');
+        }
+        setPage(0);
+    };
+
+    // применяем фильтр по колонке: пустое значение — убираем фильтр
+    const applyFilter = (col: string) => {
+        const value = (filterDraft[col] ?? '').trim();
+        setFilters(prev => {
+            const rest = prev.filter(f => f.field !== col);
+            return value ? [...rest, {field: col, op: 'contains' as const, value}] : rest;
+        });
+        setPage(0);
+    };
 
     // ── Отображение ──
 
@@ -244,9 +290,32 @@ const TableViewPage: React.FC = () => {
                                 <tr>
                                     <th style={styles.rowNumberHeader}></th>
                                     {colNames.map(col => (
-                                        <th key={col} style={styles.th}>{col}</th>
+                                        <th
+                                            key={col}
+                                            style={{...styles.th, cursor: "pointer"}}
+                                            onClick={() => toggleSort(col)}
+                                        >
+                                            {col}
+                                            {sortBy === col && <span> {sortOrder === 'asc' ? '▲' : '▼'}</span>}
+                                        </th>
                                     ))}
                                     <th style={{...styles.th, width: "48px"}}></th>
+                                </tr>
+                                <tr>
+                                    <th style={styles.rowNumberHeader}></th>
+                                    {colNames.map(col => (
+                                        <th key={col} style={styles.filterCell}>
+                                            <input
+                                                style={styles.filterInput}
+                                                placeholder="фильтр…"
+                                                value={filterDraft[col] ?? ''}
+                                                onChange={e => setFilterDraft(prev => ({...prev, [col]: e.target.value}))}
+                                                onKeyDown={e => { if (e.key === 'Enter') applyFilter(col); }}
+                                                onBlur={() => applyFilter(col)}
+                                            />
+                                        </th>
+                                    ))}
+                                    <th style={styles.filterCell}></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -255,7 +324,7 @@ const TableViewPage: React.FC = () => {
                                     key={row.id}
                                     style={{...styles.tr, opacity: saving === row.id ? 0.6 : 1}}
                                 >
-                                    <td style={styles.rowNumber}>{rowIndex + 1}</td>
+                                    <td style={styles.rowNumber}>{page * PAGE_SIZE + rowIndex + 1}</td>
                                     {colNames.map(col => {
                                         const isEditing =
                                             editingCell?.rowId === row.id &&
@@ -309,6 +378,26 @@ const TableViewPage: React.FC = () => {
                             ))}
                             </tbody>
                         </table>
+
+                        <div style={styles.pagination}>
+                            <button
+                                style={styles.pageBtn}
+                                disabled={page === 0}
+                                onClick={() => setPage(p => Math.max(0, p - 1))}
+                            >
+                                ← Назад
+                            </button>
+                            <span style={styles.pageInfo}>
+                                Стр. {page + 1} из {totalPages} · всего {total}
+                            </span>
+                            <button
+                                style={styles.pageBtn}
+                                disabled={page + 1 >= totalPages}
+                                onClick={() => setPage(p => p + 1)}
+                            >
+                                Вперёд →
+                            </button>
+                        </div>
                     </div>
                 )}
             </main>

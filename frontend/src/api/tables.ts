@@ -40,6 +40,29 @@ export interface CreateTableRequest {
     columns_schema?: ColumnSchema[];
 }
 
+export type FilterOp = 'eq' | 'ne' | 'contains' | 'gt' | 'gte' | 'lt' | 'lte';
+
+export interface RowFilter {
+    field: string;
+    op: FilterOp;
+    value: string;
+}
+
+export interface RowsQuery {
+    skip?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    filters?: RowFilter[];
+}
+
+export interface PaginatedRows {
+    items: TableRow[];
+    total: number;
+    skip: number;
+    limit: number;
+}
+
 interface ExportResult {
         blob: Blob;
         filename: string;
@@ -162,13 +185,20 @@ export const tablesAPI = {
         await api.delete(`/tables/delete/${id}`);
     },
 
+    getTableRows: async (tableId: number, query: RowsQuery = {}): Promise<PaginatedRows> => {
+        const params = new URLSearchParams();
+        params.set('skip', String(query.skip ?? 0));
+        params.set('limit', String(query.limit ?? 50));
+        if (query.sortBy) params.set('sort_by', query.sortBy);
+        if (query.sortOrder) params.set('sort_order', query.sortOrder);
+        // повторяющийся параметр filter=field:op:value
+        for (const f of query.filters ?? []) {
+            params.append('filter', `${f.field}:${f.op}:${f.value}`);
+        }
+        const response = await api.get(`/data/${tableId}/rows?${params.toString()}`);
+
     permanentDelete: async (id: number): Promise<void> => {
         await api.delete(`/tables/trash/${id}/`);
-    },
-
-    getTableRows: async (tableId: number): Promise<TableRow[]> => {
-        const response = await api.get(`/data/${tableId}/rows`);
-        return response.data;
     },
 
     restoreTable: async (id: number): Promise<void> => {

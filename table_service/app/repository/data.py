@@ -1,11 +1,92 @@
-from sqlalchemy import select, update, delete, asc, desc, Sequence, literal, insert
+from sqlalchemy import (
+    select,
+    update,
+    delete,
+    asc,
+    desc,
+    Sequence,
+    literal,
+    insert,
+    String,
+    cast,
+    ColumnElement,
+    func,
+    Numeric,
+)
 
 from table_service.app.models import TableRow
 from table_service.app.repository.base import Base
-from table_service.app.schemas import TableRowCreate, TableRowUpdate
+from table_service.app.schemas import (
+    TableRowCreate,
+    TableRowUpdate,
+    RowFilter,
+    FilterOperator,
+)
 
 
 class DataRepository(Base):
+    # Реальные колонки таблицы (всё остальное живёт в JSON-поле row_data)
+    _REAL_COLUMNS = {"id", "created_at", "updated_at"}
+
+    @classmethod
+    def _text_expr(cls, field: str) -> ColumnElement[str]:
+        """Текстовое выражение колонки (для contains / текстового сравнения)."""
+        if field in cls._REAL_COLUMNS:
+            return cast(getattr(TableRow, field), String)
+        return TableRow.row_data[field].as_string()
+
+    @classmethod
+    def _sortable_expr(cls, field: str, numeric: bool) -> ColumnElement[str]:
+        """Выражение для ORDER BY / сравнения. Числовые колонки кастуются в Numeric."""
+        if field in cls._REAL_COLUMNS:
+            return getattr(TableRow, field)
+        text = TableRow.row_data[field].as_string()
+        if numeric:
+            return cast(func.nullif(text, ""), Numeric)
+        return text
+
+    @classmethod
+    def _build_conditions(
+        cls,
+        table_id: int,
+        filters: list[RowFilter],
+        numeric_fields: set[str],
+    ) -> list:
+        """Собрать список условий WHERE из фильтров (значения параметризуются)."""
+        conditions = [TableRow.table_id == table_id]
+
+        for f in filters:
+            numeric = f.field in numeric_fields
+
+            if f.op is FilterOperator.contains:
+                conditions.append(cls._text_expr(f.field).ilike(f"%{f.value}%"))
+                continue
+
+            if f.op in (FilterOperator.eq, FilterOperator.ne):
+                col = (
+                    cls._sortable_expr(f.field, numeric)
+                    if numeric
+                    else cls._text_expr(f.field)
+                )
+                val = cls._to_number(f.value) if numeric else f.value
+                conditions.append(
+                    col == val if f.op is FilterOperator.eq else col != val
+                )
+                continue
+
+            # gt / gte / lt / lte
+            col = cls._sortable_expr(f.field, numeric)
+            val = cls._to_number(f.value) if numeric else f.value
+            ops = {
+                FilterOperator.gt: col > val,
+                FilterOperator.gte: col >= val,
+                FilterOperator.lt: col < val,
+                FilterOperator.lte: col <= val,
+            }
+            conditions.append(ops[f.op])
+
+        return conditions
+
     async def get_rows_by_table_id(
         self,
         table_id: int,
@@ -13,38 +94,46 @@ class DataRepository(Base):
         limit: int = 100,
         sort_by: str | None = None,
         sort_order: str | None = "asc",
+        filters: list[RowFilter] | None = None,
+        numeric_fields: set[str] | None = None,
     ) -> Sequence[TableRow]:
-        """
-        Получить строки таблицы с пагинацией и сортировкой.
+        """Получить строки таблицы с фильтрацией, сортировкой и пагинацией."""
+        filters = filters or []
+        numeric_fields = numeric_fields or set()
+        sort_by = sort_by or "id"
 
-        Args:
-            table_id: ID таблицы для получения строк
-            skip: Пагинация
-            limit: Максимальное количество возвращаемых строк
-            sort_by: Название поля для сортировки. Если None, порядок не гарантируется
-            sort_order: Порядок сортировки - "asc" (по возрастанию) или "desc" (по убыванию)
-
-        """
-
-        if sort_order.lower() == "asc":
-            stmt = (
-                select(TableRow)
-                .where(TableRow.table_id == table_id)
-                .limit(limit)
-                .offset(skip)
-                .order_by(asc(sort_by))
-            )
-        else:
-            stmt = (
-                select(TableRow)
-                .where(TableRow.table_id == table_id)
-                .limit(limit)
-                .offset(skip)
-                .order_by(desc(sort_by))
-            )
+        conditions = self._build_conditions(
+            table_id=table_id, filters=filters, numeric_fields=numeric_fields
+        )
+        sort_expr = self._sortable_expr(sort_by, sort_by in numeric_fields)
+        direction = asc if (sort_order or "asc").lower() == "asc" else desc
+        stmt = (
+            select(TableRow)
+            .where(*conditions)
+            .order_by(direction(sort_expr), asc(TableRow.id))
+            .limit(limit)
+            .offset(skip)
+        )
 
         result = await self._session.execute(stmt)
         return result.scalars().all()
+
+    async def count_rows_by_table_id(
+        self,
+        table_id: int,
+        filters: list[RowFilter] | None = None,
+        numeric_fields: set[str] | None = None,
+    ) -> int:
+        """Посчитать строки таблицы с учётом тех же фильтров (без limit/offset)."""
+        conditions = self._build_conditions(
+            table_id=table_id,
+            filters=filters or [],
+            numeric_fields=numeric_fields or set(),
+        )
+
+        stmt = select(func.count()).select_from(TableRow).where(*conditions)
+        result = await self._session.execute(stmt)
+        return result.scalar()
 
     async def get_row_by_id(self, table_id: int, row_id: int) -> TableRow | None:
         """Получить строку по ID."""

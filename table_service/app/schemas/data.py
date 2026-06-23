@@ -1,3 +1,4 @@
+from enum import Enum
 from pydantic import BaseModel, field_validator, ConfigDict
 from typing import Any
 from datetime import datetime
@@ -48,3 +49,41 @@ class TableRowResponse(TableRowInDB):
     """Схема ответа для получения данных строки таблицы"""
 
     pass
+
+
+class FilterOperator(str, Enum):
+    """Операторы фильтрации по колонке."""
+
+    eq = "eq"
+    ne = "ne"
+    contains = "contains"
+    gt = "gt"
+    gte = "gte"
+    lt = "lt"
+    lte = "lte"
+
+
+# Операторы сравнения требуют, чтобы значение числовой колонки парсилось в число
+COMPARISON_OPERATORS = {
+    FilterOperator.gt,
+    FilterOperator.gte,
+    FilterOperator.lt,
+    FilterOperator.lte,
+}
+
+
+class RowFilter(BaseModel):
+    """Один фильтр: колонка + оператор + значение (как пришло из запроса)."""
+
+    field: str
+    op: FilterOperator
+    value: str
+
+
+class PaginatedRows(BaseModel):
+    """Страница строк таблицы с метаданными пагинации."""
+
+    items: list[TableRowResponse]
+    total: int  # всего строк после фильтрации (без учёта skip/limit)
+    skip: int
+    limit: int
