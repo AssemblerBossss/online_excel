@@ -421,19 +421,14 @@ class TestDeleteTable:
         mock_search_service,
         real_data_table,
     ):
-        """Проверяем порядок операций: сначала search, потом БД?"""
-        # В текущем коде сначала БД, потом search — это может быть проблемой
-        # Если БД удалилась, а search упал — данные в search останутся
         mock_table_repo.get_table_by_id.return_value = real_data_table
-        mock_table_repo.delete_table.return_value = True
+        mock_table_repo.soft_delete_table.return_value = True  # ← было delete_table
 
         await service_with_search.delete_table(
             uow_session=mock_uow, table_id=1, user_id=100, user_role="USER"
         )
 
-        # В текущей реализации порядок: delete_table -> delete_from_index
-        calls = mock_table_repo.method_calls
-        assert mock_table_repo.delete_table.called
+        assert mock_table_repo.soft_delete_table.called  # ← было delete_table
         assert mock_search_service.delete_from_index.called
 
     async def test_handles_search_failure_gracefully(

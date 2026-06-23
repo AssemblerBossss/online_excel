@@ -66,6 +66,16 @@ class TableService:
             tables = await uow_session.tables.get_all_tables()
             return [self._to_response(t) for t in tables] if tables else []
 
+    async def get_trash_tables(
+        self, uow_session: UnitOfWork
+    ) -> list[DataTableResponse]:
+        """Получить список всех таблиц в корзине"""
+        async with uow_session.start():
+            trashed_tables = await uow_session.tables.get_trash()
+            return (
+                [self._to_response(t) for t in trashed_tables] if trashed_tables else []
+            )
+
     async def get_table_by_id(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> DataTableResponse:
@@ -376,7 +386,7 @@ class TableService:
             ):
                 raise AccessDeniedException()
 
-            if not await uow_session.tables.delete_table(table_id=table_id):
+            if not await uow_session.tables.soft_delete_table(table_id=table_id):
                 raise CanNotDeleteTableException()
 
             if self.search_service:
@@ -392,3 +402,73 @@ class TableService:
             logger.info(
                 "User %s deleted table %s (name: %s)", user_id, table_id, table.name
             )
+
+    async def permanent_delete_table(
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
+    ) -> None:
+        """Удалить таблицу."""
+        async with uow_session.start():
+            table: DataTable | None = await uow_session.tables.get_deleted_table_by_id(
+                table_id
+            )
+            if not table:
+                raise NotFoundException("Table not found")
+
+            if not await self.permission_service.check_write_access(
+                uow_session=uow_session,
+                table=table,
+                user_id=user_id,
+                user_role=user_role,
+            ):
+                raise AccessDeniedException()
+
+            if not await uow_session.tables.delete_table(table_id=table_id):
+                raise CanNotDeleteTableException()
+
+            if self.search_service:
+                try:
+                    await self.search_service.delete_from_index(table_id=table_id)
+                except Exception:
+                    logger.warning(
+                        "Failed to delete table %s from search index, "
+                        "data may be orphaned until next sync",
+                        table_id,
+                    )
+
+                logger.info(
+                    "User %s deleted table %s (name: %s)", user_id, table_id, table.name
+                )
+
+    async def restore_table(
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
+    ) -> None:
+        """Восстановить таблицу из корзины."""
+        async with uow_session.start():
+            table: DataTable | None = await uow_session.tables.get_deleted_table_by_id(
+                table_id
+            )
+            if not table:
+                raise NotFoundException("Table not found in trash")
+
+            if not await self.permission_service.check_write_access(
+                uow_session=uow_session,
+                table=table,
+                user_id=user_id,
+                user_role=user_role,
+            ):
+                raise AccessDeniedException()
+
+            restored = await uow_session.tables.restore_table(table_id=table_id)
+            if not restored:
+                raise NotFoundException("Table not found in trash")
+
+            if self.search_service:
+                await self.search_service.index_table(
+                    table_id=restored.id,
+                    name=restored.name,
+                    description=restored.description,
+                    is_public=restored.is_public,
+                    created_by_id=restored.created_by_id,
+                )
+
+            logger.info("User %s restored table %s from trash", user_id, table_id)
