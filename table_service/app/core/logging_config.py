@@ -1,7 +1,7 @@
 import logging
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, UTC
 
 _STANDARD_ATTRS = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
 
@@ -13,7 +13,7 @@ class ServiceJsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         log_record = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z",
             "level": record.levelname,
             "service": self.service_name,
             "module": record.module,
