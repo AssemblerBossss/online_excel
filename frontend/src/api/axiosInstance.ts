@@ -1,7 +1,7 @@
 import axios, {AxiosError, InternalAxiosRequestConfig} from 'axios';
 import { refreshToken } from './auth';
 
-const API_BASE_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:11000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:11000/api';
 
 export const api = axios.create({
     baseURL: API_BASE_URL,
@@ -44,7 +44,7 @@ api.interceptors.response.use(
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
         if (
-            error.response?.status === 401 &&
+            (error.response?.status === 401 || error.response?.status === 403) &&
             originalRequest &&
             !originalRequest._retry &&
             !originalRequest.url?.includes('/auth/login') &&

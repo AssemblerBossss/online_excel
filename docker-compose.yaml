@@ -124,6 +124,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      fluent-bit:
+        condition: service_started
     volumes:
       - ./auth_service:/app/auth_service
       - ./keys/jwt_private.pem:/run/secrets/jwt_private.pem:ro
@@ -194,6 +196,8 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
+      fluent-bit:
+        condition: service_started
     ports:
       - "8000:8000"
     volumes:
