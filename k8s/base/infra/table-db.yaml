@@ -1,6 +1,6 @@
 apiVersion: v1
 kind: Service
-matadata:
+metadata:
   name: table-db
 spec:
   clusterIP: None
@@ -27,46 +27,45 @@ spec:
       labels:
         app: table-db
     spec:
-      - name: postgres
-        image: postgres:16-alpine
-        args: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
-        ports:
-          - port: 5432
-            targetPort: table-db-port
-
-        env:
-          - name: POSTGRES_USER
-            value: postgres
-          - name: POSTGRES_DB
-            value: online_excel
-          - name: POSTGRES_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: app-secrets
-                key: TABLE_DB_PASSWORD
-          - name: PGDATA
-            value: /var/lib/postgresql/data/pgdata
-
-        volumeMounts:
-          - name: data
-            mountPath: /var/lib/postgresql/data
-          - name: config
-            mountPath: /etc/postgresql/postgresql.conf
-            subPath: postgresql.conf
-
-        readinessProbe:
-          exec: { command: [ "pg_isready", "-U", "postgres" ] }
-          initialDelaySeconds: 5
-          periodSeconds: 5
-    volumes:
-      - name: config
-        configMap: { name: postgres-config }
-
-volumeClaimTemplates:
-  - metadata:
-      name: data
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 5Gi
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          args: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
+          ports:
+            - containerPort: 5432
+              name: table-db-port
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_DB
+              value: online_excel
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: TABLE_DB_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: config
+              mountPath: /etc/postgresql/postgresql.conf
+              subPath: postgresql.conf
+          readinessProbe:
+            exec:
+              command: [ "pg_isready", "-U", "postgres" ]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: postgres-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 5Gi
