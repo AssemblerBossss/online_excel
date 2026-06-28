@@ -12,7 +12,7 @@ class TableRepository(Base):
 
     async def get_all_tables(self) -> Sequence[DataTable]:
         """Получить список всех таблиц в базе данных."""
-        stmt = select(DataTable).where(DataTable.is_deleted == False)
+        stmt = select(DataTable).where(DataTable.is_deleted.is_(False))
         result = await self._session.execute(stmt)
         tables = result.scalars().all()
         return tables
@@ -22,7 +22,7 @@ class TableRepository(Base):
         stmt = (
             select(DataTable)
             .options(selectinload(DataTable.permissions))
-            .where(DataTable.id == table_id, DataTable.is_deleted == False)
+            .where(DataTable.id == table_id, DataTable.is_deleted.is_(False))
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
@@ -73,7 +73,7 @@ class TableRepository(Base):
         """Обновить таблицу"""
         stmt = (
             update(DataTable)
-            .where(DataTable.id == table_id, DataTable.is_deleted == False)
+            .where(DataTable.id == table_id, DataTable.is_deleted.is_(False))
             .values(**data)
             .returning(DataTable)
         )
