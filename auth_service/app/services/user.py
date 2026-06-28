@@ -38,12 +38,11 @@ class UserService:
         """Возвращает список всех пользователей"""
         async with uow_session.start():
             return [
-                SUserInfo.model_validate(t)
-                for t in (await uow_session.user.find_all())
+                SUserInfo.model_validate(t) for t in (await uow_session.user.find_all())
             ]
 
     async def get_user_by_id(
-            self, uow_session: UnitOfWork, user_id: int
+        self, uow_session: UnitOfWork, user_id: int
     ) -> SUserInfo | None:
         """Возвращает пользователя по ID или None, если не найден"""
         async with uow_session.start():
@@ -54,7 +53,7 @@ class UserService:
             return SUserInfo.model_validate(user)
 
     async def get_user_by_email(
-            self, uow_session: UnitOfWork, email: str
+        self, uow_session: UnitOfWork, email: str
     ) -> SUserInfo | None:
         """Возвращает пользователя по email или None, если не найден"""
         async with uow_session.start():
@@ -64,11 +63,11 @@ class UserService:
         return SUserInfo.model_validate(user)
 
     async def change_role(
-            self,
-            uow_session: UnitOfWork,
-            current_user: SUserInfo,
-            user_id: int,
-            role: UserRole,
+        self,
+        uow_session: UnitOfWork,
+        current_user: SUserInfo,
+        user_id: int,
+        role: UserRole,
     ) -> SUserInfo | None:
         """Сменить роль пользователя. Доступно только админу."""
         if current_user.role != UserRole.ADMIN:
@@ -91,12 +90,12 @@ class UserService:
         return SUserInfo.model_validate(user)
 
     async def update_avatar(
-            self,
-            uow_session: UnitOfWork,
-            current_user: SUserInfo,
-            user_id: int,
-            content: bytes,
-            content_type: str | None,
+        self,
+        uow_session: UnitOfWork,
+        current_user: SUserInfo,
+        user_id: int,
+        content: bytes,
+        content_type: str | None,
     ) -> SUserInfo | None:
         """Загрузить/заменить аватар. Админ - любому, пользователь - только себе."""
         self._check_permissions(current_user=current_user, target_user_id=user_id)
@@ -119,11 +118,11 @@ class UserService:
             return SUserInfo.model_validate(user)
 
     async def update_user(
-            self,
-            uow_session: UnitOfWork,
-            current_user: SUserInfo,
-            user_id: int,
-            data: SUserProfileUpdate,
+        self,
+        uow_session: UnitOfWork,
+        current_user: SUserInfo,
+        user_id: int,
+        data: SUserProfileUpdate,
     ) -> SUserInfo | None:
         """Обновить профиль. Админ - любого, пользователь - только себя."""
         self._check_permissions(current_user, user_id)
@@ -153,7 +152,7 @@ class UserService:
         return SUserInfo.model_validate(user)
 
     async def delete_avatar(
-            self, uow_session: UnitOfWork, current_user: SUserInfo, user_id: int
+        self, uow_session: UnitOfWork, current_user: SUserInfo, user_id: int
     ) -> SUserInfo | None:
         """Удалить аватар. Админ - любому, пользователь - только себе."""
         self._check_permissions(current_user=current_user, target_user_id=user_id)
@@ -171,17 +170,17 @@ class UserService:
         return SUserInfo.model_validate(user)
 
     async def delete_user(
-            self, uow_session: UnitOfWork, current_user: SUserInfo, user_id: int
+        self, uow_session: UnitOfWork, current_user: SUserInfo, user_id: int
     ) -> bool:
         """Удалить пользователя. Админ - любого, обычный пользователь - только себя."""
         self._check_permissions(current_user, user_id)
         return await uow_session.user.delete_by_id(user_id)
 
     async def deactivate_user(
-            self,
-            uow_session: UnitOfWork,
-            current_user: SUserInfo,
-            user_id: int,
+        self,
+        uow_session: UnitOfWork,
+        current_user: SUserInfo,
+        user_id: int,
     ) -> SUserInfo | None:
         """Деактивировать пользователя. Админ - любого, пользователь - только себя."""
         self._check_permissions(current_user, user_id)
@@ -197,10 +196,10 @@ class UserService:
         return SUserInfo.model_validate(user)
 
     async def activate_user(
-            self,
-            uow_session: UnitOfWork,
-            current_user: SUserInfo,
-            user_id: int,
+        self,
+        uow_session: UnitOfWork,
+        current_user: SUserInfo,
+        user_id: int,
     ) -> SUserInfo | None:
         """Активировать пользователя. Может только админ"""
         self._check_is_admin(current_user)
@@ -216,10 +215,10 @@ class UserService:
         return SUserInfo.model_validate(user)
 
     async def change_password(
-            self,
-            uow_session: UnitOfWork,
-            current_user: SUserInfo,
-            data: SUserChangePassword,
+        self,
+        uow_session: UnitOfWork,
+        current_user: SUserInfo,
+        data: SUserChangePassword,
     ) -> None:
         """Сменить пароль текущего пользователя"""
         async with uow_session.start():
