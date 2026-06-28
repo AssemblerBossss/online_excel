@@ -1,5 +1,5 @@
-import { api } from './axiosInstance';
-import { evaluate, all, create, string } from 'mathjs';
+import {api} from './axiosInstance';
+import {evaluate, all, create, string} from 'mathjs';
 
 const math = create(all);
 
@@ -19,7 +19,7 @@ export interface DataTableResponse {
     created_by: number;
     created_at: string;
     updated_at?: string;
-    is_deleted?: boolean; 
+    is_deleted?: boolean;
     deleted_at?: string;
 }
 
@@ -64,8 +64,8 @@ export interface PaginatedRows {
 }
 
 interface ExportResult {
-        blob: Blob;
-        filename: string;
+    blob: Blob;
+    filename: string;
 }
 
 // Достаёт имя файла из заголовка Content-Disposition (поддержка filename*=UTF-8'')
@@ -157,7 +157,6 @@ export function evaluateFormula(
     }
 
 
-
 };
 
 export const tablesAPI = {
@@ -196,6 +195,8 @@ export const tablesAPI = {
             params.append('filter', `${f.field}:${f.op}:${f.value}`);
         }
         const response = await api.get(`/data/${tableId}/rows?${params.toString()}`);
+        return response.data;
+    },
 
     permanentDelete: async (id: number): Promise<void> => {
         await api.delete(`/tables/trash/${id}/`);
@@ -214,7 +215,7 @@ export const tablesAPI = {
         const disposition = response.headers['content-disposition'] || '';
         const filename = parseFilename(disposition) || `table_${id}.xlsx`;
 
-        return { blob: response.data, filename };
+        return {blob: response.data, filename};
     },
 
     createRow: async (tableId: number, rowData: Record<string, any>, formulas?: Record<string, string>): Promise<TableRow> => {
@@ -242,8 +243,8 @@ export const tablesAPI = {
         await api.delete(`/data/${tableId}/rows/${rowId}`);
     },
 
-    searchTables: async(query: string, limit: number = 10): Promise<DataTableResponse[]> => {
-        const response = await api.get('/search', { params: { q: query, limit } });
+    searchTables: async (query: string, limit: number = 10): Promise<DataTableResponse[]> => {
+        const response = await api.get('/search', {params: {q: query, limit}});
         return response.data;
     },
 };

@@ -25,20 +25,21 @@ class UserService:
         self.event_publisher = event_publisher
 
     @staticmethod
-    async def _check_permissions(current_user: SUserInfo, target_user_id: int) -> None:
+    def _check_permissions(current_user: SUserInfo, target_user_id: int) -> None:
         if current_user.role != UserRole.ADMIN and current_user.id != target_user_id:
             raise ForbiddenException()
 
     @staticmethod
-    async def _check_is_admin(current_user: SUserInfo) -> None:
+    def _check_is_admin(current_user: SUserInfo) -> None:
         if current_user.role != UserRole.ADMIN:
             raise ForbiddenException()
 
     async def get_all_users(self, uow_session: UnitOfWork) -> list[SUserInfo]:
         """Возвращает список всех пользователей"""
-        return [
-            SUserInfo.model_validate(t) for t in (await uow_session.user.find_all())
-        ]
+        async with uow_session.start():
+            return [
+                SUserInfo.model_validate(t) for t in (await uow_session.user.find_all())
+            ]
 
     async def get_user_by_id(
         self, uow_session: UnitOfWork, user_id: int
@@ -97,7 +98,7 @@ class UserService:
         content_type: str | None,
     ) -> SUserInfo | None:
         """Загрузить/заменить аватар. Админ - любому, пользователь - только себе."""
-        await self._check_permissions(current_user=current_user, target_user_id=user_id)
+        self._check_permissions(current_user=current_user, target_user_id=user_id)
 
         if len(content) > auth_service_settings.MAX_AVATAR_SIZE:
             raise FileTooLargeException()
@@ -124,7 +125,7 @@ class UserService:
         data: SUserProfileUpdate,
     ) -> SUserInfo | None:
         """Обновить профиль. Админ - любого, пользователь - только себя."""
-        await self._check_permissions(current_user, user_id)
+        self._check_permissions(current_user, user_id)
 
         values = data.model_dump(exclude_unset=True)
         async with uow_session.start():
@@ -154,7 +155,7 @@ class UserService:
         self, uow_session: UnitOfWork, current_user: SUserInfo, user_id: int
     ) -> SUserInfo | None:
         """Удалить аватар. Админ - любому, пользователь - только себе."""
-        await self._check_permissions(current_user=current_user, target_user_id=user_id)
+        self._check_permissions(current_user=current_user, target_user_id=user_id)
 
         async with uow_session.start():
             user = await uow_session.user.find_one_or_none_by_id(user_id)
@@ -172,7 +173,7 @@ class UserService:
         self, uow_session: UnitOfWork, current_user: SUserInfo, user_id: int
     ) -> bool:
         """Удалить пользователя. Админ - любого, обычный пользователь - только себя."""
-        await self._check_permissions(current_user, user_id)
+        self._check_permissions(current_user, user_id)
         return await uow_session.user.delete_by_id(user_id)
 
     async def deactivate_user(
@@ -182,7 +183,7 @@ class UserService:
         user_id: int,
     ) -> SUserInfo | None:
         """Деактивировать пользователя. Админ - любого, пользователь - только себя."""
-        await self._check_permissions(current_user, user_id)
+        self._check_permissions(current_user, user_id)
 
         async with uow_session.start():
             result = await uow_session.user.change_user_active_status(user_id, False)
@@ -201,7 +202,7 @@ class UserService:
         user_id: int,
     ) -> SUserInfo | None:
         """Активировать пользователя. Может только админ"""
-        await self._check_is_admin(current_user)
+        self._check_is_admin(current_user)
 
         async with uow_session.start():
             result = await uow_session.user.change_user_active_status(user_id, True)

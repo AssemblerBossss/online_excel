@@ -27,13 +27,23 @@ api_gateway (:8080)  ── JWT auth, rate limit, circuit breaker, request loggi
 
 `api/endpoints` (FastAPI routers) → `services/` (business logic, raises domain exceptions from `exceptions.py`) → `repository/` (pure SQLAlchemy data access, no business logic) → `models/`. Domain exceptions are mapped to HTTP status codes centrally in `main.py:register_exception_handlers`. Keep business logic out of repositories and let services raise custom exceptions rather than returning error states.
 
+### Logging (EFK)
+
+Centralized logging is **Docker `fluentd` driver → Fluent Bit → Elasticsearch** (the "F" is Fluent **Bit**, despite the `fluentd` driver name; there is no Fluentd). Each service's `logging:` block in `docker-compose.yaml` ships stdout to `localhost:24224` (`fluentd-async: true`, `tag: {{.Name}}`). Fluent Bit (`infra/fluent-bit/{fluent-bit.conf,parsers.conf}`, image `fluent/fluent-bit:3.2`) receives on the `forward` input, parses each line's `log` field as JSON (`json_try` parser), and writes to Elasticsearch with `Logstash_Format` → daily indices `app-logs-YYYY.MM.DD`. Apps emit JSON logs via `ServiceJsonFormatter` in `<service>/app/*ore/logging_config.py`.
+
+Debugging "too few logs in ES" (the pipeline itself is usually fine — check the ends):
+- **Apps log almost nothing per request because `uvicorn.access` is intentionally muted** in `logging_config.py` (`access_logger.disabled = True`). Without traffic + with access logging off there is simply little to ship. To see request-level logs, attach the JSON `handler` to the `uvicorn.access` logger instead of disabling it.
+- **`fluentd-async: true` + `depends_on: fluent-bit: service_started` drops early logs**: `service_started` ≠ the forward input on :24224 is ready, and async mode silently discards lines until the connection is up (no filesystem buffer is configured), so startup logs are lost in the race.
+- **Inspect the live pipeline**, don't guess: Fluent Bit metrics at `http://localhost:2020/api/v1/metrics` show `input.forward.0.records` vs `output.es.0.proc_records`/`errors`/`dropped_records`. `docker logs <c>` reads Docker's local dual-logging cache (works even with the fluentd driver) and is a useful "what was emitted" baseline to compare against ES.
+
 ## Landmines (read before editing)
 
 - **`auth_service/app/сore/` is spelled with a Cyrillic `с`**, not Latin `core`. Imports read `from auth_service.app.сore import ...`. If an import "looks right but fails," check for the homoglyph. (table_service uses a normal Latin `core/`.)
 - **No root-level migration tooling.** The old root `alembic.ini` and `Makefile` (which imported a long-gone `backend.app.*` package) have been **removed** — don't recreate them or run `alembic upgrade`/`make run` from the repo root. Each service owns its own Alembic config at `<service>/alembic.ini` (this is what docker-compose runs), and schema bootstrapping otherwise happens at startup via `Base.metadata.create_all` inside each service's `init_db()` (`*/app/*ore/database.py`).
 - **Each service has its own dependencies** (`<service>/requirements.txt`) and its own Postgres DB. The root `pyproject.toml`/`poetry.lock` is the superset for local tooling; CI installs per-service requirements.
 - **table_service config uses a prefixed env scheme**: pydantic-settings with `env_prefix="EXCEL_APP__"` and `env_nested_delimiter="__"`, so its env vars look like `EXCEL_APP__DB_HOST`. auth_service and api_gateway use plain names (`DB_HOST`, `JWT_SECRET_KEY`, …). docker-compose maps both.
-- **Infra configs live under `infra/`, not the repo root.** Postgres/RabbitMQ/Prometheus/Grafana/Traefik configs were moved out of the root into `infra/{postgres,rabbitmq,prometheus,grafana,traefik}/` and are bind-mounted from there in `docker-compose.yaml`. If you add or rename one, update its `volumes:` path in compose to match.
+- **Infra configs live under `infra/`, not the repo root.** Postgres/RabbitMQ/Prometheus/Grafana/Traefik/Fluent Bit configs were moved out of the root into `infra/{postgres,rabbitmq,prometheus,grafana,traefik,fluent-bit}/` and are bind-mounted from there in `docker-compose.yaml`. If you add or rename one, update its `volumes:` path in compose to match.
+- **The online_excel Elasticsearch does not publish a host port** — only `9200/tcp` (internal, network alias `elasticsearch` on `appnet`). On this machine host `localhost:9200` is a *different* project's `todo-elasticsearch`, so querying it for `app-logs*` returns nothing. Reach our ES via `docker exec online_excel_elasticsearch curl http://localhost:9200/...`.
 
 ## Commands
 

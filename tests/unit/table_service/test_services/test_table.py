@@ -441,7 +441,7 @@ class TestDeleteTable:
     ):
         """Что произойдет, если search_service упадет?"""
         mock_table_repo.get_table_by_id.return_value = real_data_table
-        mock_table_repo.delete_table.return_value = True
+        mock_table_repo.soft_delete_table.return_value = True
         mock_search_service.delete_from_index.side_effect = Exception(
             "Elasticsearch down"
         )
@@ -453,7 +453,7 @@ class TestDeleteTable:
         )
 
         # Таблица удалена, но search не в курсе
-        mock_table_repo.delete_table.assert_called_once()
+        mock_table_repo.soft_delete_table.assert_called_once()
 
 
 class TestEdgeCases:

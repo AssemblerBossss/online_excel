@@ -45,6 +45,12 @@ services:
       VITE_API_URL: http://localhost:11000/api
     ports:
       - "11000:80"
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async: "true"
+        tag: "{{.Name}}"
 
   auth_service:
     build:
@@ -118,6 +124,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      fluent-bit:
+        condition: service_started
     volumes:
       - ./auth_service:/app/auth_service
       - ./keys/jwt_private.pem:/run/secrets/jwt_private.pem:ro
@@ -128,6 +136,12 @@ services:
       timeout: 5s
       retries: 5
       start_period: 40s
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async: "true"
+        tag: "{{.Name}}"
 
   # ==================== Table Service ====================
   table_service:
@@ -182,6 +196,8 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
+      fluent-bit:
+        condition: service_started
     ports:
       - "8000:8000"
     volumes:
@@ -192,6 +208,12 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async: "true"
+        tag: "{{.Name}}"
 
   # ==================== Infrastructure ====================
 
@@ -343,6 +365,38 @@ services:
       - grafana_data:/var/lib/grafana
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+  kibana:
+    image: kibana:9.3.0
+    container_name: online_excel_kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -s http://localhost:5601/api/status | grep -q '\"level\":\"available\"'" ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  fluent-bit:
+    image: fluent/fluent-bit:3.2
+    container_name: online_excel_fluent_bit
+    volumes:
+      - ./infra/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./infra/fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf:ro
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+      - "2020:2020"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: on-failure
 
   traefik:
     image: traefik:v3.7
