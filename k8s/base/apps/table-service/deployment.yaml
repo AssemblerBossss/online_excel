@@ -29,7 +29,7 @@ spec:
       spec:
         containers:
           - name: table-service
-            image: online-excel/table-service:latest
+            image: online_excel-table_service:latest
             imagePullPolicy: IfNotPresent
             ports:
               - containerPort: 8000

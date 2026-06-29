@@ -28,7 +28,7 @@ spec:
           prometheus.io/port: "8001"
       spec:
         - name: auth-service
-          image: online-excel/auth-service:latest
+          image: online_excel-auth_service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001
