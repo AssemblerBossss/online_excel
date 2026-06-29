@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-static-config
+data:
+  traefik.yaml: |
+    entryPoints:
+      web:
+        address: ":80" 
+
+    api:
+      dashboard: true
+      insecure: true
+
+    accessLog:
+      format: json
+
+    metrics: 
+      prometheus:
+        addEntryPointsLabels: true
+        addServicesLabels: true
+
+    providers:
+      kubernetescrd: {}
+      file:
+        filename: /etc/traefik/dynamic.yaml
+        watch: true
+
+    experimental:
+      plugins:
+        jwt:
+          moduleName: github.com/traefik-plugins/traefik-jwt-plugin
+          version: v0.10.0
+
+    log:  
+      level: INFO
