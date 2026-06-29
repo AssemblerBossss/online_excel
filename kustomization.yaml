@@ -6,6 +6,9 @@ resources:
   - k8s/base/namespace.yaml
   - k8s/base/secret.yaml
 
+  - k8s/base/infra/redis.yaml
+  - k8s/base/infra/rabbitmq.yaml
+
   - k8s/base/infra/table-db.yaml
   - k8s/base/jobs/table-migrate.yaml
   - k8s/base/apps/table-service/deployment.yaml
