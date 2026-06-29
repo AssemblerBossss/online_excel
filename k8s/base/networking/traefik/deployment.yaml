@@ -31,7 +31,7 @@ spec:
               subPath: dynamic.yaml
               readOnly: true
             - name: jwt-keys
-              mountPath: /run/secrets
+              mountPath: /etc/jwt-keys
               readOnly: true
       volumes:
         - name: static-config

@@ -33,7 +33,7 @@ data:
               Required: true
               Alg: RS256
               KeysFiles:
-                - /run/secrets/jwt_public.pem
+                - /etc/jwt-keys/jwt_public.pem
               PayloadFields:
                 - exp
               JwtHeaders:

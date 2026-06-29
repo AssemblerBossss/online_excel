@@ -64,7 +64,7 @@ spec:
                   key: MINIO_SECRET_KEY
           volumeMounts:
             - name: jwt-keys
-              mountPath: /run/secrets
+              mountPath: /etc/jwt-keys
               readOnly: true
           readinessProbe:
             httpGet:

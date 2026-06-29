@@ -22,6 +22,10 @@ resources:
   - k8s/base/jobs/auth-migrate.yaml
   - k8s/base/jobs/table-migrate.yaml
 
+  # ConfigMaps
+  - k8s/base/configs/configmap-auth-service.yaml
+  - k8s/base/configs/configmap-table-service.yaml
+
   # Applications
   - k8s/base/apps/auth-service/deployment.yaml
   - k8s/base/apps/table-service/deployment.yaml
