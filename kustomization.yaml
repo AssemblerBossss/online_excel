@@ -4,12 +4,14 @@ namespace: online-excel
 
 resources:
   - k8s/base/namespace.yaml
+
   - k8s/base/infra/table-db.yaml
   - k8s/base/jobs/table-migrate.yaml
-  - k8s/base/apps/table-service.yaml
+  - k8s/base/apps/table-service/deployment.yaml
+
   - k8s/base/infra/auth-db.yaml
   - k8s/base/jobs/auth-migrate.yaml
-  - k8s/base/apps/auth-service.yaml
+  - k8s/base/apps/auth-service/deployment.yaml
 
 configMapGenerator:
   - name: postgres-config

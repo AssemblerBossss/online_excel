@@ -10,10 +10,10 @@ spec:
       initContainers:
         - name: wait-db
           image: postgres:16-alpine
-          command: [ "sh", "-c", "until pg_isready -h auth-db -U postgres; do sleep 2; done" ]
+          command: [ "sh", "-c", "until pg_isready -h auth_db -U postgres; do sleep 2; done" ]
       containers:
         - name: migrate
-          image: online_excel-table_service:latest
+          image: online_excel-auth_service:latest
           imagePullPolicy: IfNotPresent
           command: [ "alembic", "-c", "auth_service/alembic.ini", "upgrade", "head" ]
           envFrom:
