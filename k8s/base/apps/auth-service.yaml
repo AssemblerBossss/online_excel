@@ -25,10 +25,11 @@ spec:
           app: auth-service
         annotations:
           prometheus.io/scrape: "true"
-          prometheus.io/port: "8000"
+          prometheus.io/port: "8001"
       spec:
         - name: auth-service
-          image: ---
+          image: online-excel/auth-service:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001
           envFrom:
@@ -36,7 +37,7 @@ spec:
           env:
             - name: EXCEL_APP__DB_PASSWORD
               valueFrom:
-                secretKeyRef: { name: app-secrets-example, key: TABLE_DB_PASSWORD }
+                secretKeyRef: { name: app-secrets, key: AUTH_DB_PASSWORD }
           readinessProbe:
             httpGet: { path: /health/, port: 8001 }
             initialDelaySeconds: 10

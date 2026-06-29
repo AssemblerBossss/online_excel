@@ -14,6 +14,7 @@ spec:
       containers:
         - name: migrate
           image: online-excel/table-service:latest
+          imagePullPolicy: IfNotPresent
           command: [ "alembic", "-c", "table_service/alembic.ini", "upgrade", "head" ]
           envFrom:
             - configMapRef: { name: table-service-config }
