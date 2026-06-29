@@ -1,53 +1,59 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name:
+  name: elasticsearch
 spec:
-  serviceName: rabbitmq
+  serviceName: elasticsearch
   replicas: 1
   selector:
     matchLabels:
-      app: rabbitmq
+      app: elasticsearch
   template:
     metadata:
       labels:
-        app: rabbitmq
+        app: elasticsearch
     spec:
+      initContainers:
+        - name: fix-permissions
+          image: busybox
+          command: [ "sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data" ]
+          volumeMounts:
+            - name: es-data
+              mountPath: /usr/share/elasticsearch/data
+
       containers:
-        - name: rabbitmq
-          image: rabbitmq:4.2.4-alpine
+        - name: elasticsearch
+          image: elasticsearch:9.3.0
           ports:
-            - containerPort: 5672
-            - containerPort: 15672
+            - containerPort: 9200
+            - containerPort: 9300
           env:
-            - name: RABBITMQ_DEFAULT_USER
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: RABBITMQ_USER
-            - name: RABBITMQ_DEFAULT_PASS
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: RABBITMQ_PASSWORD
+            - name: discovery.type
+              value: single-node
+            - name: xpack.security.enabled
+              value: "false"
+            - name: ES_JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
           livenessProbe:
-            exec:
-              command: [ "rabbitmq-diagnostics", "ping" ]
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health?wait_for_status=yellow
+              port: 9200
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
-          readinessProbe:
-            exec:
-              command: [ "rabbitmq-diagnostics", "ping" ]
-            initialDelaySeconds: 20
-            periodSeconds: 10
-            timeoutSeconds: 5
           volumeMounts:
-            - name: rabbitmq-data
-              mountPath: /var/lib/rabbitmq
+            - name: es-data
+              mountPath: /usr/share/elasticsearch/data
   volumeClaimTemplate:
     - metadata:
-        name: rabbitmq-data
+        name: es-data
       spec:
         accessModes: [ "ReadWriteOnce" ]
         resources:
@@ -59,14 +65,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: rabbitmq
+  name: elasticsearch
 spec:
   selector:
-    app: rabbitmq
+    app: elasticsearch
   ports:
-    - name: amqp
-      port: 5672
-      targetPort: 5672
-    - name: management
-      port: 15672
-      targetPort: 15672
+    - name: http
+      port: 9200
+      targetPort: 9200
+    - name: transport
+      port: 9300
+      targetPort: 9300
