@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: table-migrate
+  name: auth-migrate
 spec:
   backoffLimit: 5
   template:
@@ -10,7 +10,7 @@ spec:
       initContainers:
         - name: wait-db
           image: postgres:16-alpine
-          command: [ "sh", "-c", "until pg_isready -h auth_db -U postgres; do sleep 2; done" ]
+          command: [ "sh", "-c", "until pg_isready -h auth-db -U postgres; do sleep 2; done" ]
       containers:
         - name: migrate
           image: online_excel-auth_service:latest
@@ -19,6 +19,8 @@ spec:
           envFrom:
             - configMapRef: { name: auth-service-config }
           env:
-            - name: EXCEL_APP__DB_PASSWORD
+            - name: DB_PASSWORD
               valueFrom:
-                secretKeyRef: { name: app-secrets, key: AUTH_DB_PASSWORD }
+                secretKeyRef:
+                  name: app-secrets
+                  key: AUTH_DB_PASSWORD

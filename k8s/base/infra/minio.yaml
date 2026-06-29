@@ -15,8 +15,7 @@ spec:
     spec:
       containers:
         - name: minio
-          image:
-            minio/minio: latest
+          image: minio/minio:latest
           ports:
             - containerPort: 9000
             - containerPort: 9001
@@ -48,7 +47,7 @@ spec:
           volumeMounts:
             - name: minio-data
               mountPath: /data
-  volumeClaimTemplate:
+  volumeClaimTemplates:
     - metadata:
         name: minio-data
       spec:

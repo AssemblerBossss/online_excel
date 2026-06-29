@@ -51,7 +51,7 @@ spec:
           volumeMounts:
             - name: es-data
               mountPath: /usr/share/elasticsearch/data
-  volumeClaimTemplate:
+  volumeClaimTemplates:
     - metadata:
         name: es-data
       spec:
