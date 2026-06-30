@@ -8,7 +8,7 @@ data:
       middlewares:
         ratelimit:
           rateLimit:
-            average: 60s
+            average: 60
             period: 1m
             burst: 60
             sourceCriterion:

@@ -9,15 +9,29 @@ metadata:
   name: traefik
 rules:
   - apiGroups: [ "" ]
-    resources: [ services, endpoints, secrets ]
+    resources: [ services, endpoints, secrets, configmaps, nodes ]
     verbs: [ get, list, watch ]
+  - apiGroups: [ discovery.k8s.io ]
+    resources: [ endpointslices ]
+    verbs: [ get, list, watch ]
+  - apiGroups: [ extensions, networking.k8s.io ]
+    resources: [ ingresses, ingressclasses ]
+    verbs: [ get, list, watch ]
+  - apiGroups: [ extensions, networking.k8s.io ]
+    resources: [ ingresses/status ]
+    verbs: [ update ]
   - apiGroups: [ traefik.io ]
     resources:
       - ingressroutes
       - ingressroutetcps
+      - ingressrouteudps
       - middlewares
+      - middlewaretcps
       - tlsoptions
+      - tlsstores
       - traefikservices
+      - serverstransports
+      - serverstransporttcps
     verbs: [ get, list, watch ]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -31,3 +45,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: traefik
+    namespace: online-excel

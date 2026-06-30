@@ -29,6 +29,7 @@ resources:
   # Applications
   - k8s/base/apps/auth-service/deployment.yaml
   - k8s/base/apps/table-service/deployment.yaml
+  - k8s/base/apps/frontend/deployment.yaml
 
   # Networking — Traefik
   - k8s/base/networking/traefik/rbac.yaml
