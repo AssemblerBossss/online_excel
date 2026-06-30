@@ -1,31 +1,29 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: table-db
+  name: auth-db
 spec:
   clusterIP: None
   selector:
-    app: table-db
+    app: auth-db
   ports:
     - port: 5432
-      name: table-db-port
-
+      name: auth-db-port
 ---
-
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: table-db
+  name: auth-db
 spec:
-  serviceName: table-db
+  serviceName: auth-db
   replicas: 1
   selector:
     matchLabels:
-      app: table-db
+      app: auth-db
   template:
     metadata:
       labels:
-        app: table-db
+        app: auth-db
     spec:
       containers:
         - name: postgres
@@ -33,17 +31,17 @@ spec:
           args: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
           ports:
             - containerPort: 5432
-              name: table-db-port
+              name: auth-db-port
           env:
             - name: POSTGRES_USER
               value: postgres
             - name: POSTGRES_DB
-              value: online_excel
+              value: auth_db
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: app-secrets
-                  key: TABLE_DB_PASSWORD
+                  key: AUTH_DB_PASSWORD
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           volumeMounts:

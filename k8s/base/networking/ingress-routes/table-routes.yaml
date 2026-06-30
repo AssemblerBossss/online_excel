@@ -1,0 +1,20 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: table-protected
+  namespace: online-excel
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/tables`) || PathPrefix(`/data`) || PathPrefix(`/search`)
+      kind: Rule
+      middlewares:
+        - name: ratelimit
+        - name: body-limit
+        - name: cors
+        - name: strip-user-headers
+        - name: jwt-auth
+      services:
+        - name: table-service
+          port: 8000

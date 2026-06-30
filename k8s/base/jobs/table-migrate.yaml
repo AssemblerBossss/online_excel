@@ -13,7 +13,8 @@ spec:
           command: [ "sh", "-c", "until pg_isready -h table-db -U postgres; do sleep 2; done" ]
       containers:
         - name: migrate
-          image: online-excel/table-service:latest
+          image: online_excel-table_service:latest
+          imagePullPolicy: IfNotPresent
           command: [ "alembic", "-c", "table_service/alembic.ini", "upgrade", "head" ]
           envFrom:
             - configMapRef: { name: table-service-config }

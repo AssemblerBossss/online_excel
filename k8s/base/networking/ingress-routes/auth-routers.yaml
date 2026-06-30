@@ -1,0 +1,40 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: auth-public
+  namespace: online-excel
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/auth`)
+      kind: Rule
+      middlewares:
+        - name: ratelimit
+        - name: body-limit
+        - name: cors
+      services:
+        - name: auth-service
+          port: 8001
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: users-protected
+  namespace: online-excel
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/users`)
+      kind: Rule
+      middlewares:
+        - name: ratelimit
+        - name: body-limit
+        - name: cors
+        - name: strip-user-headers
+        - name: jwt-auth
+      services:
+        - name: auth-service
+          port: 8001

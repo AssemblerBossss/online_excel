@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: auth-migrate
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-db
+          image: postgres:16-alpine
+          command: [ "sh", "-c", "until pg_isready -h auth-db -U postgres; do sleep 2; done" ]
+      containers:
+        - name: migrate
+          image: online_excel-auth_service:latest
+          imagePullPolicy: IfNotPresent
+          command: [ "alembic", "-c", "auth_service/alembic.ini", "upgrade", "head" ]
+          envFrom:
+            - configMapRef: { name: auth-service-config }
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: AUTH_DB_PASSWORD

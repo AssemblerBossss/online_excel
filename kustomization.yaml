@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: online-excel
+
+resources:
+  # Namespace
+  - k8s/base/namespace.yaml
+
+  # Secrets
+  - k8s/base/secret.yaml
+  - k8s/base/jwt-keys.yaml
+
+  # Infrastructure
+  - k8s/base/infra/redis.yaml
+  - k8s/base/infra/rabbitmq.yaml
+  - k8s/base/infra/elasticsearch.yaml
+  - k8s/base/infra/minio.yaml
+  - k8s/base/infra/auth-db.yaml
+  - k8s/base/infra/table-db.yaml
+
+  # Migration jobs
+  - k8s/base/jobs/auth-migrate.yaml
+  - k8s/base/jobs/table-migrate.yaml
+
+  # ConfigMaps
+  - k8s/base/configs/configmap-auth-service.yaml
+  - k8s/base/configs/configmap-table-service.yaml
+
+  # Applications
+  - k8s/base/apps/auth-service/deployment.yaml
+  - k8s/base/apps/table-service/deployment.yaml
+
+  # Networking — Traefik
+  - k8s/base/networking/traefik/rbac.yaml
+  - k8s/base/networking/traefik/configmap-static.yaml
+  - k8s/base/networking/traefik/configmap-dynamic.yaml
+  - k8s/base/networking/traefik/deployment.yaml
+
+  # Networking — Routes
+  - k8s/base/networking/ingress-routes/auth-routers.yaml
+  - k8s/base/networking/ingress-routes/table-routes.yaml
+
+configMapGenerator:
+  - name: postgres-config
+    files:
+      - infra/postgres/postgresql.conf
