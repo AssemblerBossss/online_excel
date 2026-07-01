@@ -7,3 +7,5 @@ __pycache__
 k8s/base/secrets/jwt-keys.yaml
 # JWT signing key (RS256) — не коммитим приватный ключ
 keys/*
+node_modules
+dist

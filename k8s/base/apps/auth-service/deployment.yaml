@@ -70,13 +70,13 @@ spec:
             httpGet:
               path: /health/
               port: 8001
-            initialDelaySeconds: 20
+            initialDelaySeconds: 40
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /health/
               port: 8001
-            initialDelaySeconds: 20
+            initialDelaySeconds: 40
             periodSeconds: 15
           resources:
             requests:
