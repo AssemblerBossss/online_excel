@@ -5,6 +5,7 @@ __pycache__
 .env.local
 .qwen/
 k8s/base/secrets/jwt-keys.yaml
+k8s/base/jwt-keys.yaml
 keys/*
 node_modules
 dist
