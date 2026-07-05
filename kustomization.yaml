@@ -18,6 +18,9 @@ resources:
   - k8s/base/infra/auth-db.yaml
   - k8s/base/infra/table-db.yaml
 
+  # Monitoring
+  - k8s/base/monitoring/service-monitors.yaml
+
   # Migration jobs
   - k8s/base/jobs/auth-migrate.yaml
   - k8s/base/jobs/table-migrate.yaml
@@ -78,7 +81,7 @@ configMapGenerator:
 helmCharts:
   - name: kube-prometheus-stack
     repo: https://prometheus-community.github.io/helm-charts
-    version: "65.x.x"
+    version: "87.10.1"
     releaseName: monitoring
     namespace: online-excel
     valuesFile: k8s/base/monitoring/values.yaml
