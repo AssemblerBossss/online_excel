@@ -34,8 +34,8 @@ resources:
   # Networking — Traefik
   - k8s/base/networking/traefik/rbac.yaml
   - k8s/base/networking/traefik/configmap-static.yaml
-  - k8s/base/networking/traefik/configmap-dynamic.yaml
   - k8s/base/networking/traefik/deployment.yaml
+  - k8s/base/networking/middlewares.yaml
 
   # Networking — Routes
   - k8s/base/networking/ingress-routes/auth-routers.yaml

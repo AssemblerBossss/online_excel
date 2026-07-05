@@ -10,11 +10,11 @@ spec:
     - match: PathPrefix(`/tables`) || PathPrefix(`/data`) || PathPrefix(`/search`)
       kind: Rule
       middlewares:
-        - name: ratelimit@file
-        - name: body-limit@file
-        - name: cors@file
-        - name: strip-user-headers@file
-        - name: jwt-auth@file
+        - name: rate-limit
+        - name: body-limit
+        - name: cors
+        - name: strip-user-headers
+        - name: jwt-auth
       services:
         - name: table-service
           port: 8000

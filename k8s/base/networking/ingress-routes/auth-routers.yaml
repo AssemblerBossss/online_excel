@@ -10,9 +10,9 @@ spec:
     - match: PathPrefix(`/auth`)
       kind: Rule
       middlewares:
-        - name: ratelimit@file
-        - name: body-limit@file
-        - name: cors@file
+        - name: rate-limit
+        - name: body-limit
+        - name: cors
       services:
         - name: auth-service
           port: 8001
@@ -30,11 +30,11 @@ spec:
     - match: PathPrefix(`/users`)
       kind: Rule
       middlewares:
-        - name: ratelimit@file
-        - name: body-limit@file
-        - name: cors@file
-        - name: strip-user-headers@file
-        - name: jwt-auth@file
+        - name: rate-limit
+        - name: body-limit
+        - name: cors
+        - name: strip-user-headers
+        - name: jwt-auth
       services:
         - name: auth-service
           port: 8001

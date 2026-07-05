@@ -22,9 +22,6 @@ data:
 
     providers:
       kubernetescrd: {}
-      file:
-        filename: /etc/traefik/dynamic/dynamic.yaml
-        watch: true
 
     experimental:
       plugins:
