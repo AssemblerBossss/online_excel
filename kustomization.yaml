@@ -45,3 +45,41 @@ configMapGenerator:
   - name: postgres-config
     files:
       - infra/postgres/postgresql.conf
+
+  - name: dashboard-fastapi
+    files:
+      - infra/grafana/dashboards/fastapi.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+  - name: dashboard-minio
+    files:
+      - infra/grafana/dashboards/minio.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+  - name: dashboard-rabbitmq
+    files:
+      - infra/grafana/dashboards/rabbitmq.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+  - name: dashboard-traefik
+    files:
+      - infra/grafana/dashboards/traefik.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+
+helmCharts:
+  - name: kube-prometheus-stack
+    repo: https://prometheus-community.github.io/helm-charts
+    version: "65.x.x"
+    releaseName: monitoring
+    namespace: online-excel
+    valuesFile: k8s/base/monitoring/values.yaml
+    includeCRDs: true
