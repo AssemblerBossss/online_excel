@@ -18,6 +18,9 @@ resources:
   - k8s/base/infra/auth-db.yaml
   - k8s/base/infra/table-db.yaml
 
+  # Monitoring
+  - k8s/base/monitoring/service-monitors.yaml
+
   # Migration jobs
   - k8s/base/jobs/auth-migrate.yaml
   - k8s/base/jobs/table-migrate.yaml
@@ -29,12 +32,13 @@ resources:
   # Applications
   - k8s/base/apps/auth-service/deployment.yaml
   - k8s/base/apps/table-service/deployment.yaml
+  - k8s/base/apps/frontend/deployment.yaml
 
   # Networking — Traefik
   - k8s/base/networking/traefik/rbac.yaml
   - k8s/base/networking/traefik/configmap-static.yaml
-  - k8s/base/networking/traefik/configmap-dynamic.yaml
   - k8s/base/networking/traefik/deployment.yaml
+  - k8s/base/networking/middlewares.yaml
 
   # Networking — Routes
   - k8s/base/networking/ingress-routes/auth-routers.yaml
@@ -44,3 +48,41 @@ configMapGenerator:
   - name: postgres-config
     files:
       - infra/postgres/postgresql.conf
+
+  - name: dashboard-fastapi
+    files:
+      - infra/grafana/dashboards/fastapi.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+  - name: dashboard-minio
+    files:
+      - infra/grafana/dashboards/minio.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+  - name: dashboard-rabbitmq
+    files:
+      - infra/grafana/dashboards/rabbitmq.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+  - name: dashboard-traefik
+    files:
+      - infra/grafana/dashboards/traefik.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+
+helmCharts:
+  - name: kube-prometheus-stack
+    repo: https://prometheus-community.github.io/helm-charts
+    version: "87.10.1"
+    releaseName: monitoring
+    namespace: online-excel
+    valuesFile: k8s/base/monitoring/values.yaml
+    includeCRDs: true

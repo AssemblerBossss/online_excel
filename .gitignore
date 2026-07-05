@@ -5,5 +5,10 @@ __pycache__
 .env.local
 .qwen/
 k8s/base/secrets/jwt-keys.yaml
-# JWT signing key (RS256) — не коммитим приватный ключ
+k8s/base/jwt-keys.yaml
 keys/*
+node_modules
+dist
+
+# kustomize --enable-helm скачивает чарты сюда локально при рендере
+charts/

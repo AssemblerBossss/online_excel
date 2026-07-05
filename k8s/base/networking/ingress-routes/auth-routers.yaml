@@ -10,7 +10,7 @@ spec:
     - match: PathPrefix(`/auth`)
       kind: Rule
       middlewares:
-        - name: ratelimit
+        - name: rate-limit
         - name: body-limit
         - name: cors
       services:
@@ -30,7 +30,7 @@ spec:
     - match: PathPrefix(`/users`)
       kind: Rule
       middlewares:
-        - name: ratelimit
+        - name: rate-limit
         - name: body-limit
         - name: cors
         - name: strip-user-headers

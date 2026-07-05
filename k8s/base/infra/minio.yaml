@@ -16,7 +16,7 @@ spec:
       containers:
         - name: minio
           image: minio/minio:latest
-          args: ["server", "/data", "--console-address", ":9001"]
+          args: [ "server", "/data", "--console-address", ":9001" ]
           ports:
             - containerPort: 9000
             - containerPort: 9001
@@ -64,12 +64,15 @@ kind: Service
 metadata:
   name: minio
 spec:
+  type: NodePort
   selector:
     app: minio
   ports:
     - name: api
       port: 9000
       targetPort: 9000
+      nodePort: 30900
     - name: console
       port: 9001
       targetPort: 9001
+

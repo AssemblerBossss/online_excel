@@ -16,6 +16,8 @@ spec:
       containers:
         - name: traefik
           image: traefik:v3.7
+          args:
+            - -configFile=/etc/traefik/static/traefik.yaml
           ports:
             - name: web
               containerPort: 80
@@ -23,12 +25,10 @@ spec:
               containerPort: 8080
           volumeMounts:
             - name: static-config
-              mountPath: /etc/traefik/traefik.yaml
-              subPath: traefik.yaml
+              mountPath: /etc/traefik/static/
               readOnly: true
             - name: dynamic-config
-              mountPath: /etc/traefik/dynamic.yaml
-              subPath: dynamic.yaml
+              mountPath: /etc/traefik/dynamic/
               readOnly: true
             - name: jwt-keys
               mountPath: /etc/jwt-keys

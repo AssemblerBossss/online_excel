@@ -1,0 +1,38 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: table-service
+  namespace: online-excel
+  labels:
+    release: monitoring # совпадает с releaseName чарта
+spec:
+  namespaceSelector:
+    matchNames:
+      - online-excel
+  selector:
+    matchLabels:
+      app: table-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: auth-service
+  namespace: online-excel
+  labels:
+    release: monitoring # совпадает с releaseName чарта
+spec:
+  namespaceSelector:
+    matchNames:
+      - online-excel
+  selector:
+    matchLabels:
+      app: auth-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

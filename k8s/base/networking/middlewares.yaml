@@ -1,0 +1,72 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit
+  namespace: online-excel
+spec:
+  rateLimit:
+    average: 60
+    period: 1m
+    burst: 60
+    sourceCriterion:
+      ipStrategy:
+        depth: 1
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: jwt-auth
+  namespace: online-excel
+spec:
+  plugin:
+    jwt:
+      Required: true
+      Alg: RS256
+      KeysFiles:
+        - /etc/jwt-keys/jwt_public.pem
+      PayloadFields:
+        - exp
+      JwtHeaders:
+        X-User-ID: user_id
+        X-User-Email: email
+        X-User-Role: role
+        X-User-Active: is_active
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: body-limit
+  namespace: online-excel
+spec:
+  buffering:
+    maxRequestBodyBytes: 10485760
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-user-headers
+  namespace: online-excel
+spec:
+  headers:
+    customRequestHeaders:
+      X-User-ID: ""
+      X-User-Email: ""
+      X-User-Role: ""
+      X-User-Active: ""
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: cors
+  namespace: online-excel
+spec:
+  headers:
+    accessControlAllowOriginList: [ "http://localhost:3000" ]
+    accessControlAllowMethods: [ "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS" ]
+    accessControlAllowHeaders: [ "*" ]
+    accessControlAllowCredentials: true
+    accessControlExposeHeaders: [ "Content-Disposition" ]

@@ -6,7 +6,8 @@ spec:
   selector:
     app: auth-service
   ports:
-    - port: 8001
+    - name: http
+      port: 8001
       targetPort: 8001
 
 ---
@@ -23,9 +24,6 @@ spec:
     metadata:
       labels:
         app: auth-service
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "8001"
     spec:
       containers:
         - name: auth-service
@@ -70,13 +68,13 @@ spec:
             httpGet:
               path: /health/
               port: 8001
-            initialDelaySeconds: 10
+            initialDelaySeconds: 40
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /health/
               port: 8001
-            initialDelaySeconds: 20
+            initialDelaySeconds: 40
             periodSeconds: 15
           resources:
             requests:

@@ -6,7 +6,8 @@ spec:
   selector:
     app: table-service
   ports:
-    - port: 8000
+    - name: http
+      port: 8000
       targetPort: 8000
 ---
 apiVersion: apps/v1
@@ -22,9 +23,6 @@ spec:
     metadata:
       labels:
         app: table-service
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "8000"
     spec:
       containers:
         - name: table-service
