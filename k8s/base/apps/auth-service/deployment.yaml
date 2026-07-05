@@ -24,9 +24,6 @@ spec:
     metadata:
       labels:
         app: auth-service
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "8001"
     spec:
       containers:
         - name: auth-service
