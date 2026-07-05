@@ -8,3 +8,6 @@ k8s/base/secrets/jwt-keys.yaml
 keys/*
 node_modules
 dist
+
+# kustomize --enable-helm скачивает чарты сюда локально при рендере
+charts/
