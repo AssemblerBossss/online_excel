@@ -91,6 +91,6 @@ helmCharts:
     repo: https://fluent.github.io/helm-charts
     version: "0.57.9"
     releaseName: fluent-bit
-    namespace: logging
+    namespace: online-excel
     valuesFile: k8s/base/logging/fluent-bit-values.yaml
     includeCRDs: false
