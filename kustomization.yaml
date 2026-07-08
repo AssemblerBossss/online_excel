@@ -86,3 +86,11 @@ helmCharts:
     namespace: online-excel
     valuesFile: k8s/base/monitoring/values.yaml
     includeCRDs: true
+
+  - name: fluent-bit
+    repo: https://fluent.github.io/helm-charts
+    version: "0.57.9"
+    releaseName: fluent-bit
+    namespace: online-excel
+    valuesFile: k8s/base/logging/fluent-bit-values.yaml
+    includeCRDs: false
