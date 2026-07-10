@@ -2,6 +2,7 @@
 import React, {useEffect, useState, useRef} from "react";
 import {useParams, useNavigate} from "react-router-dom";
 import {tablesAPI, TableRow, ColumnSchema, RowFilter, isFormula, evaluateFormula} from "../api/tables";
+import {subscribeToTableEvents} from '../api/ws';
 
 const PAGE_SIZE = 50;
 
@@ -34,8 +35,12 @@ const TableViewPage: React.FC = () => {
     const [filterDraft, setFilterDraft] = useState<Record<string, string>>({});
     const [filters, setFilters] = useState<RowFilter[]>([]);
 
-    useEffect(() => { loadTable(); }, [id]);
-    useEffect(() => { loadRows(); }, [id, page, sortBy, sortOrder, filters]);
+    useEffect(() => {
+        loadTable();
+    }, [id]);
+    useEffect(() => {
+        loadRows();
+    }, [id, page, sortBy, sortOrder, filters]);
 
     useEffect(() => {
         if (editingCell && inputRef.current) {
@@ -72,6 +77,26 @@ const TableViewPage: React.FC = () => {
             setLoading(false);
         }
     };
+
+    const loadRowsRef = useRef(loadRows);
+    useEffect(() => {
+        loadRowsRef.current = loadRows;
+    });
+
+    useEffect(() => {
+        if (!tableId) return;
+        let reloadTimer: number | null = null;
+
+        const unsubscribe = subscribeToTableEvents(tableId, () => {
+            if (reloadTimer) window.clearTimeout(reloadTimer);
+            reloadTimer = window.setTimeout(() => loadRowsRef.current(), 300);
+        });
+
+        return () => {
+            if (reloadTimer) window.clearTimeout(reloadTimer);
+            unsubscribe();
+        };
+    }, [tableId]);
 
     const colNames = columns.map(c => c.name);
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -158,7 +183,7 @@ const TableViewPage: React.FC = () => {
                     ...r,
                     row_data: newRowData,
                     formulas: Object.keys(updatedFormulas).length ? updatedFormulas : undefined,
-                  }
+                }
                 : r
         ));
 
@@ -192,7 +217,9 @@ const TableViewPage: React.FC = () => {
 
     const addRow = async () => {
         const emptyRow: Record<string, any> = {};
-        colNames.forEach(col => { emptyRow[col] = ""; });
+        colNames.forEach(col => {
+            emptyRow[col] = "";
+        });
 
         try {
             const newRow = await tablesAPI.createRow(tableId, emptyRow);
@@ -287,36 +314,38 @@ const TableViewPage: React.FC = () => {
                     <div style={styles.tableWrapper}>
                         <table style={styles.table}>
                             <thead>
-                                <tr>
-                                    <th style={styles.rowNumberHeader}></th>
-                                    {colNames.map(col => (
-                                        <th
-                                            key={col}
-                                            style={{...styles.th, cursor: "pointer"}}
-                                            onClick={() => toggleSort(col)}
-                                        >
-                                            {col}
-                                            {sortBy === col && <span> {sortOrder === 'asc' ? '▲' : '▼'}</span>}
-                                        </th>
-                                    ))}
-                                    <th style={{...styles.th, width: "48px"}}></th>
-                                </tr>
-                                <tr>
-                                    <th style={styles.rowNumberHeader}></th>
-                                    {colNames.map(col => (
-                                        <th key={col} style={styles.filterCell}>
-                                            <input
-                                                style={styles.filterInput}
-                                                placeholder="фильтр…"
-                                                value={filterDraft[col] ?? ''}
-                                                onChange={e => setFilterDraft(prev => ({...prev, [col]: e.target.value}))}
-                                                onKeyDown={e => { if (e.key === 'Enter') applyFilter(col); }}
-                                                onBlur={() => applyFilter(col)}
-                                            />
-                                        </th>
-                                    ))}
-                                    <th style={styles.filterCell}></th>
-                                </tr>
+                            <tr>
+                                <th style={styles.rowNumberHeader}></th>
+                                {colNames.map(col => (
+                                    <th
+                                        key={col}
+                                        style={{...styles.th, cursor: "pointer"}}
+                                        onClick={() => toggleSort(col)}
+                                    >
+                                        {col}
+                                        {sortBy === col && <span> {sortOrder === 'asc' ? '▲' : '▼'}</span>}
+                                    </th>
+                                ))}
+                                <th style={{...styles.th, width: "48px"}}></th>
+                            </tr>
+                            <tr>
+                                <th style={styles.rowNumberHeader}></th>
+                                {colNames.map(col => (
+                                    <th key={col} style={styles.filterCell}>
+                                        <input
+                                            style={styles.filterInput}
+                                            placeholder="фильтр…"
+                                            value={filterDraft[col] ?? ''}
+                                            onChange={e => setFilterDraft(prev => ({...prev, [col]: e.target.value}))}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') applyFilter(col);
+                                            }}
+                                            onBlur={() => applyFilter(col)}
+                                        />
+                                    </th>
+                                ))}
+                                <th style={styles.filterCell}></th>
+                            </tr>
                             </thead>
                             <tbody>
                             {rows.map((row, rowIndex) => (
