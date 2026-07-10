@@ -16,7 +16,7 @@ from .table import (
 )
 from .user import SCurrentUser, SUserFilter
 from .permission import TablePermissionCreate, TablePermissionResponse
-from .ws import SWsTicketResponse, SRowEvent
+from .ws import SWsTicketResponse, SRowEvent, RowEventType
 
 
 __all__ = [
@@ -38,4 +38,5 @@ __all__ = [
     "COMPARISON_OPERATORS",
     "SRowEvent",
     "SWsTicketResponse",
+    "RowEventType",
 ]
