@@ -3,7 +3,6 @@ import logging
 
 from fastapi import WebSocket
 from redis.asyncio import Redis
-from urllib3.contrib.emscripten import connection
 
 logger = logging.getLogger(__name__)
 
@@ -37,3 +36,21 @@ class TableWsManager:
                 await websocket.send_text(message)
             except Exception:
                 self.disconnect(table_id, websocket)
+
+    async def run_listener(self, redis: Redis) -> None:
+        """Фоновая задача (из lifespan): слушает Redis Pub/Sub
+        и рассылает события локальным подключениям своей реплики."""
+        pubsub = redis.pubsub()
+        await pubsub.subscribe(EVENTS_PATTERN)
+        try:
+            async for message in pubsub.listen():
+                if message["type"] != "pmessage":
+                    continue
+                table_id = int(message["channel"].rsplit(":", 1)[-1])
+                await self.broadcast(table_id, message["data"])
+        except asyncio.CancelledError:
+            await pubsub.punsubscribe(EVENTS_PATTERN)
+            raise
+
+
+table_ws_manager = TableWsManager()
