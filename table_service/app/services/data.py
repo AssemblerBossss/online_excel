@@ -2,8 +2,6 @@ import logging
 from typing import Literal
 from datetime import datetime, timezone
 
-from urllib3.contrib.emscripten import response
-
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.schemas import (
     TableRowResponse,

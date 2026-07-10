@@ -3,7 +3,6 @@ from fastapi import Depends, Request, HTTPException
 from typing import AsyncGenerator, Annotated
 from redis.asyncio import Redis
 
-from auth_service.app.events.publisher import EventPublisher
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.services import (
     DataService,

@@ -55,7 +55,6 @@ async def issue_ws_ticket(
     return await ticket_service.issue(current_user)
 
 
-@router.post()
 @router.get("/", response_model=list[DataTableResponse])
 async def get_tables(
     table_service: Annotated[TableService, Depends(get_table_service)],
