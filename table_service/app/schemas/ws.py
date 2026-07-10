@@ -14,6 +14,8 @@ class RowEventType(str, Enum):
 
 
 class SRowEvent(BaseModel):
+    """Событие изменения строки, рассылаемое WS-подписчикам таблицы."""
+
     event: RowEventType
     table_id: int
     row_id: int
