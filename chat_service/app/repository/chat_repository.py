@@ -1,12 +1,18 @@
 from sqlalchemy import select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from chat_service.app.models import Chat, Message
+from chat_service.app.models import Chat, Message, ChatUser
 import uuid
 
 
 class ChatRepository:
     def __init_(self, session: AsyncSession):
         self._session = session
+
+    async def get_user_by_email(self, user_email: str) -> ChatUser | None:
+        """Найти пользователя в локальной проекции"""
+        stmt = select(ChatUser).where(ChatUser.email == user_email)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_dialogs_for_user(self, user_email: str) -> list[Chat]:
         """
