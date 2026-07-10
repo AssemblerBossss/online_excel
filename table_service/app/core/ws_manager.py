@@ -21,7 +21,7 @@ class TableWsManager:
         await websocket.accept()
         self._connections.setdefault(table_id, set()).add(websocket)
 
-    async def disconnect(self, table_id: int, websocket: WebSocket) -> None:
+    def disconnect(self, table_id: int, websocket: WebSocket) -> None:
         """Удалить WebSocket соединение из пула активных подключений к таблице."""
         connections: set[WebSocket] | None = self._connections.get(table_id)
         if not connections:
@@ -29,3 +29,11 @@ class TableWsManager:
         connections.discard(websocket)
         if not connections:
             self._connections.pop(table_id, None)
+
+    async def broadcast(self, table_id: int, message: str) -> None:
+        """Отправить сообщение всем клиентам, подключённым к указанной таблице. При ошибке клиент отключается."""
+        for websocket in self._connections.get(table_id, ()):
+            try:
+                await websocket.send_text(message)
+            except Exception:
+                self.disconnect(table_id, websocket)
