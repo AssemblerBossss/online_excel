@@ -73,6 +73,26 @@ class DataService:
             )
         )
 
+    async def ensure_read_access(
+        self,
+        uow_session: UnitOfWork,
+        table_id: int,
+        user_id: int,
+        user_role: str,
+    ) -> None:
+        """Проверить право чтения таблицы (используется при WS-подписке)."""
+        async with uow_session.start():
+            table = await uow_session.tables.get_table_by_id(table_id)
+            if not table:
+                raise NotFoundException("Таблица не найдена")
+            if not await self.permission_service.check_read_access(
+                uow_session=uow_session,
+                table=table,
+                user_id=user_id,
+                user_role=user_role,
+            ):
+                raise AccessDeniedException()
+
     async def get_table_rows(
         self,
         uow_session: UnitOfWork,
