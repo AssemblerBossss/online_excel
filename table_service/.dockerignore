@@ -1,8 +1,36 @@
-# Python
+# Git
+.git
+.gitignore
+
+# Python (везде и всюду)
 __pycache__
-app.egg-info
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+dist/
+build/
 .mypy_cache
+.pytest_cache
 .coverage
 htmlcov
 .venv
+env/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Докер
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Докерфайлы других сервисов (чтобы не тащить их в контекст этого)
+auth_service/
+frontend/
+k8s/
+infra/

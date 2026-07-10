@@ -1,6 +1,6 @@
 import logging
 from typing import Literal
-
+from datetime import datetime, timezone
 
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.schemas import (
@@ -10,6 +10,7 @@ from table_service.app.schemas import (
     RowFilter,
     COMPARISON_OPERATORS,
     PaginatedRows,
+    SRowEvent,
 )
 from table_service.app.exceptions import (
     AccessDeniedException,
@@ -17,9 +18,10 @@ from table_service.app.exceptions import (
     NotFoundException,
 )
 from table_service.app.models import TableRow
+from table_service.app.schemas import RowEventType
 from table_service.app.services.permission import PermissionService
 from table_service.app.services.data_validation import DataValidationService
-
+from table_service.app.services.row_events import RowEventPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +31,12 @@ class DataService:
         self,
         permission_service: PermissionService,
         validation_service: DataValidationService | None = None,
+        event_publisher: RowEventPublisher | None = None,
     ):
 
         self.permission_service = permission_service
         self.validation_service = validation_service or DataValidationService()
+        self.event_publisher = event_publisher
 
     @staticmethod
     def _to_row_response(row: TableRow) -> TableRowResponse:
@@ -44,6 +48,48 @@ class DataService:
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
+
+    async def _publish_row_event(
+        self,
+        event: RowEventType,
+        table_id: int,
+        row_id: int,
+        actor_id: int,
+        row: TableRowResponse | None,
+    ) -> None:
+        """Опубликовать событие об изменении строки в Redis для WebSocket-рассылки."""
+        if self.event_publisher is None:
+            return
+        await self.event_publisher.publish(
+            SRowEvent(
+                event=event,
+                table_id=table_id,
+                row_id=row_id,
+                actor_id=actor_id,
+                row=row,
+                occurred_at=datetime.now(timezone.utc),
+            )
+        )
+
+    async def ensure_read_access(
+        self,
+        uow_session: UnitOfWork,
+        table_id: int,
+        user_id: int,
+        user_role: str,
+    ) -> None:
+        """Проверить право чтения таблицы (используется при WS-подписке)."""
+        async with uow_session.start():
+            table = await uow_session.tables.get_table_by_id(table_id)
+            if not table:
+                raise NotFoundException("Таблица не найдена")
+            if not await self.permission_service.check_read_access(
+                uow_session=uow_session,
+                table=table,
+                user_id=user_id,
+                user_role=user_role,
+            ):
+                raise AccessDeniedException()
 
     async def get_table_rows(
         self,
@@ -183,7 +229,16 @@ class DataService:
             )
             logger.info("User %s created row %s in table %s", user_id, row.id, table_id)
 
-            return self._to_row_response(row)
+            response = self._to_row_response(row)
+
+        await self._publish_row_event(
+            event=RowEventType.row_created,
+            table_id=table_id,
+            row_id=response.id,
+            actor_id=user_id,
+            row=response,
+        )
+        return response
 
     async def update_table_row(
         self,
@@ -225,7 +280,16 @@ class DataService:
             if not row:
                 raise NotFoundException()
 
-            return self._to_row_response(row)
+            response = self._to_row_response(row)
+
+        await self._publish_row_event(
+            event=RowEventType.row_updated,
+            table_id=table_id,
+            row_id=response.id,
+            actor_id=user_id,
+            row=response,
+        )
+        return response
 
     async def delete_table_row(
         self,
@@ -257,3 +321,11 @@ class DataService:
             logger.info(
                 "User %s deleted row %s from table %s", user_id, row_id, table_id
             )
+
+        await self._publish_row_event(
+            event=RowEventType.row_deleted,
+            table_id=table_id,
+            row_id=row_id,
+            actor_id=user_id,
+            row=None,
+        )

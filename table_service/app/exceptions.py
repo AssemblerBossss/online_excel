@@ -28,10 +28,6 @@ class CanNotDeleteTableException(AppException):
     detail = "Не удалось удалить таблицу"
 
 
-class UserNotFoundException(AppException):
-    detail = "Пользователь не найден"
-
-
 class ForbiddenException(AppException):
     detail = "Недостаточно прав"
 
@@ -40,12 +36,8 @@ class TokenInvalidFormatException(AppException):
     detail = "Неверный формат токена. Ожидается 'Bearer <токен>'"
 
 
-class InvalidTokenFormatException(AppException):
-    detail = "Некорректный формат токена"
-
-
-class IncorrectEmailOrPasswordException(AppException):
-    detail = "Неверная почта или пароль"
+class InvalidWSTicketException(AppException):
+    detail = "Недействительный или истёкший WebSocket-тикет"
 
 
 class InvalidFileFormatException(AppException):

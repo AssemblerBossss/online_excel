@@ -19,14 +19,16 @@ from table_service.app.schemas import (
     SCurrentUser,
     DataTableUpdate,
     DataTableDuplicate,
+    SWsTicketResponse,
 )
 from table_service.app.core.unit_of_work import UnitOfWork
-from table_service.app.services import TableService
+from table_service.app.services import TableService, WsTicketService
 from table_service.app.api.dependencies import (
     get_table_service,
     get_current_active_user,
     get_redis,
     get_async_uow_session,
+    get_ws_ticket_service,
 )
 
 from table_service.app.api.cache import (
@@ -38,6 +40,19 @@ from table_service.app.api.cache import (
 
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 router = APIRouter()
+
+
+@router.post(
+    "/ws-ticket",
+    response_model=SWsTicketResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def issue_ws_ticket(
+    ticket_service: Annotated[WsTicketService, Depends(get_ws_ticket_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+) -> SWsTicketResponse:
+    """Выдать одноразовый тикет для WebSocket-подключения к событиям таблицы."""
+    return await ticket_service.issue(current_user)
 
 
 @router.get("/", response_model=list[DataTableResponse])

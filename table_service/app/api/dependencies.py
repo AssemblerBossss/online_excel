@@ -10,14 +10,30 @@ from table_service.app.services import (
     SearchService,
     PermissionService,
     ExcelProcessorService,
+    WsTicketService,
+    RowEventPublisher,
+    DataValidationService,
 )
 from table_service.app.core import AsyncSessionFactory, get_redis_client, get_es_client
 from table_service.app.schemas import SCurrentUser, SUserFilter
-from table_service.app.services.data_validation import DataValidationService
 
 
 async def get_async_uow_session() -> AsyncGenerator[UnitOfWork, None]:
     yield UnitOfWork(AsyncSessionFactory)
+
+
+def get_row_event_publisher(
+    redis: Annotated[Redis, Depends(get_redis_client)],
+) -> RowEventPublisher:
+    """Получить издателя событий строк (Redis Pub/Sub)."""
+    return RowEventPublisher(redis=redis)
+
+
+def get_ws_ticket_service(
+    redis: Annotated[Redis, Depends(get_redis_client)],
+) -> WsTicketService:
+    """Получить сервис одноразовых WebSocket-тикетов."""
+    return WsTicketService(redis=redis)
 
 
 def get_search_service(
@@ -62,11 +78,13 @@ def get_data_service(
     validation_service: Annotated[
         DataValidationService, Depends(get_validation_service)
     ],
+    event_publisher: Annotated[RowEventPublisher, Depends(get_row_event_publisher)],
 ) -> DataService:
     """Получить экземпляр сервиса данных."""
     return DataService(
         permission_service=permission_service,
         validation_service=validation_service,
+        event_publisher=event_publisher,
     )
 
 
