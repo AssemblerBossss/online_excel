@@ -2,6 +2,8 @@ import logging
 from typing import Literal
 from datetime import datetime, timezone
 
+from urllib3.contrib.emscripten import response
+
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.schemas import (
     TableRowResponse,
@@ -209,7 +211,16 @@ class DataService:
             )
             logger.info("User %s created row %s in table %s", user_id, row.id, table_id)
 
-            return self._to_row_response(row)
+            response = self._to_row_response(row)
+
+        await self._publish_row_event(
+            event=RowEventType.row_created,
+            table_id=table_id,
+            row_id=response.id,
+            actor_id=user_id,
+            row=response,
+        )
+        return response
 
     async def update_table_row(
         self,
@@ -251,7 +262,16 @@ class DataService:
             if not row:
                 raise NotFoundException()
 
-            return self._to_row_response(row)
+            response = self._to_row_response(row)
+
+        await self._publish_row_event(
+            event=RowEventType.row_updated,
+            table_id=table_id,
+            row_id=response.id,
+            actor_id=user_id,
+            row=response,
+        )
+        return response
 
     async def delete_table_row(
         self,
@@ -283,3 +303,11 @@ class DataService:
             logger.info(
                 "User %s deleted row %s from table %s", user_id, row_id, table_id
             )
+
+        await self._publish_row_event(
+            event=RowEventType.row_deleted,
+            table_id=table_id,
+            row_id=row_id,
+            actor_id=user_id,
+            row=None,
+        )
