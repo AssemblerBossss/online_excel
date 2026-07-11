@@ -41,7 +41,7 @@ class TableWsManager:
         """Фоновая задача (из lifespan): слушает Redis Pub/Sub
         и рассылает события локальным подключениям своей реплики."""
         pubsub = redis.pubsub()
-        await pubsub.subscribe(EVENTS_PATTERN)
+        await pubsub.psubscribe(EVENTS_PATTERN)
         try:
             async for message in pubsub.listen():
                 if message["type"] != "pmessage":
