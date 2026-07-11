@@ -118,3 +118,27 @@ class ChatService:
             page=None,
             cursor=None,
         )
+
+    async def mark_chat_as_read(
+        self, current_user_email: str, interlocutor_email: str
+    ) -> int:
+        """
+        Сбрасывает счетчик непрочитанных для текущего пользователя.
+        Возвращает количество помеченных сообщений.
+        """
+        user1, user2 = sorted([interlocutor_email, current_user_email])
+        chat = await self.repo.get_chat_by_users(user1_email=user1, user2_email=user2)
+        if not chat:
+            return 0
+
+        updated_count = await self.repo.mark_messages_as_read(
+            chat_id=chat.id, reader_email=current_user_email
+        )
+        # Обнуляем денормализованный счетчик у нужного участника
+        if updated_count > 0:
+            if current_user_email == chat.user1_email:
+                chat.unread_count_user1 = 0
+            else:
+                chat.unread_count_user2 = 0
+
+        return updated_count

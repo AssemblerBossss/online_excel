@@ -61,3 +61,23 @@ async def get_messages(
     return await chat_service.get_messages(
         user_email, interlocutor_email, limit, offset
     )
+
+
+@router.patch(
+    "messages/{interlocutor_email}/read",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Пометить диалог как прочитанный",
+)
+async def mark_chat_as_read(
+    interlocutor_email: str,
+    chat_service: Annotated[ChatService, Depends(get_chat_service)],
+    user_email: str = Depends(get_current_user_email),
+) -> None:
+    """
+    Фронтенд вызывает этот эндпоинт при открытии диалога.
+    Сбрасывает unread_count и ставит is_read=True у всех входящих сообщений.
+    Commit выполняется автоматически через UnitOfWork.
+    """
+    await chat_service.mark_chat_as_read(
+        current_user_email=user_email, interlocutor_email=interlocutor_email
+    )

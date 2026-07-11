@@ -1,4 +1,4 @@
-from sqlalchemy import select, or_, and_
+from sqlalchemy import select, or_, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from chat_service.app.models import Chat, Message, ChatUser
 import uuid
@@ -81,3 +81,23 @@ class ChatRepository:
         )
         result = await self._session.execute(stmt)
         return result.scalar_one()
+
+    async def mark_messages_as_read(self, chat_id: uuid.UUID, reader_email: str) -> int:
+        """
+        Помечает все непрочитанные сообщения в чате как прочитанные.
+        Возвращает количество обновленных строк.
+        Обновляет ТОЛЬКО те сообщения, где текущий пользователь является получателем.
+        """
+        stmt = (
+            update(Message)
+            .where(
+                and_(
+                    Message.chat_id == chat_id,
+                    Message.receiver_email == reader_email,
+                    Message.is_read == False,
+                )
+            )
+            .values(is_read=True)
+        )
+        result = await self._session.execute(stmt)
+        return result.rowcount
