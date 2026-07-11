@@ -30,7 +30,7 @@ class MessageOut(BaseModel):
 
 # Список диалогов (GET /chat/users)
 class DialogOut(BaseModel):
-    # Здесь нет user1 и user2. Сервисный слой сам вычислит , с кем мы говорим
+    # Здесь нет user1 и user2. Сервисный слой сам вычислит, с кем мы говорим
     interlocutor_email: EmailStr
 
     # Денормализованные данные из таблицы chats для быстрого рендера

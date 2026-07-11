@@ -1,8 +1,7 @@
 from sqlalchemy import String, Integer, Boolean, DateTime, func
 from sqlalchemy.orm import mapped_column, Mapped
 from datetime import datetime
-
-from .base import Base
+from chat_service.app.core import Base
 
 
 class ChatUser(Base):

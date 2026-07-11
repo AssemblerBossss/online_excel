@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, UTC
+from datetime import datetime
 
 from sqlalchemy import (
     UniqueConstraint,
@@ -9,9 +9,10 @@ from sqlalchemy import (
     Text,
     Index,
     Boolean,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from auth_service.app.models.base import Base
+from chat_service.app.core import Base
 
 
 class Chat(Base):
@@ -74,7 +75,7 @@ class Message(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=datetime.now(UTC)
+        DateTime(timezone=True), server_default=func.now()
     )
 
     # Обратная связь

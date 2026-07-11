@@ -5,7 +5,7 @@ import uuid
 
 
 class ChatRepository:
-    def __init_(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession):
         self._session = session
 
     async def get_user_by_email(self, user_email: str) -> ChatUser | None:
@@ -36,7 +36,7 @@ class ChatRepository:
             and_(user1_email == Chat.user1_email, user2_email == Chat.user2_email)
         )
         result = await self._session.execute(stmt)
-        return result.scalars.first()
+        return result.scalars().first()
 
     async def create_chat(self, user1_email: str, user2_email: str) -> Chat:
         """Создает новую запись в таблице Chats"""
@@ -71,3 +71,13 @@ class ChatRepository:
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def count_messages(self, chat_id: uuid.UUID) -> int:
+        """Подсчитывает общее количество сообщений в чате"""
+        from sqlalchemy import func
+
+        stmt = (
+            select(func.count()).select_from(Message).where(Message.chat_id == chat_id)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
