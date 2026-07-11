@@ -44,6 +44,13 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB: int = 10  # Максимальный размер файла в MB
     MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB в байтах
 
+    MINIO_ENDPOINT: str = "minio:9000"
+    MINIO_PUBLIC_URL: str = "http://localhost:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_EXPORT_BUCKET: str = "exports"
+    MINIO_SECURE: bool = False
+
     @cached_property
     def DATABASE_URL(self) -> str:
         return f"{self.DB_DRIVER}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
