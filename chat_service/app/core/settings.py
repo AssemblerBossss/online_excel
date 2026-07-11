@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     DB_HOST: str = "chat_db"
     DB_PORT: int = 5432
     DB_USER: str = "postgres"
-    DB_PASSWORD: str = "online_excel"
+    DB_PASSWORD: str = "postgres"
     DB_NAME: str = "chat"
     DB_DRIVER: str = "postgresql+asyncpg"
 
