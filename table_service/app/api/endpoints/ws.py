@@ -46,6 +46,7 @@ async def table_ws_events(
         )
     except AppException:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
 
     await table_ws_manager.connect(table_id=table_id, websocket=websocket)
     try:
