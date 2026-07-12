@@ -1,7 +1,9 @@
+import json
 from redis.asyncio import Redis
 
-from core.export_storage import ExportStorage
-from schemas import SExportJob
+from table_service.app.core import ExportStorage
+from table_service.app.exceptions import ExportJobNotFoundException
+from table_service.app.schemas import SExportJob
 from table_service.app.services.permission import PermissionService
 from table_service.app.services.excel_processor import ExcelProcessorService
 
@@ -25,9 +27,18 @@ class ExportJobService:
 
     @staticmethod
     def _key(job_id: str) -> str:
+        """Сформировать ключ Redis для задачи экспорта."""
         return f"export:job:{job_id}"
 
     async def _save(self, job: SExportJob) -> None:
+        """Сохранить задачу экспорта в Redis с TTL."""
         await self.redis.setex(
             name=self._key(job.job_id), time=JOB_TTL, value=job.model_dump_json()
         )
+
+    async def _load(self, job_id: str) -> SExportJob:
+        """Загрузить задачу экспорта из Redis по ID."""
+        job = await self.redis.get(self._key(job_id))
+        if job is None:
+            raise ExportJobNotFoundException()
+        return SExportJob.model_validate(json.loads(job))
