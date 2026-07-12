@@ -36,6 +36,23 @@ services:
       - DB_DRIVER=${AUTH_DB_DRIVER:-postgresql+asyncpg}
     restart: "no"
 
+  chat_migrate:
+    build:
+      context: .
+      dockerfile: chat_service/Dockerfile
+    command: alembic -c chat_service/alembic.ini upgrade head
+    depends_on:
+      chat_db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=${CHAT_DB_HOST:-chat_db}
+      - DB_PORT=${CHAT_DB_PORT:-5432}
+      - DB_USER=${CHAT_DB_USER:-postgres}
+      - DB_PASSWORD=${CHAT_DB_PASSWORD:-postgres}
+      - DB_NAME=${CHAT_DB_NAME:-chat_db}
+      - DB_DRIVER=${CHAT_DB_DRIVER:-postgresql+asyncpg}
+    restart: "no"
+
   frontend:
     build: ./frontend
     container_name: online_excel_frontend
@@ -215,6 +232,62 @@ services:
         fluentd-async: "true"
         tag: "{{.Name}}"
 
+  chat_service:
+    build:
+      context: .
+      dockerfile: chat_service/Dockerfile
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.chat.rule=PathPrefix(`/chat`)"
+      - "traefik.http.services.chat_service.loadbalancer.server.port=8002"
+      - "traefik.http.routers.chat.entrypoints=web"
+      - "traefik.http.routers.chat.service=chat_service"
+      - "traefik.http.routers.chat.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
+    ports:
+      - "8002:8002"
+    env_file:
+      - path: ./chat_service/.env
+        required: false
+    environment:
+      # Database (чувствительные данные — через секреты)
+      - DB_HOST=${CHAT_DB_HOST:-chat_db}
+      - DB_PORT=${CHAT_DB_PORT:-5432}
+      - DB_USER=${CHAT_DB_USER:-postgres}
+      - DB_PASSWORD=${CHAT_DB_PASSWORD:-postgres}
+      - DB_NAME=${CHAT_DB_NAME:-chat_db}
+      - DB_DRIVER=${CHAT_DB_DRIVER:-postgresql+asyncpg}
+      # RabbitMQ
+      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
+      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      # JWT (RS256 — подпись приватным ключом, Traefik проверяет публичным)
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
+      - JWT_PRIVATE_KEY_PATH=/run/secrets/jwt_private.pem
+      - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public.pem
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-30}
+
+    restart: on-failure
+    depends_on:
+      chat_db:
+        condition: service_healthy
+      chat_migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./chat_service:/app/chat_service
+      - ./keys/jwt_private.pem:/run/secrets/jwt_private.pem:ro
+      - ./keys/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8002/health/\")' || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
   # ==================== Infrastructure ====================
 
   auth_db:
@@ -256,6 +329,26 @@ services:
 
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
+
+  chat_db:
+    container_name: online_excel_chat_db
+    image: postgres:16-alpine
+    shm_size: 128mb
+    environment:
+      POSTGRES_PASSWORD: ${CHAT_DB_PASSWORD:-postgres}
+      POSTGRES_USER: ${CHAT_DB_USER:-postgres}
+      POSTGRES_DB: ${CHAT_DB_NAME:-chat_db}
+    ports:
+      - "7778:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - chat_pgdata:/var/lib/postgresql/data
       - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
     command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
 
@@ -468,6 +561,7 @@ networks:
 volumes:
   pgdata:
   auth_pgdata:
+  chat_pgdata:
   rabbitmq_data:
   es_data:
   minio_data:

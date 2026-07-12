@@ -15,5 +15,5 @@ ENV PYTHONPATH=/app
 
 EXPOSE 8000
 
-CMD ["uvicorn", "chat_service.app.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+CMD ["uvicorn", "chat_service.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
 

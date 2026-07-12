@@ -18,6 +18,6 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(chat_router, prefix="/chat", tags=["Chat"])
 
 
-@app.get("/health.", include_in_schema=False)
+@app.get("/health/", include_in_schema=False)
 async def health_check():
     return {"status": "ok"}
