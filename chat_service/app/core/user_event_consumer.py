@@ -23,7 +23,7 @@ class UserEventConsumer:
     ROUTING_KEYS = ["user.registered", "user.updated", "user.deleted"]
 
     def __init__(self) -> None:
-        self._base = EventConsumerBase(amqp_url=app_settings.AMQP_URL)
+        self._base = EventConsumerBase(amqp_url=app_settings.RABBITMQ_URL)
 
     async def connect(self) -> None:
         await self._base.connect(
