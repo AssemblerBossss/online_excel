@@ -1,4 +1,3 @@
-from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel
 
@@ -11,7 +10,7 @@ class ExportJobStatus(str, Enum):
 
 
 class SExportJob(BaseModel):
-    job_id: int
+    job_id: str
     table_id: int
     author_id: int
     filename: str
@@ -21,12 +20,12 @@ class SExportJob(BaseModel):
 
 
 class SExportJobCreated(BaseModel):
-    job_id: int
+    job_id: str
     status: ExportJobStatus = ExportJobStatus.job_pending
 
 
 class SExportJobStatusResponse(BaseModel):
-    job_id: int
+    job_id: str
     filename: str
     status: ExportJobStatus = ExportJobStatus.job_pending
     download_url: str | None = None  # заполнен только при status=done
