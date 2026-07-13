@@ -18,6 +18,7 @@ from table_service.app.schemas import (
     SExportJobCreated,
     SCurrentUser,
     ExportJobStatus,
+    SExportJobStatusResponse,
 )
 from table_service.app.services.permission import PermissionService
 from table_service.app.services.excel_processor import ExcelProcessorService
@@ -92,7 +93,8 @@ class ExportJobService:
         await self._save(job)
         return SExportJobCreated(job_id=job.job_id, status=job.status)
 
-    async def run(self, job_id: str, uow_session: UnitOfWork) -> SExportJob:
+    async def run(self, job_id: str, uow_session: UnitOfWork) -> None:
+        """Выполнить экспорт (вызывается из BackgroundTasks). Ошибки — в статус job'а."""
         job = await self._load(job_id)
         job.status = ExportJobStatus.job_running
         await self._save(job)
@@ -125,6 +127,7 @@ class ExportJobService:
     async def _build_file(
         self, uow_session: UnitOfWork, table_id: int
     ) -> tuple[BytesIO, int]:
+        """Собрать xlsx: строки из БД чанками, запись в write-only книгу в потоке."""
         async with uow_session.start():
             table = await uow_session.tables.get_table_by_id(table_id)
             if not table:
@@ -160,3 +163,24 @@ class ExportJobService:
         )
 
         return buffer, total_rows
+
+    async def get_status(
+        self, job_id: str, current_user: SCurrentUser
+    ) -> SExportJobStatusResponse:
+        """Статус задачи. Чужие задачи не показываем — ведём себя как «не найдено»."""
+        job = await self._load(job_id)
+        if job.author_id != current_user.user_id:
+            raise ExportJobNotFoundException()
+
+        download_url = None
+        if job.status == ExportJobStatus.job_completed and job.object_name:
+            download_url = await self.storage.presigned_download_url(
+                job.object_name, job.filename
+            )
+        return SExportJobStatusResponse(
+            job_id=job.job_id,
+            filename=job.filename,
+            status=job.status,
+            download_url=download_url,
+            error=job.error,
+        )
