@@ -107,17 +107,12 @@ class DataService:
         filters = filters or []
 
         async with uow_session.start():
-            table = await uow_session.tables.get_table_by_id(table_id)
-            if not table:
-                raise NotFoundException("Таблица не найдена")
-
-            if not await self.permission_service.check_read_access(
+            table = await self.permission_service.get_table_with_read_access(
                 uow_session=uow_session,
-                table=table,
+                table_id=table_id,
                 user_id=user_id,
                 user_role=user_role,
-            ):
-                raise AccessDeniedException()
+            )
 
             schema = table.columns_schema or []
             column_names = {c["name"] for c in schema if c.get("name")}
@@ -175,17 +170,12 @@ class DataService:
     ) -> TableRowResponse | None:
         """Получить строку таблицы"""
         async with uow_session.start():
-            table = await uow_session.tables.get_table_by_id(table_id)
-            if not table:
-                raise NotFoundException("Таблица не найдена")
-
-            if not await self.permission_service.check_read_access(
+            await self.permission_service.get_table_with_read_access(
                 uow_session=uow_session,
-                table=table,
+                table_id=table_id,
                 user_id=user_id,
                 user_role=user_role,
-            ):
-                raise AccessDeniedException()
+            )
 
             row = await uow_session.data.get_row_by_id(table_id=table_id, row_id=row_id)
             if not row:
@@ -203,17 +193,12 @@ class DataService:
     ) -> TableRowResponse:
         """Создать новую строку в таблице"""
         async with uow_session.start():
-            table = await uow_session.tables.get_table_by_id(table_id)
-            if not table:
-                raise NotFoundException("Таблица не найдена")
-
-            if not await self.permission_service.check_write_access(
+            table = await self.permission_service.get_table_with_write_access(
                 uow_session=uow_session,
-                table=table,
+                table_id=table_id,
                 user_id=user_id,
                 user_role=user_role,
-            ):
-                raise AccessDeniedException()
+            )
 
             # row_data уже содержит вычисленные значения (фронтенд считает сам)
             validation_errors = self.validation_service.validate_row_data(
@@ -251,20 +236,12 @@ class DataService:
     ) -> TableRowResponse | None:
         """Обновить строку таблицы"""
         async with uow_session.start():
-            table = await uow_session.tables.get_table_by_id(table_id)
-            if not table:
-                raise NotFoundException("Таблица не найдена")
-
-            if not await self.permission_service.check_write_access(
+            table = await self.permission_service.get_table_with_write_access(
                 uow_session=uow_session,
-                table=table,
+                table_id=table_id,
                 user_id=user_id,
                 user_role=user_role,
-            ):
-                logger.warning(
-                    "User %s denied write access to table %s", user_id, table_id
-                )
-                raise AccessDeniedException()
+            )
 
             validation_errors = self.validation_service.validate_row_data(
                 table_columns_schema=table.columns_schema,
@@ -301,17 +278,12 @@ class DataService:
     ) -> None:
         """Удалить строку таблицы"""
         async with uow_session.start():
-            table = await uow_session.tables.get_table_by_id(table_id)
-            if not table:
-                raise NotFoundException("Таблица не найдена")
-
-            if not await self.permission_service.check_write_access(
+            await self.permission_service.get_table_with_write_access(
                 uow_session=uow_session,
-                table=table,
+                table_id=table_id,
                 user_id=user_id,
                 user_role=user_role,
-            ):
-                raise AccessDeniedException()
+            )
 
             row = await uow_session.data.get_row_by_id(table_id=table_id, row_id=row_id)
             if not row:

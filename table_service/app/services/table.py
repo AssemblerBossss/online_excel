@@ -80,21 +80,13 @@ class TableService:
     ) -> DataTableResponse:
         """Получить таблицу по ID с проверкой прав на чтение."""
         async with uow_session.start():
-            table = await uow_session.tables.get_table_by_id(table_id)
-            if not table:
-                logger.warning(
-                    "Table %s not found or access denied for user %s", table_id, user_id
-                )
-                raise NotFoundException("Table not found or access denied")
-            if not await self.permission_service.check_read_access(
+            table = await self.permission_service.get_table_with_read_access(
                 uow_session=uow_session,
-                table=table,
+                table_id=table_id,
                 user_id=user_id,
                 user_role=user_role,
-            ):
-                raise AccessDeniedException()
-
-            return self._to_response(table)
+            )
+        return self._to_response(table)
 
     async def create_table(
         self, uow_session: UnitOfWork, table_data: DataTableCreate, user_id: int
@@ -130,18 +122,12 @@ class TableService:
         update_data: DataTableUpdate,
     ) -> DataTableResponse:
         async with uow_session.start():
-            if not (
-                table := await uow_session.tables.get_table_by_id(table_id=table_id)
-            ):
-                raise NotFoundException("Table not found or access denied")
-
-            if not await self.permission_service.check_write_access(
+            await self.permission_service.get_table_with_write_access(
                 uow_session=uow_session,
-                table=table,
+                table_id=table_id,
                 user_id=user_id,
                 user_role=user_role,
-            ):
-                raise AccessDeniedException()
+            )
 
             payload = update_data.model_dump(exclude_none=True)
             updated = await uow_session.tables.update_table(table_id, payload)
@@ -169,17 +155,12 @@ class TableService:
         Клон создаётся приватным (is_public=False) и принадлежит текущему пользователю.
         """
         async with uow_session.start():
-            source_table = await uow_session.tables.get_table_by_id(source_table_id)
-            if not source_table:
-                raise NotFoundException("Table not found or access denied")
-
-            if not await self.permission_service.check_read_access(
+            source_table = await self.permission_service.get_table_with_read_access(
                 uow_session=uow_session,
-                table=source_table,
+                table_id=source_table_id,
                 user_id=user_id,
                 user_role=user_role,
-            ):
-                raise AccessDeniedException()
+            )
 
             new_name = new_name or f"Копия {source_table.name}"
 
@@ -340,17 +321,12 @@ class TableService:
     ) -> None:
         """Удалить таблицу."""
         async with uow_session.start():
-            table: DataTable | None = await uow_session.tables.get_table_by_id(table_id)
-            if not table:
-                raise NotFoundException("Table not found")
-
-            if not await self.permission_service.check_write_access(
+            table = await self.permission_service.get_table_with_write_access(
                 uow_session=uow_session,
-                table=table,
+                table_id=table_id,
                 user_id=user_id,
                 user_role=user_role,
-            ):
-                raise AccessDeniedException()
+            )
 
             if not await uow_session.tables.soft_delete_table(table_id=table_id):
                 raise CanNotDeleteTableException()
@@ -374,19 +350,12 @@ class TableService:
     ) -> None:
         """Удалить таблицу."""
         async with uow_session.start():
-            table: DataTable | None = await uow_session.tables.get_deleted_table_by_id(
-                table_id
-            )
-            if not table:
-                raise NotFoundException("Table not found")
-
-            if not await self.permission_service.check_write_access(
+            table = await self.permission_service.get_table_with_write_access(
                 uow_session=uow_session,
-                table=table,
+                table_id=table_id,
                 user_id=user_id,
                 user_role=user_role,
-            ):
-                raise AccessDeniedException()
+            )
 
             if not await uow_session.tables.delete_table(table_id=table_id):
                 raise CanNotDeleteTableException()
@@ -410,19 +379,12 @@ class TableService:
     ) -> None:
         """Восстановить таблицу из корзины."""
         async with uow_session.start():
-            table: DataTable | None = await uow_session.tables.get_deleted_table_by_id(
-                table_id
-            )
-            if not table:
-                raise NotFoundException("Table not found in trash")
-
-            if not await self.permission_service.check_write_access(
+            await self.permission_service.get_table_with_write_access(
                 uow_session=uow_session,
-                table=table,
+                table_id=table_id,
                 user_id=user_id,
                 user_role=user_role,
-            ):
-                raise AccessDeniedException()
+            )
 
             restored = await uow_session.tables.restore_table(table_id=table_id)
             if not restored:

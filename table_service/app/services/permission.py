@@ -28,11 +28,36 @@ class PermissionService:
             created_at=permission.created_at,
         )
 
+    async def get_table_with_read_access(
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
+    ) -> DataTable:
+        table = await uow_session.tables.get_table_by_id(table_id=table_id)
+        if not table:
+            raise NotFoundException("Таблица не найдена")
+        if not await self.check_read_access(
+            uow_session=uow_session, table=table, user_id=user_id, user_role=user_role
+        ):
+            raise AccessDeniedException()
+        return table
+
+    async def get_table_with_write_access(
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
+    ) -> DataTable:
+        table = await uow_session.tables.get_table_by_id(table_id=table_id)
+        if not table:
+            raise NotFoundException("Таблица не найдена")
+        if not await self.check_write_access(
+            uow_session=uow_session, table=table, user_id=user_id, user_role=user_role
+        ):
+            logger.warning("User %s denied write access to table %s", user_id, table_id)
+            raise AccessDeniedException()
+        return table
+
     async def _check_table_access(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> None:
         """Проверить доступ пользователя к таблице."""
-        table: DataTable = await uow_session.tables.get_table_by_id(table_id=table_id)
+        table = await uow_session.tables.get_table_by_id(table_id=table_id)
         if not table:
             raise NotFoundException("Таблица не найдена")
 
@@ -52,7 +77,7 @@ class PermissionService:
             return True
         if table.is_public:
             return True
-        perm: TablePermission = await uow_session.permissions.get_permissions(
+        perm: TablePermission | None = await uow_session.permissions.get_permissions(
             table_id=table.id, user_id=user_id
         )
         if perm and perm.can_read:
@@ -67,7 +92,7 @@ class PermissionService:
             return True
         if user_role and user_role.upper() == self.ADMIN_ROLE:
             return True
-        perm: TablePermission = await uow_session.permissions.get_permissions(
+        perm: TablePermission | None = await uow_session.permissions.get_permissions(
             table_id=table.id, user_id=user_id
         )
         if perm and (perm.can_write or perm.can_manage):
