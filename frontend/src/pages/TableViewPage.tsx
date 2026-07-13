@@ -247,21 +247,24 @@ const TableViewPage: React.FC = () => {
 
     // ── Экспорт ──
 
-    const exportTable = async () => {
+    const handleExport = async () => {
         try {
             setExporting(true);
-            const {blob, filename} = await tablesAPI.exportTable(tableId);
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
+            const {job_id} = await tablesAPI.startExport(tableId);
+            const result = await tablesAPI.waitForExport(job_id);
+
+            if (result.status === 'error' || !result.download_url) {
+                setError(result.error || 'Не удалось экспортировать таблицу');
+                return;
+            }
+
+            // presigned-ссылка уже содержит content-disposition с именем файла
+            const link = document.createElement('a');
+            link.href = result.download_url;
             link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
         } catch (err) {
-            console.error('exportTable error:', err);
-            setError("Не удалось экспортировать таблицу");
+            console.error('export error:', err);
+            setError('Не удалось экспортировать таблицу');
         } finally {
             setExporting(false);
         }
@@ -282,7 +285,7 @@ const TableViewPage: React.FC = () => {
                 <div style={styles.headerContent}>
                     <h1 style={styles.title}>Таблица №{id}</h1>
                     <div style={styles.headerActions}>
-                        <button style={styles.exportButton} onClick={exportTable} disabled={exporting}>
+                        <button style={styles.exportButton} onClick={handleExport} disabled={exporting}>
                             {exporting ? "Экспорт…" : "⬇ Экспорт в Excel"}
                         </button>
                         <button style={styles.addButton} onClick={addRow}>

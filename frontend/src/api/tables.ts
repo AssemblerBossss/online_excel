@@ -274,7 +274,7 @@ export const tablesAPI = {
         return data;
     },
 
-    waitForExport: async (jobId: string, secondsBetween = 2,): Promise<ExportJobState> => {
+    waitForExport: async (jobId: string, secondsBetween = 2, timeoutMs = 10 * 60_000): Promise<ExportJobState> => {
         const deadline = Date.now() + timeoutMs;
         while (Date.now() < deadline) {
             const state = await tablesAPI.getExportStatus(jobId);
