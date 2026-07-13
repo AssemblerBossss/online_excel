@@ -13,13 +13,30 @@ from table_service.app.services import (
     WsTicketService,
     RowEventPublisher,
     DataValidationService,
+    ExportJobService,
 )
-from table_service.app.core import AsyncSessionFactory, get_redis_client, get_es_client
+from table_service.app.core import (
+    AsyncSessionFactory,
+    get_redis_client,
+    get_es_client,
+    export_storage,
+    ExportStorage,
+)
 from table_service.app.schemas import SCurrentUser, SUserFilter
 
 
 async def get_async_uow_session() -> AsyncGenerator[UnitOfWork, None]:
     yield UnitOfWork(AsyncSessionFactory)
+
+
+def get_redis() -> Redis:
+    """Получить асинхронный клиент Redis."""
+    return get_redis_client()
+
+
+def get_export_storage() -> ExportStorage:
+    """Получить хранилище файлов экспорта (MinIO)."""
+    return export_storage
 
 
 def get_row_event_publisher(
@@ -88,9 +105,21 @@ def get_data_service(
     )
 
 
-def get_redis() -> Redis:
-    """Получить асинхронный клиент Redis."""
-    return get_redis_client()
+def get_export_job_service(
+    redis: Annotated[Redis, Depends(get_redis)],
+    storage: Annotated[ExportStorage, Depends(get_export_storage)],
+    excel_processor: Annotated[
+        ExcelProcessorService, Depends(get_excel_processor_service)
+    ],
+    permission_service: Annotated[PermissionService, Depends(get_permission_service)],
+) -> ExportJobService:
+    """Получить сервис фонового экспорта таблиц."""
+    return ExportJobService(
+        redis=redis,
+        storage=storage,
+        excel_processor=excel_processor,
+        permission_service=permission_service,
+    )
 
 
 async def get_current_user(request: Request) -> SUserFilter:
