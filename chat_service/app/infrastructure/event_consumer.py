@@ -4,6 +4,7 @@ from typing import Callable
 
 from chat_service.app.core.settings import app_settings
 
+
 class EventConsumerBase:
     """
     Базовый класс для консьюмеров событий RabbitMQ.
@@ -16,9 +17,15 @@ class EventConsumerBase:
         self.connection: aio_pika.RobustConnection | None = None
         self.channel: aio_pika.RobustChannel | None = None
 
-    async def connect(self, exchange_name: str, queue_name: str, routing_key: list[str], callback: Callable) -> None:
+    async def connect(
+        self,
+        exchange_name: str,
+        queue_name: str,
+        routing_key: list[str],
+        callback: Callable,
+    ) -> None:
         self.connection = await aio_pika.connect_robust(url=self.amqp_url)
-        self.channel =  await self.connection.channel()
+        self.channel = await self.connection.channel()
         await self.channel.set_qos(prefetch_count=10)
 
         exchange = await self.channel.declare_exchange(
@@ -33,5 +40,3 @@ class EventConsumerBase:
     async def close(self) -> None:
         if self.connection and not self.connection.is_closed:
             await self.connection.close()
-
-
