@@ -43,7 +43,7 @@ class ExportStorage:
     ) -> None:
         """Загружает аватар, возвращает object key (его и храним в БД)."""
         await self._client.put_object(
-            bucket_name=app_settings.MINIO_BUCKET,
+            bucket_name=app_settings.MINIO_EXPORT_BUCKET,
             object_name=object_name,
             data=content,
             length=length,
@@ -73,19 +73,21 @@ class ExportStorage:
         )
 
 
-def _make_client(endpoint: str) -> Minio:
+def _make_client(endpoint: str, server_url: str | None = None) -> Minio:
     return Minio(
         endpoint=endpoint,
         access_key=app_settings.MINIO_ACCESS_KEY,
         secret_key=app_settings.MINIO_SECRET_KEY,
         secure=app_settings.MINIO_SECURE,
+        server_url=server_url,
     )
 
 
-_public_host = urlparse(app_settings.MINIO_PUBLIC_URL).netloc
-
 export_storage = ExportStorage(
     client=_make_client(app_settings.MINIO_ENDPOINT),
-    public=_make_client(_public_host),
+    public=_make_client(
+        app_settings.MINIO_ENDPOINT,
+        server_url=app_settings.MINIO_PUBLIC_URL,
+    ),
     bucket_name=app_settings.MINIO_EXPORT_BUCKET,
 )

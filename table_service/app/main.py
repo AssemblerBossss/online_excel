@@ -27,6 +27,7 @@ from table_service.app.core import (
     close_es_client,
     init_es_index,
     get_redis_client,
+    export_storage,
 )
 from table_service.app.core.ws_manager import table_ws_manager
 from table_service.app.exceptions import (
@@ -130,6 +131,9 @@ def register_exception_handlers(app: FastAPI) -> None:
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
     await init_es_index()
+
+    await export_storage.ensure_file_bucket()
+    logger.info("MinIO export bucket ready")
 
     redis = Redis(
         host=app_settings.CACHE_HOST,

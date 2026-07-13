@@ -142,7 +142,7 @@ class ExportJobService:
             async for row in uow_session.data.stream_rows_by_table_id(
                 table_id=table_id, chunk_size=CHUNK_SIZE
             ):
-                chunk.append(row)
+                chunk.append(row.row_data)
                 if len(chunk) > CHUNK_SIZE:
                     await asyncio.to_thread(
                         self.excel_processor.append_rows_chunk,
