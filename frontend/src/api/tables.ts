@@ -68,7 +68,7 @@ interface ExportResult {
     filename: string;
 }
 
-export type ExportJobStatus = 'pending' | 'running' | 'done' | 'error';
+export type ExportJobStatus = 'pending' | 'running' | 'completed' | 'error';
 
 export interface ExportJobCreated {
     job_id: string;
@@ -278,7 +278,7 @@ export const tablesAPI = {
         const deadline = Date.now() + timeoutMs;
         while (Date.now() < deadline) {
             const state = await tablesAPI.getExportStatus(jobId);
-            if (state.status === 'done' || state.status === 'error') return state;
+            if (state.status === 'completed' || state.status === 'error') return state;
             await new Promise(r => setTimeout(r, secondsBetween * 1000));
         }
         throw new Error('Экспорт не завершился за отведённое время');
