@@ -66,7 +66,6 @@ class ExportJobService:
         uow_session: UnitOfWork,
         current_user: SCurrentUser,
         table_id: int,
-        user_role: str,
     ) -> SExportJobCreated:
         """Создать задачу экспорта с проверкой прав и сохранить в Redis со статусом pending."""
         async with uow_session.start():
@@ -77,7 +76,7 @@ class ExportJobService:
                 uow_session=uow_session,
                 table=table,
                 user_id=current_user.user_id,
-                user_role=user_role,
+                user_role=current_user.role,
             ):
                 raise AccessDeniedException()
             filename = f"{table.name}.xlsx"

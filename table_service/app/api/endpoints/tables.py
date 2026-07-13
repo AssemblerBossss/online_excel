@@ -20,15 +20,19 @@ from table_service.app.schemas import (
     DataTableUpdate,
     DataTableDuplicate,
     SWsTicketResponse,
+    SExportJobCreated,
+    SExportJobStatusResponse,
 )
 from table_service.app.core.unit_of_work import UnitOfWork
-from table_service.app.services import TableService, WsTicketService
+from table_service.app.core import AsyncSessionFactory
+from table_service.app.services import TableService, WsTicketService, ExportJobService
 from table_service.app.api.dependencies import (
     get_table_service,
     get_current_active_user,
     get_redis,
     get_async_uow_session,
     get_ws_ticket_service,
+    get_export_job_service,
 )
 
 from table_service.app.api.cache import (
@@ -38,8 +42,43 @@ from table_service.app.api.cache import (
     invalidate_tables_cache,
 )
 
+from fastapi import BackgroundTasks
+
+
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 router = APIRouter()
+
+
+@router.get("/export-jobs/{job_id}", response_model=SExportJobStatusResponse)
+async def get_export_job_status(
+    job_id: str,
+    export_service: Annotated[ExportJobService, Depends(get_export_job_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+) -> SExportJobStatusResponse:
+    """Статус задачи экспорта; при готовности — presigned-ссылка на скачивание."""
+    return await export_service.get_status(job_id, current_user)
+
+
+@router.post(
+    "/{table_id}/export-jobs",
+    response_model=SExportJobCreated,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def start_table_export(
+    table_id: int,
+    background_tasks: BackgroundTasks,
+    export_service: Annotated[ExportJobService, Depends(get_export_job_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+) -> SExportJobCreated:
+    """Поставить фоновый экспорт таблицы в Excel."""
+    job = await export_service.start(
+        uow_session=uow_session, table_id=table_id, current_user=current_user
+    )
+    background_tasks.add_task(
+        export_service.run, job.job_id, UnitOfWork(AsyncSessionFactory)
+    )
+    return job
 
 
 @router.post(
