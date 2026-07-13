@@ -223,16 +223,6 @@ export const tablesAPI = {
 
     },
 
-    exportTable: async (id: number): Promise<ExportResult> => {
-        const response = await api.get(`/tables/${id}/export`, {
-            responseType: 'blob',
-        });
-
-        const disposition = response.headers['content-disposition'] || '';
-        const filename = parseFilename(disposition) || `table_${id}.xlsx`;
-
-        return {blob: response.data, filename};
-    },
 
     createRow: async (tableId: number, rowData: Record<string, any>, formulas?: Record<string, string>): Promise<TableRow> => {
         const response = await api.post(`/data/${tableId}/rows`, {
