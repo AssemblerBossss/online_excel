@@ -32,8 +32,7 @@ class UserEventConsumer:
             routing_key=self.ROUTING_KEYS,
             callback=self._handle_message,
         )
-
-    logger.info("UserEventConsumer подключён и слушает события auth_service")
+        logger.info("UserEventConsumer подключён и слушает события auth_service")
 
     async def close(self) -> None:
         await self._base.close()
@@ -58,7 +57,7 @@ class UserEventConsumer:
                     "id": user_id,
                     "email": body["email"],
                     "role": role,
-                    "updated_at": timestamp,
+                    "timestamp": timestamp,
                 }
             )
             logger.info(f"Локальная копия пользователя upsert: user_id={user_id}")

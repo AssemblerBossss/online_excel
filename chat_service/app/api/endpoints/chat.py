@@ -64,7 +64,7 @@ async def get_messages(
 
 
 @router.patch(
-    "messages/{interlocutor_email}/read",
+    "/messages/{interlocutor_email}/read",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Пометить диалог как прочитанный",
 )

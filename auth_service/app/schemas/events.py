@@ -7,7 +7,7 @@ class UserEvent(BaseModel):
     """Базовое событие пользователя"""
 
     event_type: str
-    user_id: str
+    user_id: int
     email: EmailStr
     role: str
     timestamp: datetime
