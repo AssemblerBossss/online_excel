@@ -1,6 +1,7 @@
 import React, {useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {registerUser} from "../api/auth"
+import {colors, rounded, shadowLevel2, spacing, typography} from "../styles/theme";
 
 const RegisterPage: React.FC = () => {
     const navigate = useNavigate();
@@ -10,6 +11,7 @@ const RegisterPage: React.FC = () => {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -20,6 +22,7 @@ const RegisterPage: React.FC = () => {
             return;
         }
 
+        setIsLoading(true);
         try {
             await registerUser({
                 email,
@@ -31,6 +34,8 @@ const RegisterPage: React.FC = () => {
             navigate("/login");
         } catch (err: any) {
             setError(err.response?.data?.detail || "Ошибка регистрации");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -40,63 +45,78 @@ const RegisterPage: React.FC = () => {
                 <h2 style={styles.title}>Регистрация</h2>
                 {error && <p style={styles.error}>{error}</p>}
                 <form onSubmit={handleRegister} style={styles.form}>
-                    <input
-                        style={styles.input}
-                        type="email"
-                        placeholder="Email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                    />
-                    <input
-                        style={styles.input}
-                        type="text"
-                        placeholder="Имя"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        required
-                        minLength={3}
-                        maxLength={50}
-                    />
-                    <input
-                        style={styles.input}
-                        type="text"
-                        placeholder="Фамилия"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        required
-                        minLength={3}
-                        maxLength={50}
-                    />
-                    <input
-                        style={styles.input}
-                        type="password"
-                        placeholder="Пароль"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        minLength={5}
-                        maxLength={50}
-                    />
-                    <input
-                        style={styles.input}
-                        type="password"
-                        placeholder="Подтвердите пароль"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
-                        minLength={5}
-                        maxLength={50}
-                    />
-                    <button style={styles.button} type="submit">
-                        Зарегистрироваться
+                    <div style={styles.inputGroup}>
+                        <label style={styles.label}>Email</label>
+                        <input
+                            style={styles.input}
+                            type="email"
+                            placeholder="Введите ваш email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div style={styles.inputGroup}>
+                        <label style={styles.label}>Имя</label>
+                        <input
+                            style={styles.input}
+                            type="text"
+                            placeholder="Введите имя"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            required
+                            minLength={3}
+                            maxLength={50}
+                        />
+                    </div>
+                    <div style={styles.inputGroup}>
+                        <label style={styles.label}>Фамилия</label>
+                        <input
+                            style={styles.input}
+                            type="text"
+                            placeholder="Введите фамилию"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            required
+                            minLength={3}
+                            maxLength={50}
+                        />
+                    </div>
+                    <div style={styles.inputGroup}>
+                        <label style={styles.label}>Пароль</label>
+                        <input
+                            style={styles.input}
+                            type="password"
+                            placeholder="Введите пароль"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            minLength={5}
+                            maxLength={50}
+                        />
+                    </div>
+                    <div style={styles.inputGroup}>
+                        <label style={styles.label}>Подтвердите пароль</label>
+                        <input
+                            style={styles.input}
+                            type="password"
+                            placeholder="Повторите пароль"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                            minLength={5}
+                            maxLength={50}
+                        />
+                    </div>
+                    <button style={styles.button} type="submit" disabled={isLoading}>
+                        {isLoading ? "Регистрация..." : "Зарегистрироваться"}
                     </button>
                 </form>
                 <p style={styles.footerText}>
                     Уже есть аккаунт?{" "}
                     <span
                         style={styles.link}
-                        onClick={() => navigate("/login/")}
+                        onClick={() => navigate("/login")}
                     >
             Войти
           </span>
@@ -114,52 +134,73 @@ const styles: Record<string, React.CSSProperties> = {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "#f0f2f5",
+        background: colors.canvas,
     },
     card: {
         width: 400,
-        padding: 32,
-        borderRadius: 12,
-        background: "#fff",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+        padding: spacing.xl,
+        borderRadius: rounded.lg,
+        background: colors.canvasSoft,
+        boxShadow: shadowLevel2,
         textAlign: "center",
     },
     title: {
-        marginBottom: 24,
-        color: "#333",
+        ...typography.displaySm,
+        marginBottom: spacing.lg,
+        color: colors.ink,
     },
     error: {
-        color: "red",
-        marginBottom: 16,
+        ...typography.bodySm,
+        color: colors.errorDeep,
+        marginBottom: spacing.md,
+        padding: spacing.sm,
+        background: colors.errorSoft,
+        borderRadius: rounded.sm,
     },
     form: {
         display: "flex",
         flexDirection: "column",
-        gap: 16,
+        gap: spacing.md,
+    },
+    inputGroup: {
+        display: "flex",
+        flexDirection: "column",
+        gap: spacing.xxs,
+        textAlign: "left",
+    },
+    label: {
+        ...typography.bodySmStrong,
+        color: colors.body,
     },
     input: {
-        padding: 12,
-        borderRadius: 6,
-        border: "1px solid #ccc",
-        fontSize: 16,
+        ...typography.bodySm,
+        height: 40,
+        padding: `0 ${spacing.sm}px`,
+        borderRadius: rounded.sm,
+        border: `1px solid ${colors.hairline}`,
+        background: colors.canvas,
+        color: colors.ink,
+        outline: "none",
     },
     button: {
-        padding: 12,
-        borderRadius: 6,
+        ...typography.buttonLg,
+        height: 48,
+        borderRadius: rounded.pill,
         border: "none",
-        background: "#4CAF50",
-        color: "#fff",
-        fontSize: 16,
+        background: colors.primary,
+        color: colors.onPrimary,
         cursor: "pointer",
+        marginTop: spacing.xs,
     },
     footerText: {
-        marginTop: 16,
-        fontSize: 14,
-        color: "#555",
+        ...typography.bodySm,
+        marginTop: spacing.lg,
+        color: colors.body,
     },
     link: {
-        color: "#4CAF50",
+        color: colors.link,
         cursor: "pointer",
         textDecoration: "underline",
+        fontWeight: 500,
     },
 };

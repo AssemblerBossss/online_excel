@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import Sidebar from './Sidebar';
+import {colors} from '../styles/theme';
 
 const SidebarWithToggle: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -46,7 +47,7 @@ const styles: Record<string, React.CSSProperties> = {
         position: 'absolute',
         width: 24,
         height: 2,
-        backgroundColor: '#333',
+        backgroundColor: colors.ink,
         borderRadius: 2,
         left: '50%',
         marginLeft: -12,

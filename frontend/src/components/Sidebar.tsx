@@ -1,6 +1,7 @@
 import React from 'react';
 import {useNavigate} from 'react-router-dom';
 import api from '../api/axiosInstance';
+import {colors, shadowLevel5, spacing, typography} from '../styles/theme';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -77,7 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({isOpen, onClose}) => {
                                     }
                                 }}
                                 onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#f0f0f0';
+                                    e.currentTarget.style.backgroundColor = colors.canvasSoft2;
                                 }}
                                 onMouseLeave={(e) => {
                                     e.currentTarget.style.backgroundColor = 'transparent';
@@ -103,7 +104,7 @@ const styles: Record<string, React.CSSProperties> = {
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        backgroundColor: 'rgba(23, 23, 23, 0.4)',
         zIndex: 999,
         animation: 'fadeIn 0.2s ease',
     },
@@ -113,8 +114,8 @@ const styles: Record<string, React.CSSProperties> = {
         left: 0,
         width: 260,
         height: '100%',
-        backgroundColor: '#fff',
-        boxShadow: '2px 0 12px rgba(0, 0, 0, 0.1)',
+        backgroundColor: colors.canvas,
+        boxShadow: shadowLevel5,
         zIndex: 1000,
         transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         display: 'flex',
@@ -139,7 +140,7 @@ const styles: Record<string, React.CSSProperties> = {
         position: 'absolute',
         width: 24,
         height: 2,
-        backgroundColor: '#333',
+        backgroundColor: colors.ink,
         borderRadius: 2,
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         left: '50%',
@@ -148,8 +149,8 @@ const styles: Record<string, React.CSSProperties> = {
     content: {
         display: 'flex',
         flexDirection: 'column',
-        padding: '16px 0',
-        paddingTop: '70px',
+        padding: `${spacing.md}px 0`,
+        paddingTop: 70,
     },
     nav: {
         display: 'flex',
@@ -157,18 +158,17 @@ const styles: Record<string, React.CSSProperties> = {
         gap: 2,
     },
     menuItem: {
+        ...typography.bodySm,
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
-        padding: '12px 20px',
+        gap: spacing.sm,
+        padding: `${spacing.sm}px ${spacing.lg}px`,
         border: 'none',
         background: 'transparent',
         cursor: 'pointer',
-        fontSize: 15,
-        color: '#2d2d2d',
+        color: colors.ink,
         transition: 'background-color 0.15s ease',
         textAlign: 'left',
-        fontWeight: 400,
         borderRadius: 0,
     },
     icon: {

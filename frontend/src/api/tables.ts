@@ -223,7 +223,6 @@ export const tablesAPI = {
 
     },
 
-
     createRow: async (tableId: number, rowData: Record<string, any>, formulas?: Record<string, string>): Promise<TableRow> => {
         const response = await api.post(`/data/${tableId}/rows`, {
             row_data: rowData,
