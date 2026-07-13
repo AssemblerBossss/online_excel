@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     def RABBITMQ_URL(self) -> str:
         return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/"
 
+    # app/core/settings.py
+    @cached_property
+    def REDIS_URL(self) -> str:
+        return f"redis://{self.CACHE_HOST}:{self.CACHE_PORT}/{self.CACHE_DB}"
+
     model_config = SettingsConfigDict(
         env_file=[".env.development", "local.env"],
         env_file_encoding="utf-8",
