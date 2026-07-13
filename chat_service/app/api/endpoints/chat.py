@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, BackgroundTasks
 
 from typing import Annotated
 
@@ -34,6 +34,7 @@ async def get_dialogs(
 )
 async def send_message(
     data: MessageCreateRequest,
+    background_tasks: BackgroundTasks,
     chat_service: Annotated[ChatService, Depends(get_chat_service)],
     user_email: str = Depends(get_current_user_email),
 ) -> MessageOut:
@@ -42,7 +43,7 @@ async def send_message(
     Автоматически создает чат, если его еще нет.
     Commit выполняется автоматически через UnitOfWork.
     """
-    return await chat_service.send_message(user_email, data)
+    return await chat_service.send_message(user_email, data, background_tasks)
 
 
 @router.get(

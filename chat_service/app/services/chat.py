@@ -1,3 +1,4 @@
+from fastapi import BackgroundTasks
 import datetime
 from chat_service.app.schemas import (
     MessageCreateRequest,
@@ -11,6 +12,7 @@ from chat_service.app.exceptions import (
     UserBlockedException,
 )
 from chat_service.app.core import UnitOfWork
+from chat_service.app.core.realtime import publish_new_message
 
 
 class ChatService:
@@ -19,7 +21,10 @@ class ChatService:
         self.repo = uow.chat_repo
 
     async def send_message(
-        self, sender_email: str, data: MessageCreateRequest
+        self,
+        sender_email: str,
+        data: MessageCreateRequest,
+        background_tasks: BackgroundTasks,
     ) -> MessageOut:
         if sender_email == data.receiver_email:
             raise SelfMessageException("Нельзя отправить сообщение самому себе")
@@ -51,7 +56,16 @@ class ChatService:
         else:
             chat.unread_count_user2 += 1
 
-        return MessageOut.model_validate(message)
+        message_out = MessageOut.model_validate(message)
+
+        background_tasks.add_task(
+            publish_new_message,
+            target_email=receiver.email,
+            chat_id=chat.id,
+            message=message_out,
+        )
+
+        return message_out
 
     async def get_dialogs(self, current_user_email: str) -> list[DialogOut]:
         """
