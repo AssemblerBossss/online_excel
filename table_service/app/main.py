@@ -27,6 +27,7 @@ from table_service.app.core import (
     close_es_client,
     init_es_index,
     get_redis_client,
+    export_storage,
 )
 from table_service.app.core.ws_manager import table_ws_manager
 from table_service.app.exceptions import (
@@ -44,6 +45,7 @@ from table_service.app.exceptions import (
     PermissionAlreadyExistsException,
     CanNotCreatePermissionException,
     InvalidWSTicketException,
+    ExportJobNotFoundException,
 )
 
 setup_service_logging()
@@ -114,6 +116,12 @@ def register_exception_handlers(app: FastAPI) -> None:
     ):
         return JSONResponse(status_code=401, content={"detail": exc.detail})
 
+    @app.exception_handler(ExportJobNotFoundException)
+    async def export_job_not_found_handler(
+        request: Request, exc: ExportJobNotFoundException
+    ):
+        return JSONResponse(status_code=404, content={"detail": exc.detail})
+
     @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException):
         return JSONResponse(status_code=500, content={"detail": exc.detail})
@@ -123,6 +131,9 @@ def register_exception_handlers(app: FastAPI) -> None:
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
     await init_es_index()
+
+    await export_storage.ensure_file_bucket()
+    logger.info("MinIO export bucket ready")
 
     redis = Redis(
         host=app_settings.CACHE_HOST,

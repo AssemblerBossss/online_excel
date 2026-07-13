@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from sqlalchemy import (
     select,
     update,
@@ -86,6 +87,22 @@ class DataRepository(Base):
             conditions.append(ops[f.op])
 
         return conditions
+
+    async def stream_rows_by_table_id(
+        self, table_id: int, chunk_size: int = 2000
+    ) -> AsyncIterator[TableRow | None]:
+        """
+        Потоково читает строки таблицы чанками, возвращая по одной строке через асинхронный генератор.
+        """
+        stmt = (
+            select(TableRow)
+            .where(TableRow.table_id == table_id)
+            .execution_options(yield_per=chunk_size)
+        )
+
+        result = await self._session.stream(stmt)
+        async for row in result.scalars():
+            yield row
 
     async def get_rows_by_table_id(
         self,

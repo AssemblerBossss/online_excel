@@ -76,3 +76,4 @@ wrapt==2.1.2
 yarl==1.22.0
 prometheus-fastapi-instrumentator==6.1.0
 websockets==16.1
+miniopy-async==1.23.5

@@ -66,3 +66,7 @@ class PermissionAlreadyExistsException(AppException):
 
 class CanNotCreatePermissionException(AppException):
     detail = "Не удалось создать права доступа"
+
+
+class ExportJobNotFoundException(AppException):
+    pass

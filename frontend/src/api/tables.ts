@@ -68,6 +68,22 @@ interface ExportResult {
     filename: string;
 }
 
+export type ExportJobStatus = 'pending' | 'running' | 'completed' | 'error';
+
+export interface ExportJobCreated {
+    job_id: string;
+    status: ExportJobStatus;
+}
+
+export type ExportJobState = {
+    job_id: string;
+    status: ExportJobStatus;
+    filename: string;
+    download_url: string | null;
+    error: string | null;
+}
+
+
 // Достаёт имя файла из заголовка Content-Disposition (поддержка filename*=UTF-8'')
 function parseFilename(disposition: string): string | null {
     const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
@@ -207,16 +223,6 @@ export const tablesAPI = {
 
     },
 
-    exportTable: async (id: number): Promise<ExportResult> => {
-        const response = await api.get(`/tables/${id}/export`, {
-            responseType: 'blob',
-        });
-
-        const disposition = response.headers['content-disposition'] || '';
-        const filename = parseFilename(disposition) || `table_${id}.xlsx`;
-
-        return {blob: response.data, filename};
-    },
 
     createRow: async (tableId: number, rowData: Record<string, any>, formulas?: Record<string, string>): Promise<TableRow> => {
         const response = await api.post(`/data/${tableId}/rows`, {
@@ -246,5 +252,25 @@ export const tablesAPI = {
     searchTables: async (query: string, limit: number = 10): Promise<DataTableResponse[]> => {
         const response = await api.get('/search', {params: {q: query, limit}});
         return response.data;
+    },
+
+    startExport: async (tableId: number): Promise<ExportJobCreated> => {
+        const response = await api.post(`/tables/${tableId}/export-jobs`, {})
+        return response.data;
+    },
+
+    getExportStatus: async (jobId: string): Promise<ExportJobState> => {
+        const {data} = await api.get<ExportJobState>(`/tables/export-jobs/${jobId}`);
+        return data;
+    },
+
+    waitForExport: async (jobId: string, secondsBetween = 2, timeoutMs = 10 * 60_000): Promise<ExportJobState> => {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+            const state = await tablesAPI.getExportStatus(jobId);
+            if (state.status === 'completed' || state.status === 'error') return state;
+            await new Promise(r => setTimeout(r, secondsBetween * 1000));
+        }
+        throw new Error('Экспорт не завершился за отведённое время');
     },
 };

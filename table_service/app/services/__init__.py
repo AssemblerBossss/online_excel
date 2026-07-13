@@ -6,6 +6,7 @@ from .data_validation import DataValidationService
 from .excel_processor import ExcelProcessorService
 from .row_events import RowEventPublisher
 from .ws_ticket import WsTicketService
+from .export_job import ExportJobService
 
 __all__ = [
     "DataService",
@@ -16,4 +17,5 @@ __all__ = [
     "ExcelProcessorService",
     "RowEventPublisher",
     "WsTicketService",
+    "ExportJobService",
 ]
