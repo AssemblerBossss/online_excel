@@ -238,11 +238,23 @@ services:
       dockerfile: chat_service/Dockerfile
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.chat.rule=PathPrefix(`/chat`)"
+      - "traefik.http.routers.chat.rule=PathPrefix(`/chat`) && !PathPrefix(`/chat/ws`)"
       - "traefik.http.services.chat_service.loadbalancer.server.port=8002"
       - "traefik.http.routers.chat.entrypoints=web"
       - "traefik.http.routers.chat.service=chat_service"
       - "traefik.http.routers.chat.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
+
+      # /chat/ws-ticket — обычный REST-эндпоинт, нужен jwt-auth как везде
+      - "traefik.http.routers.chat-ws-ticket.rule=PathPrefix(`/chat/ws-ticket`)"
+      - "traefik.http.routers.chat-ws-ticket.entrypoints=web"
+      - "traefik.http.routers.chat-ws-ticket.service=chat_service"
+      - "traefik.http.routers.chat-ws-ticket.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
+
+      # /chat/ws — сам WS-хендшейк, БЕЗ jwt-auth (аутентификация через одноразовый тикет)
+      - "traefik.http.routers.chat-ws.rule=PathPrefix(`/chat/ws`) && !PathPrefix(`/chat/ws-ticket`)"
+      - "traefik.http.routers.chat-ws.entrypoints=web"
+      - "traefik.http.routers.chat-ws.service=chat_service"
+      - "traefik.http.routers.chat-ws.middlewares=ratelimit@file"
     ports:
       - "8002:8002"
     env_file:
