@@ -1,18 +1,31 @@
-from sqlalchemy import select, delete, Sequence, update
+from sqlalchemy import select, delete, Sequence, update, or_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 
 from table_service.app.repository.base import Base
-from table_service.app.models import DataTable
+from table_service.app.models import DataTable, TablePermission
 
 
 class TableRepository(Base):
     """Репозиторий для работы с таблицами данных (DataTable)."""
 
-    async def get_all_tables(self) -> Sequence[DataTable]:
-        """Получить список всех таблиц в базе данных."""
+    async def get_all_tables(self, user_id: int, user_role: str) -> Sequence[DataTable]:
+        """Таблицы, видимые пользователю: свои + публичные + с выданным can_read. Admin — все."""
         stmt = select(DataTable).where(DataTable.is_deleted.is_(False))
+        if not (user_role and user_role.upper() == "ADMIN"):
+            stmt = stmt.where(
+                or_(
+                    DataTable.created_by_id == user_id,
+                    DataTable.is_public.is_(True),
+                    DataTable.id.in_(
+                        select(TablePermission.table_id).where(
+                            TablePermission.user_id == user_id,
+                            TablePermission.can_read.is_(True),
+                        )
+                    ),
+                )
+            )
         result = await self._session.execute(stmt)
         tables = result.scalars().all()
         return tables
@@ -37,16 +50,24 @@ class TableRepository(Base):
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_trash(self) -> Sequence[DataTable]:
-        """Получить список всех таблиц в корзине."""
-        stmt = (
-            select(DataTable)
-            .where(DataTable.is_deleted)
-            .order_by(DataTable.deleted_at.desc())
-        )
+    async def get_trash(self, user_id: int, user_role: str) -> Sequence[DataTable]:
+        """Корзина: свои таблицы + те, где есть can_manage. Admin — все."""
+        stmt = select(DataTable).where(DataTable.is_deleted)
+        if not (user_role and user_role.upper() == "ADMIN"):
+            stmt = stmt.where(
+                or_(
+                    DataTable.created_by_id == user_id,
+                    DataTable.id.in_(
+                        select(TablePermission.table_id).where(
+                            TablePermission.user_id == user_id,
+                            TablePermission.can_manage.is_(True),
+                        )
+                    ),
+                )
+            )
+        stmt = stmt.order_by(DataTable.deleted_at.desc())
         result = await self._session.execute(stmt)
-        tables = result.scalars().all()
-        return tables
+        return result.scalars().all()
 
     async def create_table(self, table_data: dict, user_id: int) -> DataTable:
         """Создать новую таблицу данных."""

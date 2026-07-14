@@ -1,11 +1,11 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, status
 
-from schemas import TablePermissionUpdate
 from table_service.app.schemas import (
     TablePermissionCreate,
     TablePermissionResponse,
     SCurrentUser,
+    TablePermissionUpdate,
 )
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.services import PermissionService
@@ -55,7 +55,9 @@ async def create_permission(
 
 
 @router.patch(
-    "/", response_model=TablePermissionResponse, status_code=status.HTTP_200_OK
+    "/{target_user_id}",
+    response_model=TablePermissionResponse,
+    status_code=status.HTTP_200_OK,
 )
 async def update_permission(
     table_id: int,
