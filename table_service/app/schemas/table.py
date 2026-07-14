@@ -33,6 +33,7 @@ class DataTableResponse(DataTableBase):
     columns_schema: list[dict[str, Any]] | None = None
     is_deleted: bool = False
     deleted_at: datetime | None = None
+    is_pinned: bool = False
 
 
 class DataTableDuplicate(BaseModel):
