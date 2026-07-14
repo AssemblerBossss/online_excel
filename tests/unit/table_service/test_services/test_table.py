@@ -65,7 +65,7 @@ class TestGetTableById:
         from unittest.mock import ANY
 
         mock_permission_service.get_table_with_read_access.assert_called_once_with(
-            uow_session=ANY, table=real_data_table, user_id=100, user_role="USER"
+            uow_session=ANY, table_id=1, user_id=100, user_role="USER"
         )
 
     async def test_raises_not_found_when_table_missing(
