@@ -278,21 +278,21 @@ const ProfilePage: React.FC = () => {
                         {isChangingPassword ? (
                             <div style={styles.passwordForm}>
                                 <input
-                                    style={styles.input}
+                                    style={styles.inputFull}
                                     type="password"
                                     placeholder="Текущий пароль"
                                     value={passwordForm.old_password}
                                     onChange={(e) => setPasswordForm({...passwordForm, old_password: e.target.value})}
                                 />
                                 <input
-                                    style={styles.input}
+                                    style={styles.inputFull}
                                     type="password"
                                     placeholder="Новый пароль"
                                     value={passwordForm.new_password}
                                     onChange={(e) => setPasswordForm({...passwordForm, new_password: e.target.value})}
                                 />
                                 <input
-                                    style={styles.input}
+                                    style={styles.inputFull}
                                     type="password"
                                     placeholder="Подтвердите новый пароль"
                                     value={passwordForm.confirm_password}
@@ -434,7 +434,7 @@ const styles: Record<string, React.CSSProperties> = {
         marginTop: spacing.xl,
         display: "flex",
         gap: spacing.sm,
-        justifyContent: "center",
+        justifyContent: "flex-end",
     },
     buttonPrimary: {
         ...typography.buttonLg,
@@ -487,6 +487,18 @@ const styles: Record<string, React.CSSProperties> = {
         outline: "none",
         width: 220,
     },
+    inputFull: {
+        ...typography.bodySm,
+        height: 40,
+        padding: `0 ${spacing.sm}px`,
+        borderRadius: rounded.sm,
+        border: `1px solid ${colors.hairline}`,
+        background: colors.canvas,
+        color: colors.ink,
+        outline: "none",
+        width: "100%",
+        boxSizing: "border-box",
+    },
     securitySection: {
         marginTop: spacing.lg,
         paddingTop: spacing.lg,
@@ -511,5 +523,6 @@ const styles: Record<string, React.CSSProperties> = {
         display: "flex",
         gap: spacing.sm,
         marginTop: spacing.xxs,
+        justifyContent: "flex-end",
     },
 };
