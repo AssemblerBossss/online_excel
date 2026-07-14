@@ -320,7 +320,7 @@ class TableService:
     ) -> None:
         """Удалить таблицу."""
         async with uow_session.start():
-            table = await self.permission_service.get_table_with_write_access(
+            table = await self.permission_service.get_table_with_manage_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
@@ -349,7 +349,7 @@ class TableService:
     ) -> None:
         """Удалить таблицу."""
         async with uow_session.start():
-            table = await self.permission_service.get_table_with_write_access(
+            table = await self.permission_service.get_table_with_manage_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
@@ -378,7 +378,7 @@ class TableService:
     ) -> None:
         """Восстановить таблицу из корзины."""
         async with uow_session.start():
-            await self.permission_service.get_table_with_write_access(
+            await self.permission_service.get_table_with_manage_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
