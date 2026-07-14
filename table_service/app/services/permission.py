@@ -82,7 +82,7 @@ class PermissionService:
         perm: TablePermission | None = await uow_session.permissions.get_permissions(
             table_id=table.id, user_id=user_id
         )
-        if perm and perm.can_read:
+        if perm and (perm.can_read or perm.can_write or perm.can_manage):
             return True
         return False
 
