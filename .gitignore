@@ -12,3 +12,4 @@ dist
 
 # kustomize --enable-helm скачивает чарты сюда локально при рендере
 charts/
+chat_service/.chat_venv

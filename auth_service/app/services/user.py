@@ -143,7 +143,7 @@ class UserService:
         if "email" in values:
             await self.event_publisher.publish(
                 UserUpdateEvent(
-                    user_id=str(user.id),
+                    user_id=user.id,
                     email=user.email,
                     role=str(user.role),
                     timestamp=datetime.now(timezone.utc),

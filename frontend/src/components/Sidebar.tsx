@@ -6,6 +6,8 @@ import {colors, rounded, shadowLevel5, spacing, typography} from '../styles/them
 interface SidebarProps {
     isOpen: boolean;
     onClose: () => void;
+    onOpenChat: () => void;
+    unreadChatsCount: number;
 }
 
 const iconProps = {
@@ -25,6 +27,12 @@ const TablesIcon = () => (
         <path d="M3 9h18"/>
         <path d="M3 15h18"/>
         <path d="M9 3v18"/>
+    </svg>
+);
+
+const ChatIcon = () => (
+    <svg {...iconProps}>
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
     </svg>
 );
 
@@ -51,7 +59,7 @@ const LogoutIcon = () => (
     </svg>
 );
 
-const Sidebar: React.FC<SidebarProps> = ({isOpen, onClose}) => {
+const Sidebar: React.FC<SidebarProps> = ({isOpen, onClose, onOpenChat, unreadChatsCount}) => {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -67,6 +75,7 @@ const Sidebar: React.FC<SidebarProps> = ({isOpen, onClose}) => {
 
     const menuItems = [
         {label: 'Мои таблицы', path: '/tables', icon: <TablesIcon/>},
+        {label: 'Чаты', action: onOpenChat, icon: <ChatIcon/>, badge: unreadChatsCount},
         {label: 'Аккаунт', path: '/profile', icon: <UserIcon/>},
         {label: 'О нас', path: '/about', icon: <InfoIcon/>},
         {label: 'Выйти', action: handleLogout, icon: <LogoutIcon/>},
@@ -142,6 +151,9 @@ const Sidebar: React.FC<SidebarProps> = ({isOpen, onClose}) => {
                                 >
                                     <span style={{...styles.icon, color: isActive ? colors.ink : colors.body}}>{item.icon}</span>
                                     <span style={styles.label}>{item.label}</span>
+                                    {!!item.badge && (
+                                        <span style={styles.badge}>{item.badge}</span>
+                                    )}
                                 </button>
                             );
                         })}
@@ -258,5 +270,16 @@ const styles: Record<string, React.CSSProperties> = {
     },
     label: {
         fontWeight: 400,
+        flex: 1,
+    },
+    badge: {
+        background: '#4CAF50',
+        color: '#fff',
+        borderRadius: 10,
+        fontSize: 11,
+        fontWeight: 600,
+        padding: '2px 7px',
+        marginLeft: 8,
+        flexShrink: 0,
     },
 };

@@ -76,7 +76,7 @@ class AuthService:
             await uow_session.user.add(user)
 
         event = UserRegisterEvent(
-            user_id=str(user.id),
+            user_id=user.id,
             email=user.email,
             role=str(user.role),
             timestamp=datetime.now(timezone.utc),

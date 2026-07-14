@@ -1,15 +1,25 @@
 import React, {useState} from 'react';
 import Sidebar from './Sidebar';
+import {useChat} from '../context/ChatContext';
 import {colors, rounded} from '../styles/theme';
+
 
 const SidebarWithToggle: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const {unreadTotal, openPanel} = useChat();
 
     return (
         <>
-            <Sidebar isOpen={isOpen} onClose={() => setIsOpen(false)}/>
+            <Sidebar
+                isOpen={isOpen}
+                onClose={() => setIsOpen(false)}
+                onOpenChat={() => {
+                    openPanel();
+                    setIsOpen(false);
+                }}
+                unreadChatsCount={unreadTotal}
+            />
 
-            {/* Кнопка открытия - всегда видна в левом верхнем углу */}
             {!isOpen && (
                 <button
                     style={styles.openButton}
