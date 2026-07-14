@@ -121,7 +121,7 @@ class PermissionService:
     ) -> list[TablePermissionResponse]:
         """Получить список всех прав доступа для указанной таблицы."""
         async with uow_session.start():
-            await self._check_table_access(
+            await self.get_table_with_manage_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
@@ -143,7 +143,7 @@ class PermissionService:
     ) -> TablePermissionResponse:
         """Создать новое право доступа для пользователя на указанную таблицу."""
         async with uow_session.start():
-            await self._check_table_access(
+            await self.get_table_with_manage_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
@@ -181,8 +181,9 @@ class PermissionService:
         user_id: int,
         user_role: str,
     ) -> None:
+        """Отозвать все права пользователя на таблицу."""
         async with uow_session.start():
-            await self._check_table_access(
+            await self.get_table_with_manage_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
