@@ -5,6 +5,7 @@ from table_service.app.exceptions import (
     AccessDeniedException,
     PermissionAlreadyExistsException,
     CanNotCreatePermissionException,
+    UserNotFoundException,
 )
 from table_service.app.models import DataTable, TablePermission
 from table_service.app.core.unit_of_work import UnitOfWork
@@ -17,11 +18,14 @@ class PermissionService:
     ADMIN_ROLE = "ADMIN"
 
     @staticmethod
-    def _to_response(permission) -> TablePermissionResponse:
+    def _to_response(
+        permission: TablePermission, email: str | None = None
+    ) -> TablePermissionResponse:
         return TablePermissionResponse(
             id=permission.id,
             user_id=permission.user_id,
             table_id=permission.table_id,
+            user_email=email,
             can_read=permission.can_read,
             can_write=permission.can_write,
             can_manage=permission.can_manage,
@@ -150,15 +154,19 @@ class PermissionService:
                 user_role=user_role,
             )
 
+            target_user = await uow_session.users.get_by_email(data.email)
+            if not target_user:
+                raise UserNotFoundException()
+
             if await uow_session.permissions.get_permissions(
-                table_id=table_id, user_id=user_id
+                table_id=table_id, user_id=target_user.id
             ):
                 raise PermissionAlreadyExistsException()
 
             if not (
                 perm := await uow_session.permissions.create_permission(
                     table_id=table_id,
-                    user_id=user_id,
+                    user_id=target_user.id,
                     can_read=data.can_read,
                     can_write=data.can_write,
                     can_manage=data.can_manage,
@@ -166,12 +174,14 @@ class PermissionService:
             ):
                 raise CanNotCreatePermissionException()
             logger.info(
-                "Successfully created permission %s for user %s on table %s",
+                "User %s granted permission %s to user %s (%s) on table %s",
+                user_id,
                 perm.id,
-                data.user_id,
+                target_user.id,
+                target_user.email,
                 table_id,
             )
-            return self._to_response(perm)
+            return self._to_response(perm, email=target_user.email)
 
     async def delete_permission(
         self,
