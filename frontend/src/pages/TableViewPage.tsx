@@ -1,6 +1,7 @@
 // frontend/src/pages/TableViewPage.tsx
 import React, {useEffect, useState, useRef} from "react";
 import {useParams, useNavigate} from "react-router-dom";
+import TablePermissionsPanel from '../components/TablePermissionsPanel';
 import {tablesAPI, TableRow, ColumnSchema, RowFilter, isFormula, evaluateFormula} from "../api/tables";
 import {subscribeToTableEvents} from '../api/ws';
 
@@ -299,139 +300,149 @@ const TableViewPage: React.FC = () => {
             </header>
 
             <main style={styles.main}>
-                {error && (
-                    <div style={styles.error}>
-                        {error}
-                        <button style={styles.closeError} onClick={() => setError("")}>×</button>
-                    </div>
-                )}
+                <div style={styles.contentLayout}>
+                    <div style={styles.tableColumn}>
+                        {error && (
+                            <div style={styles.error}>
+                                {error}
+                                <button style={styles.closeError} onClick={() => setError("")}>×</button>
+                            </div>
+                        )}
 
-                {rows.length === 0 ? (
-                    <div style={styles.emptyState}>
-                        <div style={styles.emptyIcon}>📭</div>
-                        <h2>В таблице пока нет данных</h2>
-                        <p>Нажмите «+ Добавить строку» чтобы начать</p>
-                        <button style={styles.addButton} onClick={addRow}>+ Добавить строку</button>
-                    </div>
-                ) : (
-                    <div style={styles.tableWrapper}>
-                        <table style={styles.table}>
-                            <thead>
-                            <tr>
-                                <th style={styles.rowNumberHeader}></th>
-                                {colNames.map(col => (
-                                    <th
-                                        key={col}
-                                        style={{...styles.th, cursor: "pointer"}}
-                                        onClick={() => toggleSort(col)}
-                                    >
-                                        {col}
-                                        {sortBy === col && <span> {sortOrder === 'asc' ? '▲' : '▼'}</span>}
-                                    </th>
-                                ))}
-                                <th style={{...styles.th, width: "48px"}}></th>
-                            </tr>
-                            <tr>
-                                <th style={styles.rowNumberHeader}></th>
-                                {colNames.map(col => (
-                                    <th key={col} style={styles.filterCell}>
-                                        <input
-                                            style={styles.filterInput}
-                                            placeholder="фильтр…"
-                                            value={filterDraft[col] ?? ''}
-                                            onChange={e => setFilterDraft(prev => ({...prev, [col]: e.target.value}))}
-                                            onKeyDown={e => {
-                                                if (e.key === 'Enter') applyFilter(col);
-                                            }}
-                                            onBlur={() => applyFilter(col)}
-                                        />
-                                    </th>
-                                ))}
-                                <th style={styles.filterCell}></th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {rows.map((row, rowIndex) => (
-                                <tr
-                                    key={row.id}
-                                    style={{...styles.tr, opacity: saving === row.id ? 0.6 : 1}}
-                                >
-                                    <td style={styles.rowNumber}>{page * PAGE_SIZE + rowIndex + 1}</td>
-                                    {colNames.map(col => {
-                                        const isEditing =
-                                            editingCell?.rowId === row.id &&
-                                            editingCell?.col === col;
-                                        const cellHasFormula = hasFormula(row, col);
-                                        const displayValue = getDisplayValue(row, col);
-
-                                        return (
-                                            <td
+                        {rows.length === 0 ? (
+                            <div style={styles.emptyState}>
+                                <div style={styles.emptyIcon}>📭</div>
+                                <h2>В таблице пока нет данных</h2>
+                                <p>Нажмите «+ Добавить строку» чтобы начать</p>
+                                <button style={styles.addButton} onClick={addRow}>+ Добавить строку</button>
+                            </div>
+                        ) : (
+                            <div style={styles.tableWrapper}>
+                                <table style={styles.table}>
+                                    <thead>
+                                    <tr>
+                                        <th style={styles.rowNumberHeader}></th>
+                                        {colNames.map(col => (
+                                            <th
                                                 key={col}
-                                                style={styles.td}
-                                                onClick={() => !isEditing && startEdit(row.id, col, row)}
+                                                style={{...styles.th, cursor: "pointer"}}
+                                                onClick={() => toggleSort(col)}
                                             >
-                                                {isEditing ? (
-                                                    <input
-                                                        ref={inputRef}
-                                                        style={styles.cellInput}
-                                                        value={editingValue}
-                                                        onChange={e => setEditingValue(e.target.value)}
-                                                        onBlur={commitEdit}
-                                                        onKeyDown={handleKeyDown}
-                                                    />
-                                                ) : (
-                                                    <span
-                                                        style={{
-                                                            ...styles.cellText,
-                                                            ...(cellHasFormula ? styles.cellFormula : {}),
-                                                            ...(displayValue === "#ОШИБКА!" ? styles.cellError : {}),
-                                                        }}
-                                                        title={cellHasFormula ? row.formulas![col] : undefined}
-                                                    >
-                                                        {displayValue}
-                                                        {cellHasFormula && displayValue !== "#ОШИБКА!" && (
-                                                            <span style={styles.formulaIndicator}>ƒ</span>
-                                                        )}
-                                                    </span>
-                                                )}
-                                            </td>
-                                        );
-                                    })}
-                                    <td style={{...styles.td, textAlign: "center"}}>
-                                        <button
-                                            style={styles.deleteRowBtn}
-                                            onClick={() => deleteRow(row.id)}
-                                            title="Удалить строку"
+                                                {col}
+                                                {sortBy === col && <span> {sortOrder === 'asc' ? '▲' : '▼'}</span>}
+                                            </th>
+                                        ))}
+                                        <th style={{...styles.th, width: "48px"}}></th>
+                                    </tr>
+                                    <tr>
+                                        <th style={styles.rowNumberHeader}></th>
+                                        {colNames.map(col => (
+                                            <th key={col} style={styles.filterCell}>
+                                                <input
+                                                    style={styles.filterInput}
+                                                    placeholder="фильтр…"
+                                                    value={filterDraft[col] ?? ''}
+                                                    onChange={e => setFilterDraft(prev => ({
+                                                        ...prev,
+                                                        [col]: e.target.value
+                                                    }))}
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter') applyFilter(col);
+                                                    }}
+                                                    onBlur={() => applyFilter(col)}
+                                                />
+                                            </th>
+                                        ))}
+                                        <th style={styles.filterCell}></th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {rows.map((row, rowIndex) => (
+                                        <tr
+                                            key={row.id}
+                                            style={{...styles.tr, opacity: saving === row.id ? 0.6 : 1}}
                                         >
-                                            🗑
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
+                                            <td style={styles.rowNumber}>{page * PAGE_SIZE + rowIndex + 1}</td>
+                                            {colNames.map(col => {
+                                                const isEditing =
+                                                    editingCell?.rowId === row.id &&
+                                                    editingCell?.col === col;
+                                                const cellHasFormula = hasFormula(row, col);
+                                                const displayValue = getDisplayValue(row, col);
 
-                        <div style={styles.pagination}>
-                            <button
-                                style={styles.pageBtn}
-                                disabled={page === 0}
-                                onClick={() => setPage(p => Math.max(0, p - 1))}
-                            >
-                                ← Назад
-                            </button>
-                            <span style={styles.pageInfo}>
+                                                return (
+                                                    <td
+                                                        key={col}
+                                                        style={styles.td}
+                                                        onClick={() => !isEditing && startEdit(row.id, col, row)}
+                                                    >
+                                                        {isEditing ? (
+                                                            <input
+                                                                ref={inputRef}
+                                                                style={styles.cellInput}
+                                                                value={editingValue}
+                                                                onChange={e => setEditingValue(e.target.value)}
+                                                                onBlur={commitEdit}
+                                                                onKeyDown={handleKeyDown}
+                                                            />
+                                                        ) : (
+                                                            <span
+                                                                style={{
+                                                                    ...styles.cellText,
+                                                                    ...(cellHasFormula ? styles.cellFormula : {}),
+                                                                    ...(displayValue === "#ОШИБКА!" ? styles.cellError : {}),
+                                                                }}
+                                                                title={cellHasFormula ? row.formulas![col] : undefined}
+                                                            >
+                                                        {displayValue}
+                                                                {cellHasFormula && displayValue !== "#ОШИБКА!" && (
+                                                                    <span style={styles.formulaIndicator}>ƒ</span>
+                                                                )}
+                                                    </span>
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
+                                            <td style={{...styles.td, textAlign: "center"}}>
+                                                <button
+                                                    style={styles.deleteRowBtn}
+                                                    onClick={() => deleteRow(row.id)}
+                                                    title="Удалить строку"
+                                                >
+                                                    🗑
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+
+                                <div style={styles.pagination}>
+                                    <button
+                                        style={styles.pageBtn}
+                                        disabled={page === 0}
+                                        onClick={() => setPage(p => Math.max(0, p - 1))}
+                                    >
+                                        ← Назад
+                                    </button>
+                                    <span style={styles.pageInfo}>
                                 Стр. {page + 1} из {totalPages} · всего {total}
                             </span>
-                            <button
-                                style={styles.pageBtn}
-                                disabled={page + 1 >= totalPages}
-                                onClick={() => setPage(p => p + 1)}
-                            >
-                                Вперёд →
-                            </button>
-                        </div>
+                                    <button
+                                        style={styles.pageBtn}
+                                        disabled={page + 1 >= totalPages}
+                                        onClick={() => setPage(p => p + 1)}
+                                    >
+                                        Вперёд →
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                )}
+                    <aside style={styles.sidePanel}>
+                        <TablePermissionsPanel tableId={tableId}/>
+                    </aside>
+                </div>
             </main>
         </div>
     );
@@ -474,6 +485,9 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: "14px", fontWeight: "600",
     },
     main: {maxWidth: "1400px", margin: "0 auto", padding: "30px 20px"},
+    contentLayout: {display: 'flex', gap: 24, alignItems: 'flex-start'},
+    tableColumn: {flex: 1, minWidth: 0},
+    sidePanel: {width: 320, flexShrink: 0},
     loadingContainer: {
         minHeight: "50vh", display: "flex", flexDirection: "column",
         gap: "16px", justifyContent: "center", alignItems: "center",
