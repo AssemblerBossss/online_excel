@@ -31,6 +31,7 @@ class PermissionService:
     async def get_table_with_read_access(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> DataTable:
+        """Найти таблицу по ID и проверить право на чтение. Возвращает таблицу при успехе."""
         table = await uow_session.tables.get_table_by_id(table_id=table_id)
         if not table:
             raise NotFoundException("Таблица не найдена")
@@ -107,7 +108,7 @@ class PermissionService:
             return True
         if user_role and user_role.upper() == self.ADMIN_ROLE:
             return True
-        perm: TablePermission = await uow_session.permissions.get_permissions(
+        perm: TablePermission | None = await uow_session.permissions.get_permissions(
             table_id=table.id, user_id=user_id
         )
         if perm and perm.can_manage:

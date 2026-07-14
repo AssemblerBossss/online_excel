@@ -68,5 +68,9 @@ class CanNotCreatePermissionException(AppException):
     detail = "Не удалось создать права доступа"
 
 
+class UserNotFoundException(AppException):
+    detail = "Пользователь с таким email не найден"
+
+
 class ExportJobNotFoundException(AppException):
     pass
