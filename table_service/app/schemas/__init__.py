@@ -16,6 +16,13 @@ from .table import (
 )
 from .user import SCurrentUser, SUserFilter
 from .permission import TablePermissionCreate, TablePermissionResponse
+from .ws import SWsTicketResponse, SRowEvent, RowEventType
+from .export import (
+    ExportJobStatus,
+    SExportJob,
+    SExportJobCreated,
+    SExportJobStatusResponse,
+)
 
 
 __all__ = [
@@ -35,4 +42,11 @@ __all__ = [
     "TablePermissionCreate",
     "TablePermissionResponse",
     "COMPARISON_OPERATORS",
+    "SRowEvent",
+    "SWsTicketResponse",
+    "RowEventType",
+    "ExportJobStatus",
+    "SExportJob",
+    "SExportJobCreated",
+    "SExportJobStatusResponse",
 ]

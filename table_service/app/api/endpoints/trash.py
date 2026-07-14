@@ -20,8 +20,6 @@ from table_service.app.api.dependencies import (
     get_redis,
     get_async_uow_session,
 )
-
-
 from table_service.app.api.cache import (
     TRASH_CACHE_KEY,
     TABLES_CACHE_TTL,

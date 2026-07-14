@@ -1,5 +1,6 @@
+import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import AsyncGenerator
 from fastapi import FastAPI, APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -16,6 +17,7 @@ from table_service.app.api.endpoints import (
     permissions_router,
     health_router,
     trash_router,
+    ws_router,
 )
 from table_service.app.core import (
     app_settings,
@@ -24,7 +26,10 @@ from table_service.app.core import (
     close_redis_client,
     close_es_client,
     init_es_index,
+    get_redis_client,
+    export_storage,
 )
+from table_service.app.core.ws_manager import table_ws_manager
 from table_service.app.exceptions import (
     AccessDeniedException,
     ValidationException,
@@ -39,6 +44,8 @@ from table_service.app.exceptions import (
     CanNotUpdateTableException,
     PermissionAlreadyExistsException,
     CanNotCreatePermissionException,
+    InvalidWSTicketException,
+    ExportJobNotFoundException,
 )
 
 setup_service_logging()
@@ -104,6 +111,18 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(status_code=500, content={"detail": exc.detail})
 
     @app.exception_handler(AppException)
+    async def invalid_ws_ticket_handler(
+        request: Request, exc: InvalidWSTicketException
+    ):
+        return JSONResponse(status_code=401, content={"detail": exc.detail})
+
+    @app.exception_handler(ExportJobNotFoundException)
+    async def export_job_not_found_handler(
+        request: Request, exc: ExportJobNotFoundException
+    ):
+        return JSONResponse(status_code=404, content={"detail": exc.detail})
+
+    @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException):
         return JSONResponse(status_code=500, content={"detail": exc.detail})
 
@@ -112,6 +131,9 @@ def register_exception_handlers(app: FastAPI) -> None:
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """Управление жизненным циклом приложения."""
     await init_es_index()
+
+    await export_storage.ensure_file_bucket()
+    logger.info("MinIO export bucket ready")
 
     redis = Redis(
         host=app_settings.CACHE_HOST,
@@ -125,7 +147,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     await user_event_consumer.connect()
     logger.info("UserEventConsumer started")
 
+    ws_listener_task = asyncio.create_task(
+        table_ws_manager.run_listener(get_redis_client())
+    )
+    logger.info("Table WS listener started")
+
     yield
+
+    ws_listener_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await ws_listener_task
 
     await user_event_consumer.close()
     await close_es_client()
@@ -188,6 +219,7 @@ def register_routers(app: FastAPI) -> None:
         (tables_router, "/tables", "Tables"),
         (search_router, "/search", "Search"),
         (trash_router, "/tables/trash", "Trash"),
+        (ws_router, "/ws", "WebSocket"),
         (permissions_router, "/tables/{table_id}/permissions", "Permissions"),
         (health_router, "/health", "Health"),
     ]

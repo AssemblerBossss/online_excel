@@ -2,6 +2,7 @@ import React, {useState} from "react";
 import {useNavigate} from "react-router-dom";
 import api from "../api/axiosInstance";
 import {loginUser} from "../api/auth";
+import {colors, rounded, shadowLevel2, spacing, typography} from "../styles/theme";
 
 
 const LoginPage: React.FC = () => {
@@ -71,8 +72,8 @@ const LoginPage: React.FC = () => {
                             required
                         />
                     </div>
-                    <button style={styles.button} type="submit">
-                        Войти
+                    <button style={styles.button} type="submit" disabled={isLoading}>
+                        {isLoading ? "Вход..." : "Войти"}
                     </button>
                 </form>
                 <p style={styles.footerText}>
@@ -97,73 +98,71 @@ const styles: Record<string, React.CSSProperties> = {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "#f0f2f5",
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        background: colors.canvas,
     },
     card: {
         width: 400,
-        padding: 40,
-        borderRadius: 12,
-        background: "#fff",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+        padding: spacing.xl,
+        borderRadius: rounded.lg,
+        background: colors.canvasSoft,
+        boxShadow: shadowLevel2,
         textAlign: "center",
     },
     title: {
-        marginBottom: 32,
-        color: "#333",
-        fontSize: 28,
-        fontWeight: 600,
+        ...typography.displaySm,
+        marginBottom: spacing.lg,
+        color: colors.ink,
     },
     error: {
-        color: "#ff4757",
-        marginBottom: 16,
-        padding: 12,
-        background: "#ffe6e6",
-        borderRadius: 6,
-        fontSize: 14,
+        ...typography.bodySm,
+        color: colors.errorDeep,
+        marginBottom: spacing.md,
+        padding: spacing.sm,
+        background: colors.errorSoft,
+        borderRadius: rounded.sm,
     },
     form: {
         display: "flex",
         flexDirection: "column",
-        gap: 20,
+        gap: spacing.md,
     },
     inputGroup: {
         display: "flex",
         flexDirection: "column",
-        gap: 8,
+        gap: spacing.xxs,
         textAlign: "left",
     },
     label: {
-        fontSize: 14,
-        fontWeight: 500,
-        color: "#555",
+        ...typography.bodySmStrong,
+        color: colors.body,
     },
     input: {
-        padding: 12,
-        borderRadius: 6,
-        border: "1px solid #ddd",
-        fontSize: 16,
-        transition: "border-color 0.2s",
+        ...typography.bodySm,
+        height: 40,
+        padding: `0 ${spacing.sm}px`,
+        borderRadius: rounded.sm,
+        border: `1px solid ${colors.hairline}`,
+        background: colors.canvas,
+        color: colors.ink,
+        outline: "none",
     },
     button: {
-        padding: 14,
-        borderRadius: 6,
+        ...typography.buttonLg,
+        height: 48,
+        borderRadius: rounded.pill,
         border: "none",
-        background: "#4CAF50",
-        color: "#fff",
-        fontSize: 16,
-        fontWeight: 600,
+        background: colors.primary,
+        color: colors.onPrimary,
         cursor: "pointer",
-        transition: "background-color 0.2s",
-        marginTop: 10,
+        marginTop: spacing.xs,
     },
     footerText: {
-        marginTop: 24,
-        fontSize: 14,
-        color: "#666",
+        ...typography.bodySm,
+        marginTop: spacing.lg,
+        color: colors.body,
     },
     link: {
-        color: "#4CAF50",
+        color: colors.link,
         cursor: "pointer",
         textDecoration: "underline",
         fontWeight: 500,

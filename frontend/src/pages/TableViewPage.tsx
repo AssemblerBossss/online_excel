@@ -2,6 +2,7 @@
 import React, {useEffect, useState, useRef} from "react";
 import {useParams, useNavigate} from "react-router-dom";
 import {tablesAPI, TableRow, ColumnSchema, RowFilter, isFormula, evaluateFormula} from "../api/tables";
+import {subscribeToTableEvents} from '../api/ws';
 
 const PAGE_SIZE = 50;
 
@@ -34,8 +35,12 @@ const TableViewPage: React.FC = () => {
     const [filterDraft, setFilterDraft] = useState<Record<string, string>>({});
     const [filters, setFilters] = useState<RowFilter[]>([]);
 
-    useEffect(() => { loadTable(); }, [id]);
-    useEffect(() => { loadRows(); }, [id, page, sortBy, sortOrder, filters]);
+    useEffect(() => {
+        loadTable();
+    }, [id]);
+    useEffect(() => {
+        loadRows();
+    }, [id, page, sortBy, sortOrder, filters]);
 
     useEffect(() => {
         if (editingCell && inputRef.current) {
@@ -72,6 +77,26 @@ const TableViewPage: React.FC = () => {
             setLoading(false);
         }
     };
+
+    const loadRowsRef = useRef(loadRows);
+    useEffect(() => {
+        loadRowsRef.current = loadRows;
+    });
+
+    useEffect(() => {
+        if (!tableId) return;
+        let reloadTimer: number | null = null;
+
+        const unsubscribe = subscribeToTableEvents(tableId, () => {
+            if (reloadTimer) window.clearTimeout(reloadTimer);
+            reloadTimer = window.setTimeout(() => loadRowsRef.current(), 300);
+        });
+
+        return () => {
+            if (reloadTimer) window.clearTimeout(reloadTimer);
+            unsubscribe();
+        };
+    }, [tableId]);
 
     const colNames = columns.map(c => c.name);
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -158,7 +183,7 @@ const TableViewPage: React.FC = () => {
                     ...r,
                     row_data: newRowData,
                     formulas: Object.keys(updatedFormulas).length ? updatedFormulas : undefined,
-                  }
+                }
                 : r
         ));
 
@@ -192,7 +217,9 @@ const TableViewPage: React.FC = () => {
 
     const addRow = async () => {
         const emptyRow: Record<string, any> = {};
-        colNames.forEach(col => { emptyRow[col] = ""; });
+        colNames.forEach(col => {
+            emptyRow[col] = "";
+        });
 
         try {
             const newRow = await tablesAPI.createRow(tableId, emptyRow);
@@ -220,21 +247,24 @@ const TableViewPage: React.FC = () => {
 
     // ── Экспорт ──
 
-    const exportTable = async () => {
+    const handleExport = async () => {
         try {
             setExporting(true);
-            const {blob, filename} = await tablesAPI.exportTable(tableId);
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
+            const {job_id} = await tablesAPI.startExport(tableId);
+            const result = await tablesAPI.waitForExport(job_id);
+
+            if (result.status === 'error' || !result.download_url) {
+                setError(result.error || 'Не удалось экспортировать таблицу');
+                return;
+            }
+
+            // presigned-ссылка уже содержит content-disposition с именем файла
+            const link = document.createElement('a');
+            link.href = result.download_url;
             link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
         } catch (err) {
-            console.error('exportTable error:', err);
-            setError("Не удалось экспортировать таблицу");
+            console.error('export error:', err);
+            setError('Не удалось экспортировать таблицу');
         } finally {
             setExporting(false);
         }
@@ -255,7 +285,7 @@ const TableViewPage: React.FC = () => {
                 <div style={styles.headerContent}>
                     <h1 style={styles.title}>Таблица №{id}</h1>
                     <div style={styles.headerActions}>
-                        <button style={styles.exportButton} onClick={exportTable} disabled={exporting}>
+                        <button style={styles.exportButton} onClick={handleExport} disabled={exporting}>
                             {exporting ? "Экспорт…" : "⬇ Экспорт в Excel"}
                         </button>
                         <button style={styles.addButton} onClick={addRow}>
@@ -287,36 +317,38 @@ const TableViewPage: React.FC = () => {
                     <div style={styles.tableWrapper}>
                         <table style={styles.table}>
                             <thead>
-                                <tr>
-                                    <th style={styles.rowNumberHeader}></th>
-                                    {colNames.map(col => (
-                                        <th
-                                            key={col}
-                                            style={{...styles.th, cursor: "pointer"}}
-                                            onClick={() => toggleSort(col)}
-                                        >
-                                            {col}
-                                            {sortBy === col && <span> {sortOrder === 'asc' ? '▲' : '▼'}</span>}
-                                        </th>
-                                    ))}
-                                    <th style={{...styles.th, width: "48px"}}></th>
-                                </tr>
-                                <tr>
-                                    <th style={styles.rowNumberHeader}></th>
-                                    {colNames.map(col => (
-                                        <th key={col} style={styles.filterCell}>
-                                            <input
-                                                style={styles.filterInput}
-                                                placeholder="фильтр…"
-                                                value={filterDraft[col] ?? ''}
-                                                onChange={e => setFilterDraft(prev => ({...prev, [col]: e.target.value}))}
-                                                onKeyDown={e => { if (e.key === 'Enter') applyFilter(col); }}
-                                                onBlur={() => applyFilter(col)}
-                                            />
-                                        </th>
-                                    ))}
-                                    <th style={styles.filterCell}></th>
-                                </tr>
+                            <tr>
+                                <th style={styles.rowNumberHeader}></th>
+                                {colNames.map(col => (
+                                    <th
+                                        key={col}
+                                        style={{...styles.th, cursor: "pointer"}}
+                                        onClick={() => toggleSort(col)}
+                                    >
+                                        {col}
+                                        {sortBy === col && <span> {sortOrder === 'asc' ? '▲' : '▼'}</span>}
+                                    </th>
+                                ))}
+                                <th style={{...styles.th, width: "48px"}}></th>
+                            </tr>
+                            <tr>
+                                <th style={styles.rowNumberHeader}></th>
+                                {colNames.map(col => (
+                                    <th key={col} style={styles.filterCell}>
+                                        <input
+                                            style={styles.filterInput}
+                                            placeholder="фильтр…"
+                                            value={filterDraft[col] ?? ''}
+                                            onChange={e => setFilterDraft(prev => ({...prev, [col]: e.target.value}))}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') applyFilter(col);
+                                            }}
+                                            onBlur={() => applyFilter(col)}
+                                        />
+                                    </th>
+                                ))}
+                                <th style={styles.filterCell}></th>
+                            </tr>
                             </thead>
                             <tbody>
                             {rows.map((row, rowIndex) => (
@@ -533,9 +565,3 @@ const styles: Record<string, React.CSSProperties> = {
     },
     pageInfo: {fontSize: "14px", color: "#475569"},
 };
-
-const sheet = document.styleSheets[0];
-sheet.insertRule(
-    `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`,
-    sheet.cssRules.length
-);

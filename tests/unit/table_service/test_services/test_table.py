@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 from io import BytesIO
 import pandas as pd
 from fastapi import UploadFile
+
 from table_service.app.exceptions import (
     NotFoundException,
     CanNotCreateTableException,
@@ -52,8 +53,9 @@ class TestGetTableById:
         real_data_table: DataTable,
     ) -> None:
         """Возвращает таблицу при наличии прав на чтение."""
-        mock_table_repo.get_table_by_id.return_value = real_data_table
-        mock_permission_service.check_read_access.return_value = True
+        mock_permission_service.get_table_with_read_access.return_value = (
+            real_data_table
+        )
 
         result = await service.get_table_by_id(
             uow_session=mock_uow, table_id=1, user_id=100, user_role="USER"
@@ -62,22 +64,22 @@ class TestGetTableById:
         assert result.id == real_data_table.id
         from unittest.mock import ANY
 
-        mock_permission_service.check_read_access.assert_called_once_with(
-            uow_session=ANY, table=real_data_table, user_id=100, user_role="USER"
+        mock_permission_service.get_table_with_read_access.assert_called_once_with(
+            uow_session=ANY, table_id=1, user_id=100, user_role="USER"
         )
 
     async def test_raises_not_found_when_table_missing(
-        self, service, mock_table_repo, mock_uow
+        self, service, mock_permission_service, mock_uow
     ) -> None:
         """Выбрасывает NotFoundException, если таблица не найдена."""
-        mock_table_repo.get_table_by_id.return_value = None
+        mock_permission_service.get_table_with_read_access.side_effect = (
+            NotFoundException("Таблица не найдена")
+        )
 
         with pytest.raises(NotFoundException) as exc:
             await service.get_table_by_id(
                 uow_session=mock_uow, table_id=1, user_id=100, user_role="USER"
             )
-
-        assert "not found" in str(exc.value).lower()
 
     async def test_raises_access_denied_when_no_permission(
         self,
@@ -88,8 +90,9 @@ class TestGetTableById:
         real_data_table: DataTable,
     ) -> None:
         """Выбрасывает AccessDeniedException при отсутствии прав."""
-        mock_table_repo.get_table_by_id.return_value = real_data_table
-        mock_permission_service.check_read_access.return_value = False
+        mock_permission_service.get_table_with_read_access.side_effect = (
+            AccessDeniedException()
+        )
 
         with pytest.raises(AccessDeniedException):
             await service.get_table_by_id(

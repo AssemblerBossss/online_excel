@@ -1,6 +1,5 @@
 import json
 from typing import Annotated
-from urllib.parse import quote
 
 from fastapi import (
     APIRouter,
@@ -10,7 +9,6 @@ from fastapi import (
     File,
     Form,
 )
-from fastapi.responses import StreamingResponse
 from redis.asyncio import Redis
 
 from table_service.app.schemas import (
@@ -19,14 +17,20 @@ from table_service.app.schemas import (
     SCurrentUser,
     DataTableUpdate,
     DataTableDuplicate,
+    SWsTicketResponse,
+    SExportJobCreated,
+    SExportJobStatusResponse,
 )
 from table_service.app.core.unit_of_work import UnitOfWork
-from table_service.app.services import TableService
+from table_service.app.core import AsyncSessionFactory
+from table_service.app.services import TableService, WsTicketService, ExportJobService
 from table_service.app.api.dependencies import (
     get_table_service,
     get_current_active_user,
     get_redis,
     get_async_uow_session,
+    get_ws_ticket_service,
+    get_export_job_service,
 )
 
 from table_service.app.api.cache import (
@@ -36,8 +40,55 @@ from table_service.app.api.cache import (
     invalidate_tables_cache,
 )
 
-XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+from fastapi import BackgroundTasks
+
+
 router = APIRouter()
+
+
+@router.get("/export-jobs/{job_id}", response_model=SExportJobStatusResponse)
+async def get_export_job_status(
+    job_id: str,
+    export_service: Annotated[ExportJobService, Depends(get_export_job_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+) -> SExportJobStatusResponse:
+    """Статус задачи экспорта; при готовности — presigned-ссылка на скачивание."""
+    return await export_service.get_status(job_id, current_user)
+
+
+@router.post(
+    "/{table_id}/export-jobs",
+    response_model=SExportJobCreated,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def start_table_export(
+    table_id: int,
+    background_tasks: BackgroundTasks,
+    export_service: Annotated[ExportJobService, Depends(get_export_job_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+) -> SExportJobCreated:
+    """Поставить фоновый экспорт таблицы в Excel."""
+    job = await export_service.start(
+        uow_session=uow_session, table_id=table_id, current_user=current_user
+    )
+    background_tasks.add_task(
+        export_service.run, job.job_id, UnitOfWork(AsyncSessionFactory)
+    )
+    return job
+
+
+@router.post(
+    "/ws-ticket",
+    response_model=SWsTicketResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def issue_ws_ticket(
+    ticket_service: Annotated[WsTicketService, Depends(get_ws_ticket_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+) -> SWsTicketResponse:
+    """Выдать одноразовый тикет для WebSocket-подключения к событиям таблицы."""
+    return await ticket_service.issue(current_user)
 
 
 @router.get("/", response_model=list[DataTableResponse])
@@ -160,28 +211,6 @@ async def create_table_from_excel(
     )
     await invalidate_tables_cache(redis)
     return result
-
-
-@router.get("/{table_id}/export")
-async def export_table(
-    table_id: int,
-    table_service: Annotated[TableService, Depends(get_table_service)],
-    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
-    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
-) -> StreamingResponse:
-    """Скачать таблицу в формате Excel (.xlsx)."""
-    workbook, filename = await table_service.export_table_to_excel(
-        uow_session=uow_session,
-        table_id=table_id,
-        user_id=current_user.user_id,
-        user_role=current_user.role,
-    )
-    encoded = quote(filename)
-    return StreamingResponse(
-        workbook,
-        media_type=XLSX_MEDIA_TYPE,
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded}"},
-    )
 
 
 @router.delete(

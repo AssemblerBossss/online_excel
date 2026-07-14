@@ -173,6 +173,11 @@ services:
       - "traefik.http.routers.table.service=table_service"
       - "traefik.http.routers.table.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
 
+      - "traefik.http.routers.table_ws.rule=PathPrefix(`/ws/tables`)"
+      - "traefik.http.routers.table_ws.entrypoints=web"
+      - "traefik.http.routers.table_ws.service=table_service"
+      - "traefik.http.routers.table_ws.middlewares=ratelimit@file,strip-user-headers@file"
+
       - "prometheus.scrape=true"
       - "prometheus.port=8000"
     env_file:
