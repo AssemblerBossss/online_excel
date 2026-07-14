@@ -9,7 +9,11 @@ from table_service.app.exceptions import (
 )
 from table_service.app.models import DataTable, TablePermission
 from table_service.app.core.unit_of_work import UnitOfWork
-from table_service.app.schemas import TablePermissionResponse, TablePermissionCreate
+from table_service.app.schemas import (
+    TablePermissionResponse,
+    TablePermissionCreate,
+    TablePermissionUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +139,7 @@ class PermissionService:
             perms = await uow_session.permissions.get_permissions_by_table(
                 table_id=table_id
             )
-            return [self._to_response(p) for p in perms]
+            return [self._to_response(p, email=email) for p, email in perms]
 
     async def create_permission(
         self,
@@ -182,6 +186,48 @@ class PermissionService:
                 table_id,
             )
             return self._to_response(perm, email=target_user.email)
+
+    async def update_permission(
+        self,
+        uow_session: UnitOfWork,
+        table_id: int,
+        user_id: int,
+        target_user_id: int,
+        user_role: str,
+        data: TablePermissionUpdate,
+    ) -> TablePermissionResponse:
+        """Изменить существующие права пользователя на таблицу."""
+        async with uow_session.start():
+            await self.get_table_with_manage_access(
+                uow_session=uow_session,
+                table_id=table_id,
+                user_id=user_id,
+                user_role=user_role,
+            )
+            payload = data.model_dump(exclude_none=True)
+            if not payload:
+                existing = await uow_session.permissions.get_permissions(
+                    table_id=table_id, user_id=target_user_id
+                )
+                if not existing:
+                    raise NotFoundException("Права для данного пользователя не найдены")
+                return self._to_response(existing)
+
+            updated_permission = await uow_session.permissions.update_permission(
+                table_id=table_id, user_id=target_user_id, **payload
+            )
+
+            if not updated_permission:
+                raise NotFoundException("Права для данного пользователя не найдены")
+
+            logger.info(
+                "User %s updated permission for user %s on table %s: %s",
+                user_id,
+                target_user_id,
+                table_id,
+                payload,
+            )
+            return self._to_response(updated_permission)
 
     async def delete_permission(
         self,
