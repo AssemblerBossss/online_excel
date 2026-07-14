@@ -2,6 +2,14 @@ import React, {useState, useEffect} from "react";
 import {useNavigate} from "react-router-dom";
 import {changePassword, getUserProfile, updateUser, uploadAvatar, UserProfile} from "../api/users";
 import SidebarWithToggle from '../components/SidebarWithToggle';
+import {colors, rounded, shadowLevel4, spacing, typography} from '../styles/theme';
+
+const LockIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="11" width="16" height="10" rx="2"/>
+        <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+    </svg>
+);
 
 const ProfilePage: React.FC = () => {
     const navigate = useNavigate();
@@ -10,9 +18,7 @@ const ProfilePage: React.FC = () => {
     const [error, setError] = useState("");
     const [uploading, setUploading] = useState(false);
 
-    // Флаг: открыта ли форма редактирования (true) или режим просмотра (false)
     const [isEditing, setIsEditing] = useState(false);
-    // Флаг: идёт ли сейчас отправка данных на сервер (для блокировки кнопки и показа спиннера)
     const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState({
         first_name: "",
@@ -27,7 +33,6 @@ const ProfilePage: React.FC = () => {
     });
     const [passwordError, setPasswordError] = useState("");
     const [passwordSaving, setPasswordSaving] = useState(false);
-
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -56,17 +61,16 @@ const ProfilePage: React.FC = () => {
             setError(err.response?.data?.detail || "Не удалось загрузить аватар");
         } finally {
             setUploading(false);
-            e.target.value = "";            // чтобы можно было выбрать тот же файл снова
+            e.target.value = ""; // чтобы можно было выбрать тот же файл снова
         }
     };
 
     const handleEditClick = () => {
         if (!profile) return;
-        // Заполняем форму текущими значениями профиля
         setFormData({
             first_name: profile.first_name,
             last_name: profile.last_name
-        })
+        });
         setIsEditing(true);
     };
 
@@ -85,12 +89,11 @@ const ProfilePage: React.FC = () => {
         setError("");
         try {
             const updated = await updateUser(profile.id, formData);
-            setProfile(updated); //обновляем отображение
-            setIsEditing(false); //выходим из режима редактирования
+            setProfile(updated);
+            setIsEditing(false);
         } catch (err: any) {
             const detail = err.response?.data?.detail;
             if (Array.isArray(detail)) {
-                // Берём сообщение из первой ошибки
                 setError(detail[0]?.msg || "Не удалось сохранить изменения");
             } else {
                 setError(detail || "Не удалось сохранить изменения");
@@ -168,9 +171,10 @@ const ProfilePage: React.FC = () => {
 
     if (loading) {
         return (
-            <div style={styles.container}>
-                <div style={styles.card}>
-                    <p>Загрузка...</p>
+            <div style={styles.pageContainer}>
+                <SidebarWithToggle/>
+                <div style={styles.loadingContainer}>
+                    <div style={styles.loadingSpinner}/>
                 </div>
             </div>
         );
@@ -180,13 +184,14 @@ const ProfilePage: React.FC = () => {
         <div style={styles.pageContainer}>
             <SidebarWithToggle/>
 
-            <div style={styles.header}>
-                <h1 style={styles.headerTitle}>Профиль</h1>
-            </div>
+            <header style={styles.header}>
+                <div style={styles.headerContent}>
+                    <h1 style={styles.headerTitle}>Профиль</h1>
+                </div>
+            </header>
 
-            <div style={styles.container}>  {/* ← ДОБАВИТЬ внутренний container */}
+            <main style={styles.main}>
                 <div style={styles.card}>
-                    <h2 style={styles.title}>Профиль пользователя</h2>
                     {profile && (
                         <div style={styles.avatarSection}>
                             <img
@@ -215,62 +220,60 @@ const ProfilePage: React.FC = () => {
                     {profile && (
                         <div style={styles.profileInfo}>
                             <div style={styles.infoRow}>
-                                <span style={styles.label}>Email:</span>
+                                <span style={styles.label}>Email</span>
                                 <span style={styles.value}>{profile.email}</span>
                             </div>
 
                             <div style={styles.infoRow}>
-                                <span style={styles.label}>Имя:</span>
+                                <span style={styles.label}>Имя</span>
                                 {isEditing ? (
                                     <input
                                         style={styles.input}
                                         value={formData.first_name}
-                                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                                        onChange={(e) => setFormData({...formData, first_name: e.target.value})}
                                     />
                                 ) : (
                                     <span style={styles.value}>{profile.first_name}</span>
-                            )}
-                        </div>
+                                )}
+                            </div>
 
-                        <div style={styles.infoRow}>
-                            <span style={styles.label}>Фамилия:</span>
-                            {isEditing ? (
-                                <input
-                                    style={styles.input}
-                                    value={formData.last_name}
-                                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                                />
-                            ) : (
-                                <span style={styles.value}>{profile.last_name}</span>
-                            )}
-                        </div>
+                            <div style={styles.infoRow}>
+                                <span style={styles.label}>Фамилия</span>
+                                {isEditing ? (
+                                    <input
+                                        style={styles.input}
+                                        value={formData.last_name}
+                                        onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                                    />
+                                ) : (
+                                    <span style={styles.value}>{profile.last_name}</span>
+                                )}
+                            </div>
 
-                        {/* Роль, Статус, Дата — только просмотр, без изменений */}
-                        <div style={styles.infoRow}>
-                            <span style={styles.label}>Роль:</span>
-                            <span style={styles.value}>{getRoleText(profile.role)}</span>
-                        </div>
+                            <div style={styles.infoRow}>
+                                <span style={styles.label}>Роль</span>
+                                <span style={styles.value}>{getRoleText(profile.role)}</span>
+                            </div>
 
-                        <div style={styles.infoRow}>
-                            <span style={styles.label}>Статус:</span>
-                            <span style={styles.value}>
-                            {profile.is_active
-                                ? <span style={styles.statusActive}>Активен</span>
-                                : <span style={styles.statusInactive}>Неактивен</span>
-                            }
-                            </span>
-                        </div>
+                            <div style={styles.infoRow}>
+                                <span style={styles.label}>Статус</span>
+                                {profile.is_active
+                                    ? <span style={{...styles.badge, ...styles.badgeActive}}>Активен</span>
+                                    : <span style={{...styles.badge, ...styles.badgeInactive}}>Неактивен</span>
+                                }
+                            </div>
 
-                        <div style={styles.infoRow}>
-                            <span style={styles.label}>Дата регистрации:</span>
-                            <span style={styles.value}>{formatDate(profile.created_at)}</span>
+                            <div style={{...styles.infoRow, borderBottom: 'none'}}>
+                                <span style={styles.label}>Дата регистрации</span>
+                                <span style={styles.value}>{formatDate(profile.created_at)}</span>
+                            </div>
                         </div>
-                    </div>
                     )}
+
                     {error && <p style={styles.error}>{error}</p>}
-                    {/* Блок безопасности */}
+
                     <div style={styles.securitySection}>
-                        <span style={styles.sectionTitle}>🔒 Безопасность</span>
+                        <span style={styles.sectionTitle}><LockIcon/> Безопасность</span>
 
                         {isChangingPassword ? (
                             <div style={styles.passwordForm}>
@@ -297,43 +300,44 @@ const ProfilePage: React.FC = () => {
                                 />
                                 {passwordError && <p style={styles.error}>{passwordError}</p>}
                                 <div style={styles.passwordButtons}>
-                                    <button style={styles.button} onClick={handlePasswordSave} disabled={passwordSaving}>
+                                    <button style={styles.buttonPrimary} onClick={handlePasswordSave} disabled={passwordSaving}>
                                         {passwordSaving ? "Сохранение..." : "Сохранить"}
                                     </button>
-                                    <button style={{...styles.button, background: "#aaa"}} onClick={handlePasswordCancel}>
+                                    <button style={styles.buttonSecondary} onClick={handlePasswordCancel}>
                                         Отмена
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            <button style={styles.passwordButton} onClick={handlePasswordOpen}>
+                            <button style={styles.buttonSecondary} onClick={handlePasswordOpen}>
                                 Сменить пароль
                             </button>
                         )}
                     </div>
+
                     <div style={styles.buttonGroup}>
                         {isEditing ? (
                             <>
-                                <button style={styles.button} onClick={handleSave} disabled={saving}>
+                                <button style={styles.buttonPrimary} onClick={handleSave} disabled={saving}>
                                     {saving ? "Сохранение..." : "Сохранить"}
                                 </button>
-                                <button style={{...styles.button, background: "#aaa"}} onClick={handleCancel}>
+                                <button style={styles.buttonSecondary} onClick={handleCancel}>
                                     Отмена
                                 </button>
                             </>
                         ) : (
                             <>
-                                <button style={styles.button} onClick={handleEditClick}>
+                                <button style={styles.buttonPrimary} onClick={handleEditClick}>
                                     Редактировать профиль
                                 </button>
-                                <button style={{...styles.button, background: "#aaa"}} onClick={() => navigate("/tables")}>
+                                <button style={styles.buttonSecondary} onClick={() => navigate("/tables")}>
                                     К таблицам
                                 </button>
                             </>
                         )}
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 };
@@ -341,177 +345,171 @@ const ProfilePage: React.FC = () => {
 export default ProfilePage;
 
 const styles: Record<string, React.CSSProperties> = {
-    pageContainer: {  // ← ДОБАВИТЬ (новый контейнер для всей страницы)
+    pageContainer: {
         minHeight: '100vh',
-        background: '#f0f2f5',
+        background: colors.canvasSoft,
     },
     header: {
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '16px 24px',
-        backgroundColor: '#fff',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
+        background: colors.canvas,
+        borderBottom: `1px solid ${colors.hairline}`,
+        padding: `${spacing.md}px 0`,
+    },
+    headerContent: {
+        maxWidth: 1200,
+        margin: '0 auto',
+        padding: `0 ${spacing.lg}px`,
     },
     headerTitle: {
+        ...typography.displayMd,
+        color: colors.ink,
         margin: 0,
-        fontSize: 20,
-        fontWeight: 600,
-        color: '#333',
     },
-    container: {  // ← ИЗМЕНИТЬ (убери minHeight и background)
+    main: {
+        maxWidth: 640,
+        margin: '0 auto',
+        padding: `${spacing.xl}px ${spacing.lg}px`,
+    },
+    loadingContainer: {
         display: 'flex',
-        justifyContent: 'center',
         alignItems: 'center',
-        padding: 40,
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        justifyContent: 'center',
+        minHeight: '50vh',
+    },
+    loadingSpinner: {
+        width: 40,
+        height: 40,
+        border: `4px solid ${colors.hairline}`,
+        borderTop: `4px solid ${colors.primary}`,
+        borderRadius: rounded.full,
+        animation: 'spin 1s linear infinite',
     },
     card: {
-        width: 500,
-        padding: 40,
-        borderRadius: 12,
-        background: "#fff",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-    },
-    title: {
-        marginBottom: 32,
-        color: "#333",
-        fontSize: 28,
-        fontWeight: 600,
-        textAlign: "center",
+        background: colors.canvas,
+        borderRadius: rounded.lg,
+        padding: spacing.xl,
+        boxShadow: shadowLevel4,
     },
     error: {
-        color: "#ff4757",
-        marginBottom: 16,
-        padding: 12,
-        background: "#ffe6e6",
-        borderRadius: 6,
-        fontSize: 14,
-        textAlign: "center",
+        ...typography.bodySm,
+        color: colors.errorDeep,
+        marginTop: spacing.md,
+        padding: spacing.sm,
+        background: colors.errorSoft,
+        borderRadius: rounded.sm,
     },
     profileInfo: {
         display: "flex",
         flexDirection: "column",
-        gap: 20,
     },
     infoRow: {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: 16,
-        background: "#f8f9fa",
-        borderRadius: 8,
-        borderLeft: "4px solid #4CAF50",
+        padding: `${spacing.sm}px 0`,
+        borderBottom: `1px solid ${colors.hairline}`,
     },
     label: {
-        fontSize: 14,
-        fontWeight: 600,
-        color: "#555",
+        ...typography.bodySmStrong,
+        color: colors.body,
     },
     value: {
-        fontSize: 16,
-        color: "#333",
+        ...typography.bodyMd,
+        color: colors.ink,
+    },
+    badge: {
+        ...typography.caption,
+        padding: `2px ${spacing.xs}px`,
+        borderRadius: rounded.full,
         fontWeight: 500,
     },
-    statusActive: {
-        color: "#4CAF50",
-        fontWeight: 600,
+    badgeActive: {
+        color: colors.success,
+        background: colors.linkBgSoft,
     },
-    statusInactive: {
-        color: "#ff4757",
-        fontWeight: 600,
+    badgeInactive: {
+        color: colors.errorDeep,
+        background: colors.errorSoft,
     },
     buttonGroup: {
-        marginTop: 32,
+        marginTop: spacing.xl,
         display: "flex",
-        gap: 12,
+        gap: spacing.sm,
         justifyContent: "center",
     },
-    button: {
-        padding: 14,
-        paddingLeft: 28,
-        paddingRight: 28,
-        borderRadius: 6,
+    buttonPrimary: {
+        ...typography.buttonLg,
+        height: 44,
+        padding: `0 ${spacing.lg}px`,
+        borderRadius: rounded.pill,
         border: "none",
-        background: "#4CAF50",
-        color: "#fff",
-        fontSize: 16,
-        fontWeight: 600,
+        background: colors.primary,
+        color: colors.onPrimary,
         cursor: "pointer",
-        transition: "background-color 0.2s",
+    },
+    buttonSecondary: {
+        ...typography.buttonLg,
+        height: 44,
+        padding: `0 ${spacing.lg}px`,
+        borderRadius: rounded.pill,
+        border: `1px solid ${colors.hairline}`,
+        background: colors.canvas,
+        color: colors.ink,
+        cursor: "pointer",
     },
     avatarSection: {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 12,
-        marginBottom: 28,
+        gap: spacing.sm,
+        marginBottom: spacing.lg,
     },
     avatar: {
-        width: 120,
-        height: 120,
-        borderRadius: "50%",
+        width: 96,
+        height: 96,
+        borderRadius: rounded.full,
         objectFit: "cover",
-        border: "3px solid #4CAF50",
-        background: "#f0f2f5",
+        boxShadow: `0 0 0 1px ${colors.hairline}`,
+        background: colors.canvasSoft,
     },
     avatarUploadBtn: {
-        fontSize: 14,
-        fontWeight: 600,
-        color: "#4CAF50",
+        ...typography.bodySmStrong,
+        color: colors.link,
         cursor: "pointer",
     },
-
     input: {
-        fontSize: 15,
-        padding: "6px 10px",
-        borderRadius: 6,
-        border: "1px solid #4CAF50",
+        ...typography.bodySm,
+        height: 40,
+        padding: `0 ${spacing.sm}px`,
+        borderRadius: rounded.sm,
+        border: `1px solid ${colors.hairline}`,
+        background: colors.canvas,
+        color: colors.ink,
         outline: "none",
         width: 220,
-        color: "#333",
     },
-
     securitySection: {
-        marginTop: 28,
-        paddingTop: 24,
-        borderTop: "1px solid #e0e0e0",
+        marginTop: spacing.lg,
+        paddingTop: spacing.lg,
+        borderTop: `1px solid ${colors.hairline}`,
         display: "flex",
         flexDirection: "column",
-        gap: 16,
+        gap: spacing.md,
     },
-
     sectionTitle: {
-        fontSize: 16,
-        fontWeight: 600,
-        color: "#555",
+        ...typography.bodySmStrong,
+        display: "flex",
+        alignItems: "center",
+        gap: spacing.xs,
+        color: colors.ink,
     },
-
     passwordForm: {
         display: "flex",
         flexDirection: "column",
-        gap: 12,
+        gap: spacing.sm,
     },
-
     passwordButtons: {
         display: "flex",
-        gap: 12,
-        marginTop: 4,
-    },
-    
-    passwordButton: {
-        width: "100%",
-        padding: "10px 20px",
-        borderRadius: 6,
-        border: "1px solid #4CAF50",
-        background: "transparent",
-        color: "#4CAF50",
-        fontSize: 14,
-        fontWeight: 600,
-        cursor: "pointer",
-        alignSelf: "flex-start",
+        gap: spacing.sm,
+        marginTop: spacing.xxs,
     },
 };
