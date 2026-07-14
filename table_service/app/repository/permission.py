@@ -28,6 +28,7 @@ class PermissionRepository(Base):
     async def get_permissions(
         self, table_id: int, user_id: int
     ) -> TablePermission | None:
+        """Получить права пользователя на таблицу."""
         stmt = select(TablePermission).where(
             TablePermission.table_id == table_id, TablePermission.user_id == user_id
         )
@@ -42,6 +43,7 @@ class PermissionRepository(Base):
         can_write: bool,
         can_manage: bool,
     ) -> TablePermission:
+        """Создать новое право доступа для пользователя на таблицу."""
         stmt = (
             insert(TablePermission)
             .values(
@@ -59,6 +61,7 @@ class PermissionRepository(Base):
     async def update_permission(
         self, table_id: int, user_id: int, **fields
     ) -> TablePermission | None:
+        """Обновить существующие права пользователя на таблицу."""
         stmt = (
             update(TablePermission)
             .where(
@@ -71,6 +74,7 @@ class PermissionRepository(Base):
         return result.scalar_one_or_none()
 
     async def delete_permission(self, table_id: int, user_id: int) -> bool:
+        """Удалить права пользователя на таблицу."""
         stmt = delete(TablePermission).where(
             TablePermission.table_id == table_id,
             TablePermission.user_id == user_id,
