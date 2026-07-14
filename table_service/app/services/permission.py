@@ -31,7 +31,7 @@ class PermissionService:
     async def get_table_with_read_access(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> DataTable:
-        """Найти таблицу по ID и проверить право на чтение. Возвращает таблицу при успехе."""
+        """Найти таблицу по ID и проверить право на чтение."""
         table = await uow_session.tables.get_table_by_id(table_id=table_id)
         if not table:
             raise NotFoundException("Таблица не найдена")
@@ -44,10 +44,25 @@ class PermissionService:
     async def get_table_with_write_access(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> DataTable:
+        """Найти таблицу по ID и проверить право на запись."""
         table = await uow_session.tables.get_table_by_id(table_id=table_id)
         if not table:
             raise NotFoundException("Таблица не найдена")
         if not await self.check_write_access(
+            uow_session=uow_session, table=table, user_id=user_id, user_role=user_role
+        ):
+            logger.warning("User %s denied write access to table %s", user_id, table_id)
+            raise AccessDeniedException()
+        return table
+
+    async def get_table_with_manage_access(
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
+    ) -> DataTable:
+        """Найти таблицу по ID и проверить право на управление."""
+        table = await uow_session.tables.get_table_by_id(table_id=table_id)
+        if not table:
+            raise NotFoundException("Таблица не найдена")
+        if not await self.check_manage_access(
             uow_session=uow_session, table=table, user_id=user_id, user_role=user_role
         ):
             logger.warning("User %s denied write access to table %s", user_id, table_id)
