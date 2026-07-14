@@ -69,20 +69,6 @@ class PermissionService:
             raise AccessDeniedException()
         return table
 
-    async def _check_table_access(
-        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
-    ) -> None:
-        """Проверить доступ пользователя к таблице."""
-        table = await uow_session.tables.get_table_by_id(table_id=table_id)
-        if not table:
-            raise NotFoundException("Таблица не найдена")
-
-        is_owner = table.created_by_id == user_id
-        is_admin = user_role and user_role.upper() == self.ADMIN_ROLE
-
-        if not (is_owner or is_admin):
-            raise AccessDeniedException()
-
     async def check_read_access(
         self, uow_session: UnitOfWork, table: DataTable, user_id: int, user_role: str
     ) -> bool:
