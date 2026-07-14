@@ -12,6 +12,10 @@ const TablesPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [duplicatingTable, setDuplicatingTable] = useState<DataTableResponse | null>(null);
+    const [duplicateName, setDuplicateName] = useState('');
+    const [duplicateWithRows, setDuplicateWithRows] = useState(true);
+    const [isDuplicating, setIsDuplicating] = useState(false);
     const [newTableName, setNewTableName] = useState('');
     const [newTableDescription, setNewTableDescription] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -178,6 +182,37 @@ const TablesPage: React.FC = () => {
         }
     };
 
+    const openDuplicateModal = (table: DataTableResponse) => {
+        setDuplicatingTable(table);
+        setDuplicateName(`${table.name} (копия)`);
+        setDuplicateWithRows(true);
+    };
+
+    const closeDuplicateModal = () => {
+        setDuplicatingTable(null);
+        setDuplicateName('');
+        setIsDuplicating(false);
+    };
+
+    const handleDuplicateTable = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!duplicatingTable) return;
+
+        try {
+            setIsDuplicating(true);
+            const newTable = await tablesAPI.duplicateTable(duplicatingTable.id, {
+                name: duplicateName.trim() || undefined,
+                withRows: duplicateWithRows,
+            });
+            setTables(prev => [newTable, ...prev]);
+            closeDuplicateModal();
+        } catch (err: any) {
+            setError('Не удалось дублировать таблицу');
+            console.error('Error duplicating table:', err);
+            setIsDuplicating(false);
+        }
+    };
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('ru-RU', {
             day: 'numeric',
@@ -336,6 +371,12 @@ const TablesPage: React.FC = () => {
                                         📊 Открыть
                                     </button>
                                     <button
+                                        style={styles.actionButton}
+                                        onClick={() => openDuplicateModal(table)}
+                                    >
+                                        📄 Дублировать
+                                    </button>
+                                    <button
                                         style={{...styles.actionButton, ...styles.deleteButton}}
                                         onClick={() => handleDeleteTable(table.id)}
                                     >
@@ -456,6 +497,65 @@ const TablesPage: React.FC = () => {
                                         </div>
                                     ) : (
                                         createMethod === 'excel' ? 'Загрузить файл' : 'Создать таблицу'
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Duplicate Table Modal */}
+            {duplicatingTable && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modal}>
+                        <h2 style={styles.modalTitle}>Дублировать таблицу</h2>
+
+                        <form onSubmit={handleDuplicateTable}>
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Название новой таблицы</label>
+                                <input
+                                    style={styles.input}
+                                    type="text"
+                                    value={duplicateName}
+                                    onChange={(e) => setDuplicateName(e.target.value)}
+                                    placeholder={duplicatingTable.name}
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={styles.checkboxLabel}>
+                                    <input
+                                        type="checkbox"
+                                        checked={duplicateWithRows}
+                                        onChange={(e) => setDuplicateWithRows(e.target.checked)}
+                                    />
+                                    Скопировать данные (строки)
+                                </label>
+                            </div>
+
+                            <div style={styles.modalActions}>
+                                <button
+                                    type="button"
+                                    style={styles.cancelButton}
+                                    onClick={closeDuplicateModal}
+                                    disabled={isDuplicating}
+                                >
+                                    Отмена
+                                </button>
+                                <button
+                                    type="submit"
+                                    style={styles.submitButton}
+                                    disabled={isDuplicating}
+                                >
+                                    {isDuplicating ? (
+                                        <div style={styles.buttonLoading}>
+                                            <div style={styles.smallSpinner}></div>
+                                            Дублирование...
+                                        </div>
+                                    ) : (
+                                        'Дублировать'
                                     )}
                                 </button>
                             </div>
@@ -710,6 +810,14 @@ const styles: Record<string, React.CSSProperties> = {
         display: 'block',
         marginBottom: spacing.xs,
         color: colors.body,
+    },
+    checkboxLabel: {
+        ...typography.bodySm,
+        display: 'flex',
+        alignItems: 'center',
+        gap: spacing.xs,
+        color: colors.ink,
+        cursor: 'pointer',
     },
     input: {
         ...typography.bodyMd,

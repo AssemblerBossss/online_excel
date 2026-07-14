@@ -200,6 +200,14 @@ export const tablesAPI = {
         await api.delete(`/tables/delete/${id}`);
     },
 
+    duplicateTable: async (id: number, options: { name?: string; withRows?: boolean } = {}): Promise<DataTableResponse> => {
+        const response = await api.post(`/tables/${id}/duplicate`, {
+            name: options.name || null,
+            with_rows: options.withRows ?? null,
+        });
+        return response.data;
+    },
+
     getTableRows: async (tableId: number, query: RowsQuery = {}): Promise<PaginatedRows> => {
         const params = new URLSearchParams();
         params.set('skip', String(query.skip ?? 0));
