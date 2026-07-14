@@ -5,9 +5,11 @@ import api from '../api/axiosInstance';
 interface SidebarProps {
     isOpen: boolean;
     onClose: () => void;
+    onOpenChat: () => void;
+    unreadChatsCount: number;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({isOpen, onClose}) => {
+const Sidebar: React.FC<SidebarProps> = ({isOpen, onClose, onOpenChat, unreadChatsCount}) => {
     const navigate = useNavigate();
 
     const handleLogout = async () => {
@@ -22,6 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({isOpen, onClose}) => {
 
     const menuItems = [
         {label: 'Мои таблицы', path: '/tables', icon: '📊'},
+        {label: 'Чаты', action: onOpenChat, icon: '💬', badge: unreadChatsCount},
         {label: 'Аккаунт', path: '/profile', icon: '👤'},
         {label: 'О нас', path: '/about', icon: 'ℹ️'},
         {label: 'Выйти', action: handleLogout, icon: '🚪'},
@@ -29,17 +32,14 @@ const Sidebar: React.FC<SidebarProps> = ({isOpen, onClose}) => {
 
     return (
         <>
-            {/* Затемненный фон при открытом меню */}
             {isOpen && (
                 <div style={styles.overlay} onClick={onClose}/>
             )}
 
-            {/* Боковое меню */}
             <div style={{
                 ...styles.sidebar,
                 transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
             }}>
-                {/* Анимированная кнопка (три полоски → крестик) */}
                 <button
                     style={styles.toggleButton}
                     onClick={onClose}
@@ -85,6 +85,9 @@ const Sidebar: React.FC<SidebarProps> = ({isOpen, onClose}) => {
                             >
                                 <span style={styles.icon}>{item.icon}</span>
                                 <span style={styles.label}>{item.label}</span>
+                                {!!item.badge && (
+                                    <span style={styles.badge}>{item.badge}</span>
+                                )}
                             </button>
                         ))}
                     </nav>
@@ -178,5 +181,15 @@ const styles: Record<string, React.CSSProperties> = {
     },
     label: {
         fontWeight: 400,
+        flex: 1,
+    },
+    badge: {
+        background: '#4CAF50',
+        color: '#fff',
+        borderRadius: 10,
+        fontSize: 11,
+        fontWeight: 600,
+        padding: '2px 7px',
+        marginLeft: 8,
     },
 };
