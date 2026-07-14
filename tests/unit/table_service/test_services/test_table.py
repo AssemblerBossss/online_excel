@@ -4,7 +4,6 @@ from io import BytesIO
 import pandas as pd
 from fastapi import UploadFile
 
-from services import PermissionService
 from table_service.app.exceptions import (
     NotFoundException,
     CanNotCreateTableException,
