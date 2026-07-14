@@ -223,15 +223,6 @@ const TablesPage: React.FC = () => {
         });
     };
 
-    const handleLogout = async () => {
-        try {
-            await api.post("/auth/logout");
-        } catch (err) {
-            console.error('Logout error:', err);
-        } finally {
-            navigate('/login');
-        }
-    };
 
     const handleSelectSuggestion = (table: DataTableResponse) => {
         setShowSuggestions(false);
@@ -264,12 +255,6 @@ const TablesPage: React.FC = () => {
                             + Новая таблица
                         </button>
                         <button
-                            style={styles.logoutButton}
-                            onClick={handleLogout}
-                        >
-                            Выйти
-                        </button>
-                        <button
                             style={styles.trashButton}
                             onClick={() => navigate('/trash')}
                         >
@@ -282,42 +267,42 @@ const TablesPage: React.FC = () => {
 
             {/* Main Content */}
             <main style={styles.main}>
-             {/* Search Bar */}
-                  <div style={styles.searchContainer}>
-                      <div style={styles.searchWrapper}>
-                          <input
-                              style={styles.searchInput}
-                              type="text"
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              onFocus={() => searchResults.length > 0 && setShowSuggestions(true)}
-                              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                              placeholder="Поиск таблиц..."
-                          />
-                          {isSearching && <div style={styles.searchSpinner} />}
-                          {showSuggestions && searchResults.length > 0 && (
-                              <div style={styles.suggestions}>
-                                  {searchResults.map((table) => (
-                                      <div
-                                          key={table.id}
-                                          style={styles.suggestionItem}
-                                          onMouseDown={() => handleSelectSuggestion(table)}
-                                      >
-                                          <span style={styles.suggestionName}>{table.name}</span>
-                                          {table.description && (
-                                              <span style={styles.suggestionDesc}>{table.description}</span>
-                                          )}
-                                      </div>
-                                  ))}
-                              </div>
-                          )}
-                          {showSuggestions && searchResults.length === 0 && !isSearching && searchQuery.trim() && (
-                              <div style={styles.suggestions}>
-                                  <div style={styles.noResults}>Ничего не найдено</div>
-                              </div>
-                          )}
-                      </div>
-                  </div>
+                {/* Search Bar */}
+                <div style={styles.searchContainer}>
+                    <div style={styles.searchWrapper}>
+                        <input
+                            style={styles.searchInput}
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onFocus={() => searchResults.length > 0 && setShowSuggestions(true)}
+                            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                            placeholder="Поиск таблиц..."
+                        />
+                        {isSearching && <div style={styles.searchSpinner}/>}
+                        {showSuggestions && searchResults.length > 0 && (
+                            <div style={styles.suggestions}>
+                                {searchResults.map((table) => (
+                                    <div
+                                        key={table.id}
+                                        style={styles.suggestionItem}
+                                        onMouseDown={() => handleSelectSuggestion(table)}
+                                    >
+                                        <span style={styles.suggestionName}>{table.name}</span>
+                                        {table.description && (
+                                            <span style={styles.suggestionDesc}>{table.description}</span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {showSuggestions && searchResults.length === 0 && !isSearching && searchQuery.trim() && (
+                            <div style={styles.suggestions}>
+                                <div style={styles.noResults}>Ничего не найдено</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
                 {error && (
                     <div style={styles.error}>
                         {error}
@@ -600,16 +585,6 @@ const styles: Record<string, React.CSSProperties> = {
         background: colors.primary,
         color: colors.onPrimary,
         border: 'none',
-        padding: `0 ${spacing.md}px`,
-        height: 32,
-        borderRadius: rounded.sm,
-        cursor: 'pointer',
-    },
-    logoutButton: {
-        ...typography.buttonMd,
-        background: colors.canvas,
-        color: colors.ink,
-        border: `1px solid ${colors.hairline}`,
         padding: `0 ${spacing.md}px`,
         height: 32,
         borderRadius: rounded.sm,
