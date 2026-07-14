@@ -21,6 +21,7 @@ const TableViewPage: React.FC = () => {
     const [columns, setColumns] = useState<ColumnSchema[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [accessError, setAccessError] = useState<{ status: number | null; message: string } | null>(null);
     const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
     const [editingValue, setEditingValue] = useState("");
     const [saving, setSaving] = useState<number | null>(null);
@@ -53,9 +54,18 @@ const TableViewPage: React.FC = () => {
         try {
             const tableInfo = await tablesAPI.getTableById(tableId);
             setColumns(tableInfo.columns_schema || []);
-        } catch (err) {
+        } catch (err: any) {
             console.error('loadTable error:', err);
-            setError("Не удалось загрузить таблицу");
+            const status = err.response?.status ?? null;
+            const detail = err.response?.data?.detail;
+            setAccessError({
+                status,
+                message: detail || (status === 403
+                    ? 'Нет доступа к этой таблице'
+                    : status === 404
+                        ? 'Таблица не найдена'
+                        : 'Не удалось загрузить таблицу'),
+            });
         }
     };
 
@@ -71,13 +81,23 @@ const TableViewPage: React.FC = () => {
             });
             setRows(res.items);
             setTotal(res.total);
-        } catch (err) {
+        } catch (err: any) {
             console.error('loadRows error:', err);
-            setError("Не удалось загрузить данные таблицы");
+            const status = err.response?.status ?? null;
+            if (status === 403 || status === 404) {
+                const detail = err.response?.data?.detail;
+                setAccessError({
+                    status,
+                    message: detail || (status === 403 ? 'Нет доступа к этой таблице' : 'Таблица не найдена'),
+                });
+            } else {
+                setError(err.response?.data?.detail || "Не удалось загрузить данные таблицы");
+            }
         } finally {
             setLoading(false);
         }
     };
+
 
     const loadRowsRef = useRef(loadRows);
     useEffect(() => {
@@ -376,32 +396,35 @@ const TableViewPage: React.FC = () => {
                                                         style={styles.td}
                                                         onClick={() => !isEditing && startEdit(row.id, col, row)}
                                                     >
-                                                        {isEditing ? (
-                                                            <input
-                                                                ref={inputRef}
-                                                                style={styles.cellInput}
-                                                                value={editingValue}
-                                                                onChange={e => setEditingValue(e.target.value)}
-                                                                onBlur={commitEdit}
-                                                                onKeyDown={handleKeyDown}
-                                                            />
-                                                        ) : (
-                                                            <span
-                                                                style={{
-                                                                    ...styles.cellText,
-                                                                    ...(cellHasFormula ? styles.cellFormula : {}),
-                                                                    ...(displayValue === "#ОШИБКА!" ? styles.cellError : {}),
-                                                                }}
-                                                                title={cellHasFormula ? row.formulas![col] : undefined}
-                                                            >
+                                                        {
+                                                            isEditing ? (
+                                                                <input
+                                                                    ref={inputRef}
+                                                                    style={styles.cellInput}
+                                                                    value={editingValue}
+                                                                    onChange={e => setEditingValue(e.target.value)}
+                                                                    onBlur={commitEdit}
+                                                                    onKeyDown={handleKeyDown}
+                                                                />
+                                                            ) : (
+                                                                <span
+                                                                    style={{
+                                                                        ...styles.cellText,
+                                                                        ...(cellHasFormula ? styles.cellFormula : {}),
+                                                                        ...(displayValue === "#ОШИБКА!" ? styles.cellError : {}),
+                                                                    }}
+                                                                    title={cellHasFormula ? row.formulas![col] : undefined}
+                                                                >
                                                         {displayValue}
-                                                                {cellHasFormula && displayValue !== "#ОШИБКА!" && (
-                                                                    <span style={styles.formulaIndicator}>ƒ</span>
-                                                                )}
+                                                                    {cellHasFormula && displayValue !== "#ОШИБКА!" && (
+                                                                        <span style={styles.formulaIndicator}>ƒ</span>
+                                                                    )}
                                                     </span>
-                                                        )}
+                                                            )
+                                                        }
                                                     </td>
-                                                );
+                                                )
+                                                    ;
                                             })}
                                             <td style={{...styles.td, textAlign: "center"}}>
                                                 <button
