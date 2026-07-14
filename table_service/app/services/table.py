@@ -23,7 +23,6 @@ from table_service.app.exceptions import (
     FileParseException,
     CanNotDeleteTableException,
     CanNotUpdateTableException,
-    AccessDeniedException,
 )
 
 logger = logging.getLogger(__name__)

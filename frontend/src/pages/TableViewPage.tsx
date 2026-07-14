@@ -565,9 +565,3 @@ const styles: Record<string, React.CSSProperties> = {
     },
     pageInfo: {fontSize: "14px", color: "#475569"},
 };
-
-const sheet = document.styleSheets[0];
-sheet.insertRule(
-    `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`,
-    sheet.cssRules.length
-);

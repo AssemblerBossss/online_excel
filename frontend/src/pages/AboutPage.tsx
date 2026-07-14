@@ -1,32 +1,33 @@
 import React from 'react';
 import {useNavigate} from 'react-router-dom';
 import SidebarWithToggle from '../components/SidebarWithToggle';
+import {colors, rounded, shadowLevel4, spacing, typography} from '../styles/theme';
 
 const AboutPage: React.FC = () => {
     const navigate = useNavigate();
 
     return (
-        <div style={styles.container}>
+        <div style={styles.pageContainer}>
             <SidebarWithToggle/>
 
-            <div style={styles.header}>
-                <h1 style={styles.headerTitle}>О нас</h1>
-            </div>
+            <header style={styles.header}>
+                <div style={styles.headerContent}>
+                    <h1 style={styles.headerTitle}>О нас</h1>
+                </div>
+            </header>
 
-            <div style={styles.content}>
+            <main style={styles.main}>
                 <div style={styles.card}>
-                    <h2 style={styles.title}>О проекте</h2>
-
                     <div style={styles.section}>
-                        <h3 style={styles.subtitle}>Описание</h3>
+                        <h2 style={styles.subtitle}>Описание</h2>
                         <p style={styles.text}>
-                            Онлайн Excel - это современное веб-приложение для работы с табличными данными.
+                            Онлайн Excel — это современное веб-приложение для работы с табличными данными.
                             Создавайте, редактируйте и управляйте своими таблицами прямо в браузере.
                         </p>
                     </div>
 
                     <div style={styles.section}>
-                        <h3 style={styles.subtitle}>Возможности</h3>
+                        <h2 style={styles.subtitle}>Возможности</h2>
                         <ul style={styles.list}>
                             <li style={styles.listItem}>Создание и редактирование таблиц</li>
                             <li style={styles.listItem}>Импорт данных из Excel файлов</li>
@@ -36,16 +37,18 @@ const AboutPage: React.FC = () => {
                         </ul>
                     </div>
 
-                    <div style={styles.section}>
-                        <h3 style={styles.subtitle}>Версия</h3>
-                        <p style={styles.text}>1.0.0</p>
+                    <div style={{...styles.section, marginBottom: 0}}>
+                        <h2 style={styles.subtitle}>Версия</h2>
+                        <span style={styles.versionBadge}>v1.0.0</span>
                     </div>
 
-                    <button style={styles.button} onClick={() => navigate('/tables')}>
-                        Вернуться к таблицам
-                    </button>
+                    <div style={styles.buttonGroup}>
+                        <button style={styles.buttonSecondary} onClick={() => navigate('/tables')}>
+                            Вернуться к таблицам
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 };
@@ -53,84 +56,85 @@ const AboutPage: React.FC = () => {
 export default AboutPage;
 
 const styles: Record<string, React.CSSProperties> = {
-    container: {
+    pageContainer: {
         minHeight: '100vh',
-        background: '#f0f2f5',
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        background: colors.canvasSoft,
     },
     header: {
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '16px 24px',
-        backgroundColor: '#fff',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
+        background: colors.canvas,
+        borderBottom: `1px solid ${colors.hairline}`,
+        padding: `${spacing.md}px 0`,
+    },
+    headerContent: {
+        maxWidth: 1200,
+        margin: '0 auto',
+        padding: `0 ${spacing.lg}px`,
     },
     headerTitle: {
+        ...typography.displayMd,
+        color: colors.ink,
         margin: 0,
-        fontSize: 20,
-        fontWeight: 600,
-        color: '#333',
     },
-    content: {
-        display: 'flex',
-        justifyContent: 'center',
-        padding: 40,
+    main: {
+        maxWidth: 720,
+        margin: '0 auto',
+        padding: `${spacing.xl}px ${spacing.lg}px`,
     },
     card: {
-        width: '100%',
-        maxWidth: 800,
-        padding: 40,
-        borderRadius: 12,
-        background: '#fff',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-    },
-    title: {
-        marginBottom: 32,
-        color: '#333',
-        fontSize: 28,
-        fontWeight: 600,
+        background: colors.canvas,
+        borderRadius: rounded.lg,
+        padding: spacing.xl,
+        boxShadow: shadowLevel4,
     },
     section: {
-        marginBottom: 32,
+        marginBottom: spacing.xl,
     },
     subtitle: {
-        fontSize: 20,
-        fontWeight: 600,
-        color: '#333',
-        marginBottom: 12,
+        ...typography.displaySm,
+        color: colors.ink,
+        marginTop: 0,
+        marginBottom: spacing.sm,
     },
     text: {
-        fontSize: 16,
-        lineHeight: 1.6,
-        color: '#555',
+        ...typography.bodyMd,
+        color: colors.body,
+        lineHeight: '26px',
         margin: 0,
     },
     list: {
         margin: 0,
-        paddingLeft: 24,
+        paddingLeft: spacing.lg,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: spacing.xs,
     },
     listItem: {
-        fontSize: 16,
-        lineHeight: 1.8,
-        color: '#555',
-        marginBottom: 8,
+        ...typography.bodyMd,
+        color: colors.body,
     },
-    button: {
-        padding: 14,
-        paddingLeft: 28,
-        paddingRight: 28,
-        borderRadius: 6,
-        border: 'none',
-        background: '#4CAF50',
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 600,
+    versionBadge: {
+        ...typography.code,
+        color: colors.body,
+        background: colors.canvasSoft2,
+        padding: `${spacing.xxs}px ${spacing.sm}px`,
+        borderRadius: rounded.sm,
+        display: 'inline-block',
+    },
+    buttonGroup: {
+        marginTop: spacing.xl,
+        paddingTop: spacing.lg,
+        borderTop: `1px solid ${colors.hairline}`,
+        display: 'flex',
+        justifyContent: 'flex-end',
+    },
+    buttonSecondary: {
+        ...typography.buttonLg,
+        height: 44,
+        padding: `0 ${spacing.lg}px`,
+        borderRadius: rounded.pill,
+        border: `1px solid ${colors.hairline}`,
+        background: colors.canvas,
+        color: colors.ink,
         cursor: 'pointer',
-        transition: 'background-color 0.2s',
-        marginTop: 16,
     },
 };
