@@ -7,10 +7,14 @@ class UserRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_id(self, user_id: int):
-        result = await self.session.execute(
-            select(UserProjection).where(UserProjection.id == user_id)
-        )
+    async def get_by_id(self, user_id: int) -> UserProjection | None:
+        stmt = select(UserProjection).where(UserProjection.id == user_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_by_email(self, email: str) -> UserProjection | None:
+        stmt = select(UserProjection).where(UserProjection.email == email)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def upsert(self, data: dict):

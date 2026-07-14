@@ -124,9 +124,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(status_code=404, content={"detail": exc.detail})
 
     @app.exception_handler(UserNotFoundException)
-    async def export_job_not_found_handler(
-        request: Request, exc: ExportJobNotFoundException
-    ):
+    async def user_not_found_handler(request: Request, exc: UserNotFoundException):
         return JSONResponse(status_code=404, content={"detail": exc.detail})
 
     @app.exception_handler(AppException)
