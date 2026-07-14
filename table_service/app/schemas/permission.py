@@ -19,6 +19,7 @@ class TablePermissionUpdate(BaseModel):
 class TablePermissionResponse(BaseModel):
     id: int
     user_id: int
+    user_email: EmailStr | None = None
     table_id: int
     can_read: bool
     can_write: bool
