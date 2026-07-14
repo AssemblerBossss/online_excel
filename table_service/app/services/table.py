@@ -58,18 +58,24 @@ class TableService:
             updated_at=table.updated_at,
         )
 
-    async def get_all_tables(self, uow_session: UnitOfWork) -> list[DataTableResponse]:
+    async def get_all_tables(
+        self, uow_session: UnitOfWork, user_id: int, user_role: str
+    ) -> list[DataTableResponse]:
         """Получить список всех таблиц"""
         async with uow_session.start():
-            tables = await uow_session.tables.get_all_tables()
+            tables = await uow_session.tables.get_all_tables(
+                user_id=user_id, user_role=user_role
+            )
             return [self._to_response(t) for t in tables] if tables else []
 
     async def get_trash_tables(
-        self, uow_session: UnitOfWork
+        self, uow_session: UnitOfWork, user_id: int, user_role: str
     ) -> list[DataTableResponse]:
         """Получить список всех таблиц в корзине"""
         async with uow_session.start():
-            trashed_tables = await uow_session.tables.get_trash()
+            trashed_tables = await uow_session.tables.get_trash(
+                user_id=user_id, user_role=user_role
+            )
             return (
                 [self._to_response(t) for t in trashed_tables] if trashed_tables else []
             )
@@ -320,7 +326,7 @@ class TableService:
     ) -> None:
         """Удалить таблицу."""
         async with uow_session.start():
-            table = await self.permission_service.get_table_with_write_access(
+            table = await self.permission_service.get_table_with_manage_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
@@ -349,7 +355,7 @@ class TableService:
     ) -> None:
         """Удалить таблицу."""
         async with uow_session.start():
-            table = await self.permission_service.get_table_with_write_access(
+            table = await self.permission_service.get_table_with_manage_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
@@ -378,7 +384,7 @@ class TableService:
     ) -> None:
         """Восстановить таблицу из корзины."""
         async with uow_session.start():
-            await self.permission_service.get_table_with_write_access(
+            await self.permission_service.get_table_with_manage_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,

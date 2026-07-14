@@ -1,17 +1,24 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 class TablePermissionCreate(BaseModel):
-    user_id: int
+    email: EmailStr
     can_read: bool = False
     can_write: bool = False
     can_manage: bool = False
 
 
+class TablePermissionUpdate(BaseModel):
+    can_read: bool | None = None
+    can_write: bool | None = None
+    can_manage: bool | None = None
+
+
 class TablePermissionResponse(BaseModel):
     id: int
     user_id: int
+    user_email: EmailStr | None = None
     table_id: int
     can_read: bool
     can_write: bool

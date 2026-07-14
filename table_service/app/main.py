@@ -46,6 +46,7 @@ from table_service.app.exceptions import (
     CanNotCreatePermissionException,
     InvalidWSTicketException,
     ExportJobNotFoundException,
+    UserNotFoundException,
 )
 
 setup_service_logging()
@@ -120,6 +121,10 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def export_job_not_found_handler(
         request: Request, exc: ExportJobNotFoundException
     ):
+        return JSONResponse(status_code=404, content={"detail": exc.detail})
+
+    @app.exception_handler(UserNotFoundException)
+    async def user_not_found_handler(request: Request, exc: UserNotFoundException):
         return JSONResponse(status_code=404, content={"detail": exc.detail})
 
     @app.exception_handler(AppException)

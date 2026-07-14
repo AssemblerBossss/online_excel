@@ -15,7 +15,11 @@ from .table import (
     DataTableDuplicate,
 )
 from .user import SCurrentUser, SUserFilter
-from .permission import TablePermissionCreate, TablePermissionResponse
+from .permission import (
+    TablePermissionCreate,
+    TablePermissionResponse,
+    TablePermissionUpdate,
+)
 from .ws import SWsTicketResponse, SRowEvent, RowEventType
 from .export import (
     ExportJobStatus,
@@ -41,6 +45,7 @@ __all__ = [
     "SUserFilter",
     "TablePermissionCreate",
     "TablePermissionResponse",
+    "TablePermissionUpdate",
     "COMPARISON_OPERATORS",
     "SRowEvent",
     "SWsTicketResponse",

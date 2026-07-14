@@ -34,10 +34,10 @@ from table_service.app.api.dependencies import (
 )
 
 from table_service.app.api.cache import (
-    TABLES_CACHE_KEY,
-    TRASH_CACHE_KEY,
+    tables_cache_key,
     TABLES_CACHE_TTL,
     invalidate_tables_cache,
+    invalidate_trash_cache,
 )
 
 from fastapi import BackgroundTasks
@@ -95,15 +95,19 @@ async def issue_ws_ticket(
 async def get_tables(
     table_service: Annotated[TableService, Depends(get_table_service)],
     redis: Annotated[Redis, Depends(get_redis)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
 ) -> list[DataTableResponse]:
-    cached = await redis.get(TABLES_CACHE_KEY)
+    cache_key = tables_cache_key(current_user.user_id)
+    cached = await redis.get(cache_key)
     if cached:
         return json.loads(cached)
 
-    tables = await table_service.get_all_tables(uow_session)
+    tables = await table_service.get_all_tables(
+        uow_session, user_id=current_user.user_id, user_role=current_user.role
+    )
     await redis.setex(
-        TABLES_CACHE_KEY,
+        cache_key,
         TABLES_CACHE_TTL,
         json.dumps([t.model_dump(mode="json") for t in tables]),
     )
@@ -231,5 +235,5 @@ async def delete_table(
         user_role=current_user.role,
     )
     await invalidate_tables_cache(redis)
-    await redis.delete(TRASH_CACHE_KEY)
+    await invalidate_trash_cache(redis)
     return None
