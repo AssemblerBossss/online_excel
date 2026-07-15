@@ -40,6 +40,13 @@ export interface CreateTableRequest {
     columns_schema?: ColumnSchema[];
 }
 
+export interface UpdateTableRequest {
+    name?: string;
+    description?: string;
+    is_public?: boolean;
+}
+
+
 export type FilterOp = 'eq' | 'ne' | 'contains' | 'gt' | 'gte' | 'lt' | 'lte';
 
 export interface RowFilter {
@@ -200,7 +207,15 @@ export const tablesAPI = {
         await api.delete(`/tables/delete/${id}`);
     },
 
-    duplicateTable: async (id: number, options: { name?: string; withRows?: boolean } = {}): Promise<DataTableResponse> => {
+    updateTable: async (id: number, data: UpdateTableRequest): Promise<DataTableResponse> => {
+        const response = await api.patch(`/tables/${id}/`, data);
+        return response.data;
+    },
+
+    duplicateTable: async (id: number, options: {
+        name?: string;
+        withRows?: boolean
+    } = {}): Promise<DataTableResponse> => {
         const response = await api.post(`/tables/${id}/duplicate`, {
             name: options.name || null,
             with_rows: options.withRows ?? null,

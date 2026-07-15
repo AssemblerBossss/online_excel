@@ -12,10 +12,18 @@ const TablesPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
+
     const [duplicatingTable, setDuplicatingTable] = useState<DataTableResponse | null>(null);
     const [duplicateName, setDuplicateName] = useState('');
     const [duplicateWithRows, setDuplicateWithRows] = useState(true);
     const [isDuplicating, setIsDuplicating] = useState(false);
+
+    const [openMenuTableId, setOpenMenuTableId] = useState<number | null>(null);
+
+    const [renamingTable, setRenamingTable] = useState<DataTableResponse | null>(null);
+    const [renameName, setRenameName] = useState('');
+    const [isRenaming, setIsRenaming] = useState(false);
+
     const [newTableName, setNewTableName] = useState('');
     const [newTableDescription, setNewTableDescription] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -66,6 +74,20 @@ const TablesPage: React.FC = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (openMenuTableId === null) return;
+
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (!target.closest('[data-table-menu]')) {
+                setOpenMenuTableId(null);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [openMenuTableId]);
 
     const handleCreateTable = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -192,6 +214,33 @@ const TablesPage: React.FC = () => {
         setDuplicatingTable(null);
         setDuplicateName('');
         setIsDuplicating(false);
+    };
+
+    const openRenameModal = (table: DataTableResponse) => {
+        setRenamingTable(table);
+        setRenameName(table.name)
+    }
+
+    const closeRenameModal = () => {
+        setRenamingTable(null);
+        setRenameName('');
+        setIsRenaming(false);
+    };
+
+    const handleRenameTable = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!renamingTable || !renameName.trim()) return;
+
+        try {
+            setIsRenaming(true);
+            const updated = await tablesAPI.updateTable(renamingTable.id, {name: renameName.trim()});
+            setTables(prev => prev.map(t => (t.id === renamingTable.id ? updated : t)));
+            closeRenameModal();
+        } catch (err: any) {
+            setError('Не удалось переименовать таблицу');
+            console.error('Error renaming table:', err);
+            setIsRenaming(false);
+        }
     };
 
     const handleDuplicateTable = async (e: React.FormEvent) => {
@@ -327,10 +376,54 @@ const TablesPage: React.FC = () => {
                         {tables.map((table) => (
                             <div key={table.id} style={styles.tableCard}>
                                 <div style={styles.tableHeader}>
-                                    <h3 style={styles.tableName}>{table.name}</h3>
-                                    {table.is_public && (
-                                        <span style={styles.publicBadge}>Публичная</span>
-                                    )}
+                                    <div style={styles.tableHeaderMain}>
+                                        <h3 style={styles.tableName}>{table.name}</h3>
+                                        {table.is_public && (
+                                            <span style={styles.publicBadge}>Публичная</span>
+                                        )}
+                                    </div>
+                                    <div style={styles.menuWrapper} data-table-menu>
+                                        <button
+                                            style={styles.menuButton}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setOpenMenuTableId(openMenuTableId === table.id ? null : table.id);
+                                            }}
+                                        >
+                                            ⋮
+                                        </button>
+                                        {openMenuTableId === table.id && (
+                                            <div style={styles.dropdownMenu}>
+                                                <button
+                                                    style={styles.dropdownItem}
+                                                    onClick={() => {
+                                                        setOpenMenuTableId(null);
+                                                        openRenameModal(table);
+                                                    }}
+                                                >
+                                                    ✏️ Переименовать
+                                                </button>
+                                                <button
+                                                    style={styles.dropdownItem}
+                                                    onClick={() => {
+                                                        setOpenMenuTableId(null);
+                                                        openDuplicateModal(table);
+                                                    }}
+                                                >
+                                                    📄 Дублировать
+                                                </button>
+                                                <button
+                                                    style={{...styles.dropdownItem, ...styles.dropdownItemDanger}}
+                                                    onClick={() => {
+                                                        setOpenMenuTableId(null);
+                                                        handleDeleteTable(table.id);
+                                                    }}
+                                                >
+                                                    🗑️ Удалить
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {table.description && (
@@ -354,18 +447,6 @@ const TablesPage: React.FC = () => {
                                         onClick={() => navigate(`/data/${table.id}/rows`)}
                                     >
                                         📊 Открыть
-                                    </button>
-                                    <button
-                                        style={styles.actionButton}
-                                        onClick={() => openDuplicateModal(table)}
-                                    >
-                                        📄 Дублировать
-                                    </button>
-                                    <button
-                                        style={{...styles.actionButton, ...styles.deleteButton}}
-                                        onClick={() => handleDeleteTable(table.id)}
-                                    >
-                                        🗑️ Удалить
                                     </button>
                                 </div>
                             </div>
@@ -548,6 +629,54 @@ const TablesPage: React.FC = () => {
                     </div>
                 </div>
             )}
+            {/* Rename Table Modal */}
+            {renamingTable && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modal}>
+                        <h2 style={styles.modalTitle}>Переименовать таблицу</h2>
+
+                        <form onSubmit={handleRenameTable}>
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Название таблицы</label>
+                                <input
+                                    style={styles.input}
+                                    type="text"
+                                    value={renameName}
+                                    onChange={(e) => setRenameName(e.target.value)}
+                                    placeholder={renamingTable.name}
+                                    autoFocus
+                                    required
+                                />
+                            </div>
+
+                            <div style={styles.modalActions}>
+                                <button
+                                    type="button"
+                                    style={styles.cancelButton}
+                                    onClick={closeRenameModal}
+                                    disabled={isRenaming}
+                                >
+                                    Отмена
+                                </button>
+                                <button
+                                    type="submit"
+                                    style={styles.submitButton}
+                                    disabled={isRenaming || !renameName.trim()}
+                                >
+                                    {isRenaming ? (
+                                        <div style={styles.buttonLoading}>
+                                            <div style={styles.smallSpinner}></div>
+                                            Сохранение...
+                                        </div>
+                                    ) : (
+                                        'Сохранить'
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -673,6 +802,13 @@ const styles: Record<string, React.CSSProperties> = {
         alignItems: 'flex-start',
         marginBottom: spacing.sm,
     },
+    tableHeaderMain: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: spacing.xs,
+        flex: 1,
+        minWidth: 0,
+    },
     tableName: {
         ...typography.bodyMdStrong,
         color: colors.ink,
@@ -720,13 +856,6 @@ const styles: Record<string, React.CSSProperties> = {
         borderRadius: rounded.sm,
         cursor: 'pointer',
         transition: 'background-color 0.2s',
-    },
-    deleteButton: {
-        background: colors.errorSoft,
-        borderColor: colors.errorSoft,
-        color: colors.errorDeep,
-        flex: 'none',
-        width: 'auto',
     },
     modalOverlay: {
         position: 'fixed',
@@ -896,9 +1025,38 @@ const styles: Record<string, React.CSSProperties> = {
         border: 'none',
         fontSize: 24,
         cursor: 'pointer',
-        padding: spacing.xs,
+        padding: spacing.xxs,
         lineHeight: 1,
         color: colors.ink,
+    },
+    menuWrapper: {
+        position: 'relative',
+    },
+    dropdownMenu: {
+        position: 'absolute',
+        top: '100%',
+        right: 0,
+        marginTop: spacing.xxs,
+        background: colors.canvas,
+        borderRadius: rounded.sm,
+        boxShadow: shadowLevel5,
+        zIndex: 10,
+        minWidth: 180,
+        overflow: 'hidden',
+    },
+    dropdownItem: {
+        ...typography.bodySm,
+        display: 'block',
+        width: '100%',
+        textAlign: 'left' as const,
+        padding: `${spacing.sm}px ${spacing.md}px`,
+        border: 'none',
+        background: 'transparent',
+        color: colors.ink,
+        cursor: 'pointer',
+    },
+    dropdownItemDanger: {
+        color: colors.errorDeep,
     },
     searchContainer: {
         marginBottom: spacing.lg,
