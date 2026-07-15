@@ -182,6 +182,35 @@ const TablesPage: React.FC = () => {
         }
     };
 
+
+    const handleTogglePin = async (e: React.MouseEvent, table: DataTableResponse) => {
+       e.stopPropagation(); // не дать клику всплыть на карточку (у карточки cursor: pointer, но открытия таблицы по клику на неё пока нет — на будущее)
+       const wasPinned = table.is_pinned;
+        // Оптимистично обновляем UI сразу, откатываем при ошибке
+        setTables(prev =>
+            prev
+                .map(t => t.id === table.id ? {...t, is_pinned: !wasPinned} : t)
+                .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned))
+        );
+
+        try {
+            if (wasPinned) {
+                await tablesAPI.unpinTable(table.id);
+            } else {
+                await tablesAPI.pinTable(table.id);
+            }
+        } catch (err: any) {
+            setError('Не удалось изменить закрепление');
+            console.error('Error toggling pin:', err);
+            // откат при ошибке
+            setTables(prev =>
+                prev
+                    .map(t => t.id === table.id ? {...t, is_pinned: wasPinned} : t)
+                    .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned))
+            );
+        }
+    };
+
     const openDuplicateModal = (table: DataTableResponse) => {
         setDuplicatingTable(table);
         setDuplicateName(`${table.name} (копия)`);
@@ -328,6 +357,14 @@ const TablesPage: React.FC = () => {
                             <div key={table.id} style={styles.tableCard}>
                                 <div style={styles.tableHeader}>
                                     <h3 style={styles.tableName}>{table.name}</h3>
+                                    <button
+                                        style={styles.pinButton}
+                                        onClick={(e) => handleTogglePin(e, table)}
+                                        aria-label={table.is_pinned ? 'Открепить' : 'Закрепить'}
+                                        title={table.is_pinned ? 'Открепить' : 'Закрепить'}
+                                    >
+                                        {table.is_pinned ? '★' : '☆'}
+                                    </button>
                                     {table.is_public && (
                                         <span style={styles.publicBadge}>Публичная</span>
                                     )}
@@ -977,6 +1014,17 @@ const styles: Record<string, React.CSSProperties> = {
         height: 32,
         borderRadius: rounded.sm,
         cursor: 'pointer',
+    },
+
+    pinButton: {
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: 20,
+        lineHeight: 1,
+        padding: 0,
+        color: colors.primary,
+        flexShrink: 0,
     },
 };
 

@@ -441,7 +441,9 @@ class TableService:
             await uow_session.table_pins.pin(user_id=user_id, table_id=table_id)
             logger.info("User %s pinned table %s", user_id, table_id)
 
-    async def unpin_table(self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str) -> None:
+    async def unpin_table(
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
+    ) -> None:
         """Открепить таблицу от текущего пользователя"""
         async with uow_session.start():
             await self.permission_service.get_table_with_manage_access(
@@ -450,5 +452,5 @@ class TableService:
                 user_id=user_id,
                 user_role=user_role,
             )
-            await uow_session.table_pins.unpin(user_id==user_id, table_id=table_id)
+            await uow_session.table_pins.unpin(user_id=user_id, table_id=table_id)
             logger.info("User %s unpinned table %s", user_id, table_id)

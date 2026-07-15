@@ -6,7 +6,7 @@ from table_service.app.repository import (
     DataRepository,
     PermissionRepository,
     UserRepository,
-    TablePinRepository
+    TablePinRepository,
 )
 
 
