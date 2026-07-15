@@ -6,6 +6,7 @@ from table_service.app.repository import (
     DataRepository,
     PermissionRepository,
     UserRepository,
+    TablePinRepository,
 )
 
 
@@ -51,3 +52,7 @@ class UnitOfWork:
     @property
     def users(self) -> UserRepository:
         return UserRepository(self._session)
+
+    @property
+    def table_pins(self) -> TablePinRepository:
+        return TablePinRepository(self._session)

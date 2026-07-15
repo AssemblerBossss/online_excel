@@ -237,3 +237,39 @@ async def delete_table(
     await invalidate_tables_cache(redis)
     await invalidate_trash_cache(redis)
     return None
+
+
+@router.post("/{table_id}/pin", status_code=status.HTTP_204_NO_CONTENT)
+async def pin_table(
+    table_id: int,
+    table_service: Annotated[TableService, Depends(get_table_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+) -> None:
+    await table_service.pin_table(
+        uow_session=uow_session,
+        table_id=table_id,
+        user_id=current_user.user_id,
+        user_role=current_user.role,
+    )
+    await invalidate_tables_cache(redis)
+    return None
+
+
+@router.delete("/{table_id}/pin", status_code=status.HTTP_204_NO_CONTENT)
+async def unpin_table(
+    table_id: int,
+    table_service: Annotated[TableService, Depends(get_table_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+) -> None:
+    await table_service.unpin_table(
+        uow_session=uow_session,
+        table_id=table_id,
+        user_id=current_user.user_id,
+        user_role=current_user.role,
+    )
+    await invalidate_tables_cache(redis)
+    return None

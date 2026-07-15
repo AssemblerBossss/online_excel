@@ -46,7 +46,9 @@ class TableService:
         self.search_service = search_service
         self.excel_processor = excel_processor or ExcelProcessorService()
 
-    def _to_response(self, table: DataTable) -> DataTableResponse:
+    def _to_response(
+        self, table: DataTable, is_pinned: bool = False
+    ) -> DataTableResponse:
         return DataTableResponse(
             id=table.id,
             name=table.name,
@@ -56,17 +58,33 @@ class TableService:
             created_by=table.created_by_id,
             created_at=table.created_at,
             updated_at=table.updated_at,
+            is_deleted=table.is_deleted,
+            deleted_at=table.deleted_at,
+            is_pinned=is_pinned,
         )
 
     async def get_all_tables(
         self, uow_session: UnitOfWork, user_id: int, user_role: str
     ) -> list[DataTableResponse]:
-        """Получить список всех таблиц"""
+        """Получить список всех таблиц. Закреплённые - первыми."""
         async with uow_session.start():
             tables = await uow_session.tables.get_all_tables(
                 user_id=user_id, user_role=user_role
             )
-            return [self._to_response(t) for t in tables] if tables else []
+            if not tables:
+                return []
+
+            pinned_ids = await uow_session.table_pins.get_pinned_tables_ids(
+                user_id=user_id
+            )
+
+            responses = [
+                self._to_response(t, is_pinned=t.id in pinned_ids) for t in tables
+            ]
+            # Закреплённые — сверху, порядок внутри каждой группы сохраняется (stable sort)
+            # return [self._to_response(t) for t in tables] if tables else []
+            responses.sort(key=lambda r: not r.is_pinned)
+            return responses
 
     async def get_trash_tables(
         self, uow_session: UnitOfWork, user_id: int, user_role: str
@@ -91,7 +109,10 @@ class TableService:
                 user_id=user_id,
                 user_role=user_role,
             )
-        return self._to_response(table)
+            pinned_ids = await uow_session.table_pins.get_pinned_tables_ids(
+                user_id=user_id
+            )
+        return self._to_response(table, is_pinned=table.id in pinned_ids)
 
     async def create_table(
         self, uow_session: UnitOfWork, table_data: DataTableCreate, user_id: int
@@ -405,3 +426,31 @@ class TableService:
                 )
 
             logger.info("User %s restored table %s from trash", user_id, table_id)
+
+    async def pin_table(
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
+    ) -> None:
+        """Закрепить таблицу для текущего пользователя. Достаточно прав на чтение"""
+        async with uow_session.start():
+            await self.permission_service.get_table_with_manage_access(
+                uow_session=uow_session,
+                table_id=table_id,
+                user_id=user_id,
+                user_role=user_role,
+            )
+            await uow_session.table_pins.pin(user_id=user_id, table_id=table_id)
+            logger.info("User %s pinned table %s", user_id, table_id)
+
+    async def unpin_table(
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
+    ) -> None:
+        """Открепить таблицу от текущего пользователя"""
+        async with uow_session.start():
+            await self.permission_service.get_table_with_manage_access(
+                uow_session=uow_session,
+                table_id=table_id,
+                user_id=user_id,
+                user_role=user_role,
+            )
+            await uow_session.table_pins.unpin(user_id=user_id, table_id=table_id)
+            logger.info("User %s unpinned table %s", user_id, table_id)

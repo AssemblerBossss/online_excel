@@ -21,6 +21,7 @@ export interface DataTableResponse {
     updated_at?: string;
     is_deleted?: boolean;
     deleted_at?: string;
+    is_pinned?: boolean;
 }
 
 export interface TableRow {
@@ -294,5 +295,12 @@ export const tablesAPI = {
             await new Promise(r => setTimeout(r, secondsBetween * 1000));
         }
         throw new Error('Экспорт не завершился за отведённое время');
+    },
+    pinTable: async (id: number): Promise<void> => {
+        await api.post(`/tables/${id}/pin`);
+    },
+
+    unpinTable: async (id: number): Promise<void> => {
+        await api.delete(`/tables/${id}/pin`);
     },
 };

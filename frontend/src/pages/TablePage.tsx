@@ -204,6 +204,35 @@ const TablesPage: React.FC = () => {
         }
     };
 
+    const handleTogglePin = async (e: React.MouseEvent, table: DataTableResponse) => {
+        e.stopPropagation(); // не дать клику всплыть на карточку
+
+        const wasPinned = table.is_pinned;
+        // Оптимистично обновляем UI сразу, откатываем при ошибке
+        setTables(prev =>
+            prev
+                .map(t => t.id === table.id ? {...t, is_pinned: !wasPinned} : t)
+                .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned))
+        );
+
+        try {
+            if (wasPinned) {
+                await tablesAPI.unpinTable(table.id);
+            } else {
+                await tablesAPI.pinTable(table.id);
+            }
+        } catch (err: any) {
+            setError('Не удалось изменить закрепление');
+            console.error('Error toggling pin:', err);
+            // откат при ошибке
+            setTables(prev =>
+                prev
+                    .map(t => t.id === table.id ? {...t, is_pinned: wasPinned} : t)
+                    .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned))
+            );
+        }
+    };
+
     const openDuplicateModal = (table: DataTableResponse) => {
         setDuplicatingTable(table);
         setDuplicateName(`${table.name} (копия)`);
@@ -382,6 +411,16 @@ const TablesPage: React.FC = () => {
                                             <span style={styles.publicBadge}>Публичная</span>
                                         )}
                                     </div>
+
+                                    <button
+                                        style={styles.pinButton}
+                                        onClick={(e) => handleTogglePin(e, table)}
+                                        aria-label={table.is_pinned ? 'Открепить' : 'Закрепить'}
+                                        title={table.is_pinned ? 'Открепить' : 'Закрепить'}
+                                    >
+                                        {table.is_pinned ? '★' : '☆'}
+                                    </button>
+
                                     <div style={styles.menuWrapper} data-table-menu>
                                         <button
                                             style={styles.menuButton}
@@ -801,6 +840,7 @@ const styles: Record<string, React.CSSProperties> = {
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         marginBottom: spacing.sm,
+        gap: spacing.xs,
     },
     tableHeaderMain: {
         display: 'flex',
@@ -1031,6 +1071,7 @@ const styles: Record<string, React.CSSProperties> = {
     },
     menuWrapper: {
         position: 'relative',
+        flexShrink: 0,
     },
     dropdownMenu: {
         position: 'absolute',
@@ -1135,6 +1176,16 @@ const styles: Record<string, React.CSSProperties> = {
         height: 32,
         borderRadius: rounded.sm,
         cursor: 'pointer',
+    },
+    pinButton: {
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: 20,
+        lineHeight: 1,
+        padding: 0,
+        color: colors.primary,
+        flexShrink: 0,
     },
 };
 
