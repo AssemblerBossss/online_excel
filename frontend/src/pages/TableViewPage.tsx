@@ -2,8 +2,10 @@
 import React, {useEffect, useState, useRef} from "react";
 import {useParams, useNavigate} from "react-router-dom";
 import TablePermissionsPanel from '../components/TablePermissionsPanel';
+import SidebarWithToggle from '../components/SidebarWithToggle';
 import {tablesAPI, TableRow, ColumnSchema, RowFilter, isFormula, evaluateFormula} from "../api/tables";
 import {subscribeToTableEvents} from '../api/ws';
+import {colors, rounded, shadowLevel3, spacing, typography} from '../styles/theme';
 
 const PAGE_SIZE = 50;
 
@@ -21,6 +23,7 @@ const TableViewPage: React.FC = () => {
     const [columns, setColumns] = useState<ColumnSchema[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [accessError, setAccessError] = useState<{ status: number | null; message: string } | null>(null);
     const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
     const [editingValue, setEditingValue] = useState("");
     const [saving, setSaving] = useState<number | null>(null);
@@ -53,9 +56,18 @@ const TableViewPage: React.FC = () => {
         try {
             const tableInfo = await tablesAPI.getTableById(tableId);
             setColumns(tableInfo.columns_schema || []);
-        } catch (err) {
+        } catch (err: any) {
             console.error('loadTable error:', err);
-            setError("Не удалось загрузить таблицу");
+            const status = err.response?.status ?? null;
+            const detail = err.response?.data?.detail;
+            setAccessError({
+                status,
+                message: detail || (status === 403
+                    ? 'Нет доступа к этой таблице'
+                    : status === 404
+                        ? 'Таблица не найдена'
+                        : 'Не удалось загрузить таблицу'),
+            });
         }
     };
 
@@ -71,13 +83,23 @@ const TableViewPage: React.FC = () => {
             });
             setRows(res.items);
             setTotal(res.total);
-        } catch (err) {
+        } catch (err: any) {
             console.error('loadRows error:', err);
-            setError("Не удалось загрузить данные таблицы");
+            const status = err.response?.status ?? null;
+            if (status === 403 || status === 404) {
+                const detail = err.response?.data?.detail;
+                setAccessError({
+                    status,
+                    message: detail || (status === 403 ? 'Нет доступа к этой таблице' : 'Таблица не найдена'),
+                });
+            } else {
+                setError(err.response?.data?.detail || "Не удалось загрузить данные таблицы");
+            }
         } finally {
             setLoading(false);
         }
     };
+
 
     const loadRowsRef = useRef(loadRows);
     useEffect(() => {
@@ -240,9 +262,9 @@ const TableViewPage: React.FC = () => {
         setRows(prev => prev.filter(r => r.id !== rowId));
         try {
             await tablesAPI.deleteRow(tableId, rowId);
-        } catch (err) {
+        } catch (err: any) {
             setRows(backup);
-            setError("Не удалось удалить строку");
+            setError(err.response?.data?.detail || "Не удалось удалить строку");
         }
     };
 
@@ -263,9 +285,9 @@ const TableViewPage: React.FC = () => {
             const link = document.createElement('a');
             link.href = result.download_url;
             link.click();
-        } catch (err) {
+        } catch (err: any) {
             console.error('export error:', err);
-            setError('Не удалось экспортировать таблицу');
+            setError(err.response?.data?.detail || 'Не удалось экспортировать таблицу')
         } finally {
             setExporting(false);
         }
@@ -282,6 +304,8 @@ const TableViewPage: React.FC = () => {
 
     return (
         <div style={styles.container}>
+            <SidebarWithToggle/>
+
             <header style={styles.header}>
                 <div style={styles.headerContent}>
                     <h1 style={styles.title}>Таблица №{id}</h1>
@@ -312,8 +336,8 @@ const TableViewPage: React.FC = () => {
                         {rows.length === 0 ? (
                             <div style={styles.emptyState}>
                                 <div style={styles.emptyIcon}>📭</div>
-                                <h2>В таблице пока нет данных</h2>
-                                <p>Нажмите «+ Добавить строку» чтобы начать</p>
+                                <h2 style={styles.emptyTitle}>В таблице пока нет данных</h2>
+                                <p style={styles.emptyText}>Нажмите «+ Добавить строку» чтобы начать</p>
                                 <button style={styles.addButton} onClick={addRow}>+ Добавить строку</button>
                             </div>
                         ) : (
@@ -376,32 +400,35 @@ const TableViewPage: React.FC = () => {
                                                         style={styles.td}
                                                         onClick={() => !isEditing && startEdit(row.id, col, row)}
                                                     >
-                                                        {isEditing ? (
-                                                            <input
-                                                                ref={inputRef}
-                                                                style={styles.cellInput}
-                                                                value={editingValue}
-                                                                onChange={e => setEditingValue(e.target.value)}
-                                                                onBlur={commitEdit}
-                                                                onKeyDown={handleKeyDown}
-                                                            />
-                                                        ) : (
-                                                            <span
-                                                                style={{
-                                                                    ...styles.cellText,
-                                                                    ...(cellHasFormula ? styles.cellFormula : {}),
-                                                                    ...(displayValue === "#ОШИБКА!" ? styles.cellError : {}),
-                                                                }}
-                                                                title={cellHasFormula ? row.formulas![col] : undefined}
-                                                            >
+                                                        {
+                                                            isEditing ? (
+                                                                <input
+                                                                    ref={inputRef}
+                                                                    style={styles.cellInput}
+                                                                    value={editingValue}
+                                                                    onChange={e => setEditingValue(e.target.value)}
+                                                                    onBlur={commitEdit}
+                                                                    onKeyDown={handleKeyDown}
+                                                                />
+                                                            ) : (
+                                                                <span
+                                                                    style={{
+                                                                        ...styles.cellText,
+                                                                        ...(cellHasFormula ? styles.cellFormula : {}),
+                                                                        ...(displayValue === "#ОШИБКА!" ? styles.cellError : {}),
+                                                                    }}
+                                                                    title={cellHasFormula ? row.formulas![col] : undefined}
+                                                                >
                                                         {displayValue}
-                                                                {cellHasFormula && displayValue !== "#ОШИБКА!" && (
-                                                                    <span style={styles.formulaIndicator}>ƒ</span>
-                                                                )}
+                                                                    {cellHasFormula && displayValue !== "#ОШИБКА!" && (
+                                                                        <span style={styles.formulaIndicator}>ƒ</span>
+                                                                    )}
                                                     </span>
-                                                        )}
+                                                            )
+                                                        }
                                                     </td>
-                                                );
+                                                )
+                                                    ;
                                             })}
                                             <td style={{...styles.td, textAlign: "center"}}>
                                                 <button
@@ -452,130 +479,163 @@ export default TableViewPage;
 
 // ── Стили ──
 
+const captionMono: React.CSSProperties = {
+    ...typography.caption,
+    fontFamily: "'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+    color: colors.body,
+};
+
 const styles: Record<string, React.CSSProperties> = {
-    container: {minHeight: "100vh", background: "#f8fafc"},
+    container: {minHeight: "100vh", background: colors.canvasSoft},
     header: {
-        background: "#fff",
-        borderBottom: "1px solid #e2e8f0",
-        padding: "16px 0",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+        background: colors.canvas,
+        borderBottom: `1px solid ${colors.hairline}`,
+        padding: `${spacing.md}px 0`,
     },
     headerContent: {
         maxWidth: "1400px",
         margin: "0 auto",
-        padding: "0 20px",
+        padding: `0 ${spacing.lg}px`,
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
     },
-    headerActions: {display: "flex", gap: "12px", alignItems: "center"},
-    title: {fontSize: "26px", fontWeight: 700, color: "#1e293b", margin: 0},
+    headerActions: {display: "flex", gap: spacing.sm, alignItems: "center"},
+    title: {...typography.displayMd, color: colors.ink, margin: 0},
     backButton: {
-        background: "#64748b", color: "white", border: "none",
-        padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "14px",
+        ...typography.bodySmStrong,
+        background: "transparent",
+        color: colors.body,
+        border: "none",
+        padding: `0 ${spacing.xs}px`,
+        height: 32,
+        cursor: "pointer",
     },
     addButton: {
-        background: "#22c55e", color: "white", border: "none",
-        padding: "8px 16px", borderRadius: "6px", cursor: "pointer",
-        fontSize: "14px", fontWeight: "600",
+        ...typography.buttonMd,
+        background: colors.primary,
+        color: colors.onPrimary,
+        border: "none",
+        padding: `0 ${spacing.md}px`,
+        height: 32,
+        borderRadius: rounded.sm,
+        cursor: "pointer",
     },
     exportButton: {
-        background: "#3b82f6", color: "white", border: "none",
-        padding: "8px 16px", borderRadius: "6px", cursor: "pointer",
-        fontSize: "14px", fontWeight: "600",
+        ...typography.buttonMd,
+        background: colors.canvas,
+        color: colors.ink,
+        border: `1px solid ${colors.hairline}`,
+        padding: `0 ${spacing.md}px`,
+        height: 32,
+        borderRadius: rounded.sm,
+        cursor: "pointer",
     },
-    main: {maxWidth: "1400px", margin: "0 auto", padding: "30px 20px"},
-    contentLayout: {display: 'flex', gap: 24, alignItems: 'flex-start'},
+    main: {maxWidth: "1400px", margin: "0 auto", padding: `${spacing.xl}px ${spacing.lg}px`},
+    contentLayout: {display: "flex", gap: spacing.lg, alignItems: "flex-start"},
     tableColumn: {flex: 1, minWidth: 0},
     sidePanel: {width: 320, flexShrink: 0},
     loadingContainer: {
         minHeight: "50vh", display: "flex", flexDirection: "column",
-        gap: "16px", justifyContent: "center", alignItems: "center",
+        gap: spacing.md, justifyContent: "center", alignItems: "center", color: colors.body,
     },
     spinner: {
-        width: "40px", height: "40px",
-        border: "4px solid #e5e7eb", borderTop: "4px solid #3b82f6",
-        borderRadius: "50%", animation: "spin 1s linear infinite",
+        width: 40, height: 40,
+        border: `4px solid ${colors.hairline}`, borderTop: `4px solid ${colors.primary}`,
+        borderRadius: rounded.full, animation: "spin 1s linear infinite",
     },
     error: {
-        background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca",
-        padding: "16px", borderRadius: "8px", marginBottom: "20px",
-        display: "flex", justifyContent: "space-between",
+        ...typography.bodySm,
+        background: colors.errorSoft, color: colors.errorDeep, border: `1px solid ${colors.errorSoft}`,
+        padding: spacing.md, borderRadius: rounded.sm, marginBottom: spacing.lg,
+        display: "flex", justifyContent: "space-between", alignItems: "center",
     },
-    closeError: {background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#dc2626"},
-    emptyState: {textAlign: "center", padding: "80px 20px", color: "#64748b"},
-    emptyIcon: {fontSize: "64px", marginBottom: "12px"},
+    closeError: {background: "none", border: "none", cursor: "pointer", fontSize: 18, color: colors.errorDeep},
+    emptyState: {
+        ...typography.bodyMd,
+        textAlign: "center", padding: `${spacing["4xl"]}px ${spacing.lg}px`,
+        background: colors.canvas, borderRadius: rounded.lg, boxShadow: shadowLevel3, color: colors.body,
+    },
+    emptyIcon: {fontSize: 64, marginBottom: spacing.md},
+    emptyTitle: {...typography.displaySm, color: colors.ink, margin: 0},
+    emptyText: {...typography.bodySm, color: colors.body, marginTop: spacing.xs, marginBottom: spacing.md},
     tableWrapper: {
-        marginTop: "20px", overflowX: "auto",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.1)", borderRadius: "8px",
+        marginTop: spacing.md, overflowX: "auto",
+        background: colors.canvas, borderRadius: rounded.md, boxShadow: shadowLevel3,
     },
-    table: {width: "100%", borderCollapse: "collapse", background: "white"},
+    table: {width: "100%", borderCollapse: "collapse", background: colors.canvas},
     th: {
-        padding: "12px 16px", borderBottom: "2px solid #e2e8f0",
-        background: "#f1f5f9", textAlign: "left", fontWeight: 600,
-        color: "#334155", whiteSpace: "nowrap",
+        ...captionMono,
+        padding: `${spacing.xs}px ${spacing.sm}px`, borderBottom: `1px solid ${colors.hairline}`,
+        background: colors.canvasSoft, textAlign: "left", whiteSpace: "nowrap",
     },
-    tr: {borderBottom: "1px solid #e2e8f0", transition: "opacity 0.2s"},
-    td: {padding: "0", color: "#334155", fontSize: "14px", cursor: "pointer", minWidth: "120px"},
+    tr: {borderBottom: `1px solid ${colors.hairline}`, transition: "opacity 0.2s"},
+    td: {padding: 0, color: colors.ink, cursor: "pointer", minWidth: 120},
     cellText: {
-        display: "block", padding: "10px 16px", minHeight: "38px",
-        lineHeight: "18px", position: "relative" as const,
+        ...typography.bodySm,
+        display: "block", padding: `${spacing.xs}px ${spacing.sm}px`, minHeight: 38,
+        lineHeight: "20px", position: "relative" as const, color: colors.ink,
     },
     cellFormula: {
-        background: "#eff6ff",
-        color: "#1e40af",
+        background: colors.linkBgSoft,
+        color: colors.linkDeep,
     },
     cellError: {
-        color: "#dc2626",
+        color: colors.errorDeep,
         fontWeight: 600,
     },
     formulaIndicator: {
-        position: "absolute" as const, top: "2px", right: "4px",
-        fontSize: "9px", color: "#93c5fd", fontWeight: 700,
+        position: "absolute" as const, top: 2, right: 4,
+        fontSize: 9, color: colors.link, fontWeight: 700,
         lineHeight: 1, userSelect: "none" as const,
     },
     cellInput: {
-        width: "100%", padding: "10px 16px", border: "none",
-        borderBottom: "2px solid #3b82f6", outline: "none", fontSize: "14px",
-        background: "#eff6ff", boxSizing: "border-box" as const, minHeight: "38px",
+        ...typography.bodySm,
+        width: "100%", padding: `${spacing.xs}px ${spacing.sm}px`, border: "none",
+        borderBottom: `2px solid ${colors.primary}`, outline: "none",
+        background: colors.canvasSoft2, boxSizing: "border-box" as const, minHeight: 38, color: colors.ink,
     },
     deleteRowBtn: {
         background: "none", border: "none", cursor: "pointer",
-        fontSize: "16px", padding: "4px 8px", borderRadius: "4px", opacity: 0.6,
+        fontSize: 16, padding: `${spacing.xxs}px ${spacing.xs}px`, borderRadius: rounded.xs, opacity: 0.6,
     },
     rowNumber: {
-        padding: "0 8px",
+        padding: `0 ${spacing.xs}px`,
         textAlign: "center" as const,
-        fontSize: "11px",
-        color: "#94a3b8",
-        background: "#f1f5f9",
-        borderRight: "1px solid #e2e8f0",
+        ...typography.caption,
+        color: colors.mute,
+        background: colors.canvasSoft,
+        borderRight: `1px solid ${colors.hairline}`,
         userSelect: "none" as const,
-        minWidth: "40px",
+        minWidth: 40,
     },
     rowNumberHeader: {
-        width: "40px",
-        minWidth: "40px",
-        background: "#e2e8f0",
-        borderBottom: "2px solid #e2e8f0",
-        borderRight: "1px solid #e2e8f0",
+        width: 40,
+        minWidth: 40,
+        background: colors.canvasSoft2,
+        borderBottom: `1px solid ${colors.hairline}`,
+        borderRight: `1px solid ${colors.hairline}`,
     },
     filterCell: {
-        padding: "4px 8px", background: "#f8fafc",
-        borderBottom: "1px solid #e2e8f0",
+        padding: `${spacing.xxs}px ${spacing.xs}px`, background: colors.canvasSoft,
+        borderBottom: `1px solid ${colors.hairline}`,
     },
     filterInput: {
-        width: "100%", padding: "4px 8px", fontSize: "12px",
-        border: "1px solid #cbd5e1", borderRadius: "4px",
-        boxSizing: "border-box" as const,
+        ...typography.caption,
+        width: "100%", padding: `${spacing.xxs}px ${spacing.xs}px`,
+        border: `1px solid ${colors.hairline}`, borderRadius: rounded.xs,
+        boxSizing: "border-box" as const, background: colors.canvas, color: colors.ink,
     },
     pagination: {
         display: "flex", alignItems: "center", justifyContent: "center",
-        gap: "16px", padding: "16px",
+        gap: spacing.md, padding: spacing.md,
     },
     pageBtn: {
-        background: "#64748b", color: "white", border: "none",
-        padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "14px",
+        ...typography.bodySmStrong,
+        background: colors.canvas, color: colors.ink, border: `1px solid ${colors.hairline}`,
+        padding: `0 ${spacing.md}px`, height: 32, borderRadius: rounded.sm, cursor: "pointer",
     },
-    pageInfo: {fontSize: "14px", color: "#475569"},
+    pageInfo: {...typography.bodySm, color: colors.body},
 };
