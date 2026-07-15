@@ -262,9 +262,9 @@ const TableViewPage: React.FC = () => {
         setRows(prev => prev.filter(r => r.id !== rowId));
         try {
             await tablesAPI.deleteRow(tableId, rowId);
-        } catch (err) {
+        } catch (err: any) {
             setRows(backup);
-            setError("Не удалось удалить строку");
+            setError(err.response?.data?.detail || "Не удалось удалить строку");
         }
     };
 
@@ -285,9 +285,9 @@ const TableViewPage: React.FC = () => {
             const link = document.createElement('a');
             link.href = result.download_url;
             link.click();
-        } catch (err) {
+        } catch (err: any) {
             console.error('export error:', err);
-            setError('Не удалось экспортировать таблицу');
+            setError(err.response?.data?.detail || 'Не удалось экспортировать таблицу')
         } finally {
             setExporting(false);
         }
