@@ -301,3 +301,57 @@ class DataService:
             actor_id=user_id,
             row=None,
         )
+
+    async def duplicate_table_row(
+        self,
+        uow_session: UnitOfWork,
+        table_id: int,
+        row_id: int,
+        user_id: int,
+        user_role: str,
+    ) -> TableRowResponse:
+        """Дублировать строку таблицы"""
+        async with uow_session.start():
+            await self.permission_service.get_table_with_write_access(
+                uow_session=uow_session,
+                table_id=table_id,
+                user_id=user_id,
+                user_role=user_role,
+            )
+
+            original = await uow_session.data.get_row_by_id(
+                table_id=table_id, row_id=row_id
+            )
+            if not original:
+                raise NotFoundException("Строка не найдена")
+
+            # Валидацию не повторяем - данные уже валидны, раз хранятся в БД
+            copy_data = TableRowCreate(
+                row_data=original.row_data,
+                formulas=original.formulas,
+            )
+
+            new_row = await uow_session.data.create_table_row(
+                table_id=table_id, row_data=copy_data
+            )
+
+            logger.info(
+                "User %s duplicated row %s -> %s in table %s",
+                user_id,
+                row_id,
+                new_row.id,
+                table_id,
+            )
+            response = self._to_row_response(new_row)
+
+        # Публикуем как обычное создание строки — у соавторов таблицы,
+        # смотрящих её сейчас через WS, копия появится в реальном времени.
+        await self._publish_row_event(
+            event=RowEventType.row_created,
+            table_id=table_id,
+            row_id=row_id,
+            actor_id=user_id,
+            row=response,
+        )
+
+        return response
