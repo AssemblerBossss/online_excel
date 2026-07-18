@@ -39,10 +39,13 @@ const TableViewPage: React.FC = () => {
     const [filterDraft, setFilterDraft] = useState<Record<string, string>>({});
     const [filters, setFilters] = useState<RowFilter[]>([]);
 
+    const[selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
+
     useEffect(() => {
         loadTable();
     }, [id]);
     useEffect(() => {
+        setSelectedRowIds(new Set());
         loadRows();
     }, [id, page, sortBy, sortOrder, filters]);
 
@@ -271,6 +274,58 @@ const TableViewPage: React.FC = () => {
         }
     };
 
+
+    // ── Массовое удаление ──
+
+    const toggleRowSelection = (rowId: number) => {
+        setSelectedRowIds(prev => {
+            const next = new Set(prev);
+            if (next.has(rowId)) {
+                next.delete(rowId);
+            } else {
+                next.add(rowId);
+            }
+            return next;
+        });
+    };
+
+    const allSelectedOnPage = rows.length > 0 && rows.every(r => selectedRowIds.has(r.id));
+    const someSelectedOnPage = rows.some(r => selectedRowIds.has(r.id));
+
+    const toggleSelectAllOnPage = () => {
+        setSelectedRowIds(prev => {
+            const next = new Set(prev);
+            if (allSelectedOnPage) {
+                rows.forEach(r => next.delete(r.id));
+            } else {
+                rows.forEach(r => next.add(r.id));
+            }
+            return next;
+        });
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedRowIds.size === 0) return;
+        if (!confirm(`Удалить выбранные строки (${selectedRowIds.size})?`)) return;
+
+        const idsToDelete = Array.from(selectedRowIds);
+        const backup = rows;
+
+        setRows(prev => prev.filter(r => !selectedRowIds.has(r.id)));
+        setSelectedRowIds(new Set());
+
+        try {
+            await tablesAPI.bulkDeleteRows(tableId, idsToDelete);
+            // Пересчитываем total/пагинацию с сервера — после удаления
+            // текущая страница могла опустеть или сдвинуться.
+            await loadRows();
+            setError("");
+        } catch (err: any) {
+            setRows(backup);
+            setError(err.response?.data?.detail || "Не удалось удалить выбранные строки");
+        }
+    };
+
     // ── Дублирование строки ──
 
     const duplicateRow = async(rowId: number) => {
@@ -328,6 +383,11 @@ const TableViewPage: React.FC = () => {
                 <div style={styles.headerContent}>
                     <h1 style={styles.title}>Таблица №{id}</h1>
                     <div style={styles.headerActions}>
+                         {selectedRowIds.size > 0 && (
+                            <button style={styles.bulkDeleteButton} onClick={handleBulkDelete}>
+                                🗑 Удалить выбранное ({selectedRowIds.size})
+                            </button>
+                        )}
                         <button style={styles.exportButton} onClick={handleExport} disabled={exporting}>
                             {exporting ? "Экспорт…" : "⬇ Экспорт в Excel"}
                         </button>
@@ -377,6 +437,16 @@ const TableViewPage: React.FC = () => {
                                         <th style={{...styles.th, width: "72px"}}></th>
                                     </tr>
                                     <tr>
+                                        <th style={styles.checkboxHeader}>
+                                            <input
+                                                type="checkbox"
+                                                checked={allSelectedOnPage}
+                                                ref={el => {
+                                                    if (el) el.indeterminate = !allSelectedOnPage && someSelectedOnPage;
+                                                }}
+                                                onChange={toggleSelectAllOnPage}
+                                            />
+                                        </th>
                                         <th style={styles.rowNumberHeader}></th>
                                         {colNames.map(col => (
                                             <th key={col} style={styles.filterCell}>
@@ -404,6 +474,13 @@ const TableViewPage: React.FC = () => {
                                             key={row.id}
                                             style={{...styles.tr, opacity: saving === row.id ? 0.6 : 1}}
                                         >
+                                             <td style={styles.checkboxCell}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedRowIds.has(row.id)}
+                                                    onChange={() => toggleRowSelection(row.id)}
+                                                />
+                                            </td>
                                             <td style={styles.rowNumber}>{page * PAGE_SIZE + rowIndex + 1}</td>
                                             {colNames.map(col => {
                                                 const isEditing =
@@ -667,4 +744,28 @@ const styles: Record<string, React.CSSProperties> = {
         padding: `0 ${spacing.md}px`, height: 32, borderRadius: rounded.sm, cursor: "pointer",
     },
     pageInfo: {...typography.bodySm, color: colors.body},
+
+    checkboxHeader: {
+        width: 36,
+        minWidth: 36,
+        textAlign: "center" as const,
+        background: colors.canvasSoft,
+        borderBottom: `1px solid ${colors.hairline}`,
+    },
+    checkboxCell: {
+        width: 36,
+        minWidth: 36,
+        textAlign: "center" as const,
+        padding: `${spacing.xs}px 0`,
+    },
+    bulkDeleteButton: {
+        ...typography.buttonMd,
+        background: colors.errorDeep,
+        color: colors.onPrimary,
+        border: "none",
+        padding: `0 ${spacing.md}px`,
+        height: 32,
+        borderRadius: rounded.sm,
+        cursor: "pointer",
+    },
 };

@@ -7,6 +7,8 @@ from .data import (
     RowFilter,
     FilterOperator,
     COMPARISON_OPERATORS,
+    BulkDeleteResponse,
+    BulkDeleteRequest,
 )
 from .table import (
     DataTableCreate,
@@ -54,4 +56,6 @@ __all__ = [
     "SExportJob",
     "SExportJobCreated",
     "SExportJobStatusResponse",
+    "BulkDeleteResponse",
+    "BulkDeleteRequest",
 ]

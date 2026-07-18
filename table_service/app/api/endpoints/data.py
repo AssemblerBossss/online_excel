@@ -19,6 +19,8 @@ from table_service.app.schemas import (
     PaginatedRows,
     RowFilter,
     FilterOperator,
+    BulkDeleteResponse,
+    BulkDeleteRequest,
 )
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.services import DataService
@@ -181,6 +183,31 @@ async def update_row(
     )
     await redis.delete(_rows_cache_key(table_id))
     return result
+
+
+@router.post(
+    "/{table_id}/rows/bulk-delete",
+    response_model=BulkDeleteResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def bulk_delete_rows(
+    payload: BulkDeleteRequest,
+    data_service: Annotated[DataService, Depends(get_data_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+    table_id: int = Path(..., description="ID таблицы", ge=1),
+) -> BulkDeleteResponse:
+    """Удалить несколько строк одним запросом"""
+    deleted_count = await data_service.bulk_delete_table_rows(
+        uow_session=uow_session,
+        table_id=table_id,
+        row_ids=payload.row_ids,
+        user_id=current_user.user_id,
+        user_role=current_user.role,
+    )
+    await redis.delete(_rows_cache_key(table_id))
+    return BulkDeleteResponse(deleted_count=deleted_count)
 
 
 @router.delete("/{table_id}/rows/{row_id}", status_code=status.HTTP_204_NO_CONTENT)

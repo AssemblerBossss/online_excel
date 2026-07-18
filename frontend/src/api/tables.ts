@@ -272,6 +272,11 @@ export const tablesAPI = {
         await api.delete(`/data/${tableId}/rows/${rowId}`);
     },
 
+    bulkDeleteRows: async (tableId: number, rowIds: number[]): Promise<number> => {
+        const response = await api.post(`/data/${tableId}/rows/bulk-delete`, {row_ids: rowIds});
+        return response.data.deleted_count;
+    },
+
     duplicateRow: async (tableId: number, rowId: number): Promise<TableRow> => {
         const response = await api.post(`/data/${tableId}/rows/${rowId}/duplicate`);
         return response.data;

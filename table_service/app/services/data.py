@@ -355,3 +355,40 @@ class DataService:
         )
 
         return response
+
+    async def bulk_delete_table_rows(
+        self,
+        uow_session: UnitOfWork,
+        table_id: int,
+        row_ids: list[int],
+        user_id: int,
+        user_role: str,
+    ) -> int:
+        """Удалить несколько строк таблицы одним запросом"""
+        async with uow_session.start():
+            await self.permission_service.get_table_with_write_access(
+                uow_session=uow_session,
+                table_id=table_id,
+                user_id=user_id,
+                user_role=user_role,
+            )
+
+            deleted_ids = await uow_session.data.bulk_delete_table_rows(
+                table_id=table_id, row_ids=row_ids
+            )
+            logger.info(
+                "User %s bulk-deleted %s/%s rows from table %s",
+                user_id,
+                len(deleted_ids),
+                len(row_ids),
+                table_id,
+            )
+        for row_id in deleted_ids:
+            await self._publish_row_event(
+                event=RowEventType.row_deleted,
+                table_id=table_id,
+                row_id=row_id,
+                actor_id=user_id,
+                row=None,
+            )
+        return len(deleted_ids)

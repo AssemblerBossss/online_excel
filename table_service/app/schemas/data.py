@@ -1,5 +1,5 @@
 from enum import Enum
-from pydantic import BaseModel, field_validator, ConfigDict
+from pydantic import BaseModel, field_validator, ConfigDict, Field
 from typing import Any
 from datetime import datetime
 
@@ -87,3 +87,16 @@ class PaginatedRows(BaseModel):
     total: int  # всего строк после фильтрации (без учёта skip/limit)
     skip: int
     limit: int
+
+
+class BulkDeleteRequest(BaseModel):
+    """Список ID для массового удаления строк"""
+
+    row_ids: list[int] = Field(..., min_length=1, max_length=1000)
+
+
+class BulkDeleteResponse(BaseModel):
+    """Сколько строк реально было удалено (может быть меньше len(row_ids),
+    если часть уже была удалена параллельно другим пользователем)."""
+
+    deleted_count: int
