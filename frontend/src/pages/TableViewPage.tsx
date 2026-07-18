@@ -222,6 +222,7 @@ const TableViewPage: React.FC = () => {
             );
             // Синхронизируемся с ответом бэкенда
             setRows(prev => prev.map(r => r.id === rowId ? updated : r));
+            setError("");
         } catch (err) {
             console.error('commitEdit error:', err);
             setRows(prev => prev.map(r => r.id === rowId ? row : r));
@@ -247,6 +248,7 @@ const TableViewPage: React.FC = () => {
         try {
             const newRow = await tablesAPI.createRow(tableId, emptyRow);
             setRows(prev => [...prev, newRow]);
+            setError("");
             if (colNames.length > 0) {
                 startEdit(newRow.id, colNames[0], newRow);
             }
@@ -262,9 +264,25 @@ const TableViewPage: React.FC = () => {
         setRows(prev => prev.filter(r => r.id !== rowId));
         try {
             await tablesAPI.deleteRow(tableId, rowId);
+            setError("");
         } catch (err: any) {
             setRows(backup);
             setError(err.response?.data?.detail || "Не удалось удалить строку");
+        }
+    };
+
+    // ── Дублирование строки ──
+
+    const duplicateRow = async(rowId: number) => {
+        try {
+            await tablesAPI.duplicateRow(tableId, rowId);
+            // Строки постранично пагинируются на сервере — проще перезапросить
+            // текущую страницу, чем вручную пересчитывать смещения/индексы.
+            await loadRows();
+            setError("");
+        }  catch (err: any) {
+            console.error('duplicateRow error:', err);
+            setError(err.response?.data?.detail || "Не удалось скопировать строку");
         }
     };
 
@@ -356,7 +374,7 @@ const TableViewPage: React.FC = () => {
                                                 {sortBy === col && <span> {sortOrder === 'asc' ? '▲' : '▼'}</span>}
                                             </th>
                                         ))}
-                                        <th style={{...styles.th, width: "48px"}}></th>
+                                        <th style={{...styles.th, width: "72px"}}></th>
                                     </tr>
                                     <tr>
                                         <th style={styles.rowNumberHeader}></th>
@@ -431,6 +449,13 @@ const TableViewPage: React.FC = () => {
                                                     ;
                                             })}
                                             <td style={{...styles.td, textAlign: "center"}}>
+                                                <button
+                                                    style={styles.duplicateRowBtn}
+                                                    onClick={() => duplicateRow(row.id)}
+                                                    title="Копировать строку"
+                                                >
+                                                    📄
+                                                </button>
                                                 <button
                                                     style={styles.deleteRowBtn}
                                                     onClick={() => deleteRow(row.id)}
@@ -598,6 +623,10 @@ const styles: Record<string, React.CSSProperties> = {
         background: colors.canvasSoft2, boxSizing: "border-box" as const, minHeight: 38, color: colors.ink,
     },
     deleteRowBtn: {
+        background: "none", border: "none", cursor: "pointer",
+        fontSize: 16, padding: `${spacing.xxs}px ${spacing.xs}px`, borderRadius: rounded.xs, opacity: 0.6,
+    },
+    duplicateRowBtn: {
         background: "none", border: "none", cursor: "pointer",
         fontSize: 16, padding: `${spacing.xxs}px ${spacing.xs}px`, borderRadius: rounded.xs, opacity: 0.6,
     },

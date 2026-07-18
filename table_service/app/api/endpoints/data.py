@@ -201,3 +201,28 @@ async def delete_row(
         user_role=current_user.role,
     )
     await redis.delete(_rows_cache_key(table_id))
+
+
+@router.post(
+    "/{table_id}/rows/{row_id}/duplicate",
+    response_model=TableRowResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def duplicate_table_row(
+    data_service: Annotated[DataService, Depends(get_data_service)],
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
+    redis: Annotated[Redis, Depends(get_redis)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+    table_id: int = Path(description="ID таблицы", ge=1),
+    row_id: int = Path(description="ID строки для копирования", ge=1),
+) -> TableRowResponse:
+    """Создать копию строки в той же таблице"""
+    result = await data_service.duplicate_table_row(
+        uow_session=uow_session,
+        table_id=table_id,
+        row_id=row_id,
+        user_id=current_user.user_id,
+        user_role=current_user.role,
+    )
+    await redis.delete(_rows_cache_key(table_id))
+    return result

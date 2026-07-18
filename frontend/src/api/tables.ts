@@ -272,6 +272,11 @@ export const tablesAPI = {
         await api.delete(`/data/${tableId}/rows/${rowId}`);
     },
 
+    duplicateRow: async (tableId: number, rowId: number): Promise<TableRow> => {
+        const response = await api.post(`/data/${tableId}/rows/${rowId}/duplicate`);
+        return response.data;
+    },
+
     searchTables: async (query: string, limit: number = 10): Promise<DataTableResponse[]> => {
         const response = await api.get('/search', {params: {q: query, limit}});
         return response.data;
