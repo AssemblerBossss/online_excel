@@ -272,3 +272,18 @@ class DataRepository(Base):
         )
         result = await self._session.execute(stmt)
         return result.scalars().all()
+
+    async def bulk_delete_table_rows(
+        self, table_id: int, row_ids: list[int]
+    ) -> Sequence[int]:
+        """
+        Удалить несколько строк одним запросом.
+        Возвращает ID реально удалённых строк (может быть меньше запрошенных —
+        часть могла уже не существовать).
+        """
+        stmt = delete(TableRow).where(
+            TableRow.table_id == table_id, TableRow.id.in_(row_ids)
+        ).returning(TableRow.id)
+
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
