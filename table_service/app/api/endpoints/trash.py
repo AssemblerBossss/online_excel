@@ -8,25 +8,24 @@ from fastapi import (
 )
 from redis.asyncio import Redis
 
+from table_service.app.api.cache import (
+    TABLES_CACHE_TTL,
+    invalidate_tables_cache,
+    invalidate_trash_cache,
+    trash_cache_key,
+)
+from table_service.app.api.dependencies import (
+    get_async_uow_session,
+    get_current_active_user,
+    get_redis,
+    get_table_service,
+)
+from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.schemas import (
     DataTableResponse,
     SCurrentUser,
 )
-from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.services import TableService
-from table_service.app.api.dependencies import (
-    get_table_service,
-    get_current_active_user,
-    get_redis,
-    get_async_uow_session,
-)
-from table_service.app.api.cache import (
-    trash_cache_key,
-    TABLES_CACHE_TTL,
-    invalidate_tables_cache,
-    invalidate_trash_cache,
-)
-
 
 router = APIRouter()
 

@@ -1,9 +1,10 @@
-import uuid
-import aio_pika
 import asyncio
+import uuid
 from typing import Optional
+from warnings import deprecated
+
+import aio_pika
 from aio_pika.abc import AbstractIncomingMessage
-from typing_extensions import deprecated
 
 from table_service.app.core.settings import app_settings
 

@@ -3,45 +3,42 @@ from typing import Annotated
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
-    status,
-    UploadFile,
     File,
     Form,
+    UploadFile,
+    status,
 )
 from redis.asyncio import Redis
 
-from table_service.app.schemas import (
-    DataTableCreate,
-    DataTableResponse,
-    SCurrentUser,
-    DataTableUpdate,
-    DataTableDuplicate,
-    SWsTicketResponse,
-    SExportJobCreated,
-    SExportJobStatusResponse,
-)
-from table_service.app.core.unit_of_work import UnitOfWork
-from table_service.app.core import AsyncSessionFactory
-from table_service.app.services import TableService, WsTicketService, ExportJobService
-from table_service.app.api.dependencies import (
-    get_table_service,
-    get_current_active_user,
-    get_redis,
-    get_async_uow_session,
-    get_ws_ticket_service,
-    get_export_job_service,
-)
-
 from table_service.app.api.cache import (
-    tables_cache_key,
     TABLES_CACHE_TTL,
     invalidate_tables_cache,
     invalidate_trash_cache,
+    tables_cache_key,
 )
-
-from fastapi import BackgroundTasks
-
+from table_service.app.api.dependencies import (
+    get_async_uow_session,
+    get_current_active_user,
+    get_export_job_service,
+    get_redis,
+    get_table_service,
+    get_ws_ticket_service,
+)
+from table_service.app.core import AsyncSessionFactory
+from table_service.app.core.unit_of_work import UnitOfWork
+from table_service.app.schemas import (
+    DataTableCreate,
+    DataTableDuplicate,
+    DataTableResponse,
+    DataTableUpdate,
+    SCurrentUser,
+    SExportJobCreated,
+    SExportJobStatusResponse,
+    SWsTicketResponse,
+)
+from table_service.app.services import ExportJobService, TableService, WsTicketService
 
 router = APIRouter()
 
