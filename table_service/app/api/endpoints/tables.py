@@ -201,7 +201,7 @@ async def create_table_from_excel(
     redis: Annotated[Redis, Depends(get_redis)],
     table_name: str = Form(...),
     description: str = Form(None),
-    file: UploadFile = File(..., description="Excel file to process"),
+    file: UploadFile = File(default=None, description="Excel file to process"),  # noqa: B008
 ) -> DataTableResponse:
     result = await table_service.create_table_from_excel_file(
         uow_session=uow_session,

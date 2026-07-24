@@ -7,7 +7,7 @@ class AppException(Exception):
     status_code: int = 500
     detail: str = "Internal server error"
 
-    def __init__(self, message: str = None):
+    def __init__(self, message: str | None = None):
         self.message = message or self.detail
         super().__init__(self.message)
 

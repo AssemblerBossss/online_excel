@@ -38,7 +38,7 @@ class SearchService:
         except ESConnectionError as e:
             logger.error("ES недоступен: %s", e)
             return []
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Ошибка поиска в Elasticsearch: %s", e)
             return []
 
