@@ -3,7 +3,7 @@ class AppException(Exception):
 
     detail: str = "Internal server error"
 
-    def __init__(self, detail: str = None):
+    def __init__(self, detail: str | None = None):
         self.detail = detail or self.__class__.detail
         super().__init__(self.detail)
 

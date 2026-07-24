@@ -1,18 +1,20 @@
-from fastapi import BackgroundTasks
 import datetime
+
+from fastapi import BackgroundTasks
+
+from chat_service.app.core import UnitOfWork
+from chat_service.app.core.realtime import publish_new_message
+from chat_service.app.exceptions import (
+    SelfMessageException,
+    UserBlockedException,
+    UserNotFoundException,
+)
 from chat_service.app.schemas import (
-    MessageCreateRequest,
     DialogOut,
+    MessageCreateRequest,
     MessageOut,
     PaginatedResponse,
 )
-from chat_service.app.exceptions import (
-    SelfMessageException,
-    UserNotFoundException,
-    UserBlockedException,
-)
-from chat_service.app.core import UnitOfWork
-from chat_service.app.core.realtime import publish_new_message
 
 
 class ChatService:

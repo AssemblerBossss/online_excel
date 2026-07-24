@@ -1,6 +1,7 @@
 import logging
-from elasticsearch import AsyncElasticsearch
-from elasticsearch import NotFoundError, ConnectionError as ESConnectionError
+
+from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import ConnectionError as ESConnectionError
 
 from table_service.app.core.elastic import TABLE_INDEX
 
@@ -37,7 +38,7 @@ class SearchService:
         except ESConnectionError as e:
             logger.error("ES недоступен: %s", e)
             return []
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Ошибка поиска в Elasticsearch: %s", e)
             return []
 

@@ -1,9 +1,9 @@
-import uuid
-import aio_pika
 import asyncio
-from typing import Optional
+import uuid
+from warnings import deprecated
+
+import aio_pika
 from aio_pika.abc import AbstractIncomingMessage
-from typing_extensions import deprecated
 
 from table_service.app.core.settings import app_settings
 
@@ -17,9 +17,9 @@ class RpcClient:
     def __init__(self, amqp_url: str = RABBITMQ_URL) -> None:
         """Инициализирует RPC клиент с URL для подключения к RabbitMQ."""
         self.amqp_url = amqp_url
-        self.connection: Optional[aio_pika.RobustConnection] = None
-        self.channel: Optional[aio_pika.RobustChannel] = None
-        self.callback_queue: Optional[aio_pika.RobustQueue] = None
+        self.connection: aio_pika.RobustConnection | None = None
+        self.channel: aio_pika.RobustChannel | None = None
+        self.callback_queue: aio_pika.RobustQueue | None = None
         self.futures = {}
         self.loop = asyncio.get_running_loop()
 
@@ -37,13 +37,13 @@ class RpcClient:
 
     async def on_response(self, message: AbstractIncomingMessage) -> None:
         """Обрабатывает входящие ответы, резолвит соответствующий future по correlation_id."""
-        future: Optional[asyncio.Future] = self.futures.pop(
+        future: asyncio.Future | None = self.futures.pop(
             message.correlation_id, None
         )
         if future:
             future.set_result(message.body)
 
-    async def call(self, user_id: int) -> Optional[bytes]:
+    async def call(self, user_id: int) -> bytes | None:
         """
         Отправляет запрос в очередь и ожидает ответ.
 
@@ -74,6 +74,6 @@ class RpcClient:
 
         try:
             return await asyncio.wait_for(future, timeout=5.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.futures.pop(correlation_id, None)
             return None

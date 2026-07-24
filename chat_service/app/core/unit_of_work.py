@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from chat_service.app.repository import ChatRepository
 

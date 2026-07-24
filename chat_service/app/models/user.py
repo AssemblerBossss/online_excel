@@ -1,6 +1,5 @@
-from typing import Optional
-from sqlalchemy import String, Integer, Boolean, DateTime
-from sqlalchemy.orm import mapped_column, Mapped
+from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
 
 from chat_service.app.core import Base
 
@@ -13,4 +12,4 @@ class ChatUser(Base):
     role: Mapped[str] = mapped_column(String, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))

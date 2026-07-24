@@ -1,8 +1,10 @@
 from __future__ import annotations
-from sqlalchemy import Integer, DateTime, ForeignKey, JSON, Index
+
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from typing import TYPE_CHECKING, Optional, Dict, Any
 
 if TYPE_CHECKING:
     from table_service.app.models.table import DataTable
@@ -19,22 +21,22 @@ class TableRow(Base):
         nullable=False,
     )
 
-    row_data: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
+    row_data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
     # Хранит исходные формулы ячеек с формуламию
     # Ключ - имя колонки, значение - строка формулы (например "А1+В1").
     # NULL - если строка не содержит формул
-    formulas: Mapped[Optional[Dict[str, str]]] = mapped_column(JSON, nullable=True)
+    formulas: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    updated_at: Mapped[Optional[DateTime]] = mapped_column(
+    updated_at: Mapped[DateTime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now()
     )
 
     # Relationships
-    table: Mapped["DataTable"] = relationship("DataTable", back_populates="rows")
+    table: Mapped[DataTable] = relationship("DataTable", back_populates="rows")
 
     # Индексы
     __table_args__ = (

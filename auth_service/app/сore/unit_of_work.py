@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager
-from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession
-from auth_service.app.repository import UserRepository
-from auth_service.app.repository import TokenRepository
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from auth_service.app.repository import TokenRepository, UserRepository
 
 
 class UnitOfWork:

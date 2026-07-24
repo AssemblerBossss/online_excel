@@ -1,13 +1,14 @@
+import enum
+from datetime import datetime
+
 from pydantic import (
     BaseModel,
     ConfigDict,
     EmailStr,
     Field,
-    model_validator,
     field_validator,
+    model_validator,
 )
-from datetime import datetime
-import enum
 
 from auth_service.app.config import auth_service_settings
 

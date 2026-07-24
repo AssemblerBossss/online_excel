@@ -2,8 +2,8 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from table_service.app.schemas import TableRowCreate, TableRowUpdate
 from table_service.app.exceptions import ValidationException
+from table_service.app.schemas import TableRowCreate, TableRowUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,6 @@ class DataValidationService:
 
     def __init__(self):
         """Initialize validation service."""
-        pass
 
     def validate_row_data(
         self,
@@ -144,7 +143,7 @@ class DataValidationService:
         parsed_date = None
         for date_format in date_formats:
             try:
-                parsed_date = datetime.strptime(value, date_format).date()
+                parsed_date = datetime.strptime(value, date_format).astimezone()
                 break
             except ValueError:
                 continue
@@ -153,12 +152,16 @@ class DataValidationService:
             return f"Поле '{col_name}' имеет неверный формат даты. Ожидаемые форматы: {', '.join(date_formats)}"
 
         if "min_date" in col_schema:
-            min_date = datetime.strptime(col_schema["min_date"], "%Y-%m-%d").date()
+            min_date = datetime.strptime(
+                col_schema["min_date"], "%Y-%m-%d"
+            ).astimezone()
             if parsed_date < min_date:
                 return f"Дата в поле '{col_name}' не может быть раньше {col_schema['min_date']}"
 
         if "max_date" in col_schema:
-            max_date = datetime.strptime(col_schema["max_date"], "%Y-%m-%d").date()
+            max_date = datetime.strptime(
+                col_schema["max_date"], "%Y-%m-%d"
+            ).astimezone()
             if parsed_date > max_date:
                 return f"Дата в поле '{col_name}' не может быть позже {col_schema['max_date']}"
 
@@ -186,7 +189,7 @@ class DataValidationService:
         parsed_datetime = None
         for datetime_format in datetime_formats:
             try:
-                parsed_datetime = datetime.strptime(value, datetime_format)
+                parsed_datetime = datetime.strptime(value, datetime_format).astimezone()
                 break
             except ValueError:
                 continue
@@ -196,12 +199,16 @@ class DataValidationService:
 
         # Проверка диапазона datetime если указано
         if "min_datetime" in col_schema:
-            min_dt = datetime.strptime(col_schema["min_datetime"], "%Y-%m-%d %H:%M:%S")
+            min_dt = datetime.strptime(
+                col_schema["min_datetime"], "%Y-%m-%d %H:%M:%S"
+            ).astimezone()
             if parsed_datetime < min_dt:
                 return f"Дата/время в поле '{col_name}' не может быть раньше {col_schema['min_datetime']}"
 
         if "max_datetime" in col_schema:
-            max_dt = datetime.strptime(col_schema["max_datetime"], "%Y-%m-%d %H:%M:%S")
+            max_dt = datetime.strptime(
+                col_schema["max_datetime"], "%Y-%m-%d %H:%M:%S"
+            ).astimezone()
             if parsed_datetime > max_dt:
                 return f"Дата/время в поле '{col_name}' не может быть позже {col_schema['max_datetime']}"
 

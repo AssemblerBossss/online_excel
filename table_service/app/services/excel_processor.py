@@ -1,9 +1,9 @@
 import logging
 import warnings
-from typing import Any
-import pandas as pd
 from io import BytesIO
+from typing import Any
 
+import pandas as pd
 from openpyxl.workbook import Workbook
 
 from table_service.app.exceptions import EmptyFileException
@@ -15,21 +15,23 @@ logger = logging.getLogger(__name__)
 class ExcelProcessorService:
     """Преобразование DataFrame в схему колонок и строки таблицы. Без доступа к БД."""
 
-    DTYPE_MAP = {
-        "int64": "number",
-        "int32": "number",
-        "int16": "number",
-        "int8": "number",
-        "float64": "number",
-        "float32": "number",
-        "float16": "number",
-        "bool": "boolean",
-        "datetime64[ns]": "datetime",
-        "datetime64": "datetime",
-        "object": "string",
-    }
+    DTYPE_MAP = frozenset(
+        {
+            "int64": "number",
+            "int32": "number",
+            "int16": "number",
+            "int8": "number",
+            "float64": "number",
+            "float32": "number",
+            "float16": "number",
+            "bool": "boolean",
+            "datetime64[ns]": "datetime",
+            "datetime64": "datetime",
+            "object": "string",
+        }
+    )
 
-    COMMON_DATE_FORMATS = [
+    COMMON_DATE_FORMATS = (
         "%Y-%m-%d",  # 2024-01-15
         "%d.%m.%Y",  # 15.01.2024
         "%m/%d/%Y",  # 01/15/2024
@@ -38,7 +40,7 @@ class ExcelProcessorService:
         "%d.%m.%Y %H:%M:%S",  # 15.01.2024 14:30:00
         "%m/%d/%Y %H:%M:%S",  # 01/15/2024 14:30:00
         "%Y-%m-%dT%H:%M:%S",  # 2024-01-15T14:30:00
-    ]
+    )
 
     def build_columns_schema(self, df: pd.DataFrame) -> list[dict[str, Any]]:
         """Сгенерировать схему колонок по DataFrame с автоопределением типов."""

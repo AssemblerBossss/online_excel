@@ -1,4 +1,4 @@
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from .settings import app_settings
@@ -24,4 +24,3 @@ async def get_db_session() -> AsyncSession:
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models"""
 
-    pass

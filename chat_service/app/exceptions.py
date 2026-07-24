@@ -1,4 +1,4 @@
-from fastapi import status, HTTPException
+from fastapi import HTTPException, status
 
 
 class ChatException(HTTPException):

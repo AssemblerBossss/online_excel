@@ -1,6 +1,7 @@
 import json
 import uuid
 from io import BytesIO
+
 from miniopy_async import Minio
 
 from auth_service.app.config import auth_service_settings as settings

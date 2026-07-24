@@ -1,20 +1,19 @@
 import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
+from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from prometheus_fastapi_instrumentator import Instrumentator
-
 
 from auth_service.app.config import auth_service_settings
-from auth_service.app.utils import avatar_storage
-from auth_service.app.сore import setup_service_logging, limiter
-from auth_service.app.routers import auth_router, user_router, health_router
 from auth_service.app.events import event_publisher
 from auth_service.app.exceptions import AppException
-
+from auth_service.app.routers import auth_router, health_router, user_router
+from auth_service.app.utils import avatar_storage
+from auth_service.app.сore import limiter, setup_service_logging
 
 setup_service_logging()
 logger = logging.getLogger(__name__)

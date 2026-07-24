@@ -1,31 +1,33 @@
+from collections.abc import AsyncGenerator
+from typing import Annotated
+
 from elasticsearch import AsyncElasticsearch
-from fastapi import Depends, Request, HTTPException
-from typing import AsyncGenerator, Annotated
+from fastapi import Depends, HTTPException, Request
 from redis.asyncio import Redis
 
-from table_service.app.core.unit_of_work import UnitOfWork
-from table_service.app.services import (
-    DataService,
-    TableService,
-    SearchService,
-    PermissionService,
-    ExcelProcessorService,
-    WsTicketService,
-    RowEventPublisher,
-    DataValidationService,
-    ExportJobService,
-)
 from table_service.app.core import (
     AsyncSessionFactory,
-    get_redis_client,
-    get_es_client,
-    export_storage,
     ExportStorage,
+    export_storage,
+    get_es_client,
+    get_redis_client,
 )
+from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.schemas import SCurrentUser, SUserFilter
+from table_service.app.services import (
+    DataService,
+    DataValidationService,
+    ExcelProcessorService,
+    ExportJobService,
+    PermissionService,
+    RowEventPublisher,
+    SearchService,
+    TableService,
+    WsTicketService,
+)
 
 
-async def get_async_uow_session() -> AsyncGenerator[UnitOfWork, None]:
+async def get_async_uow_session() -> AsyncGenerator[UnitOfWork]:
     yield UnitOfWork(AsyncSessionFactory)
 
 

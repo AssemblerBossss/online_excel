@@ -1,35 +1,36 @@
 import json
 import logging
 from typing import Annotated, Literal
+
 from fastapi import (
     APIRouter,
     Depends,
-    status,
-    Query,
     Path,
+    Query,
+    status,
 )
 from redis.asyncio import Redis
 
-from table_service.app.exceptions import ValidationException
-from table_service.app.schemas import (
-    TableRowResponse,
-    TableRowCreate,
-    TableRowUpdate,
-    SCurrentUser,
-    PaginatedRows,
-    RowFilter,
-    FilterOperator,
-    BulkDeleteResponse,
-    BulkDeleteRequest,
+from table_service.app.api.dependencies import (
+    get_async_uow_session,
+    get_current_active_user,
+    get_data_service,
+    get_redis,
 )
 from table_service.app.core.unit_of_work import UnitOfWork
-from table_service.app.services import DataService
-from table_service.app.api.dependencies import (
-    get_data_service,
-    get_current_active_user,
-    get_redis,
-    get_async_uow_session,
+from table_service.app.exceptions import ValidationException
+from table_service.app.schemas import (
+    BulkDeleteRequest,
+    BulkDeleteResponse,
+    FilterOperator,
+    PaginatedRows,
+    RowFilter,
+    SCurrentUser,
+    TableRowCreate,
+    TableRowResponse,
+    TableRowUpdate,
 )
+from table_service.app.services import DataService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -71,9 +72,7 @@ async def list_table_rows(
     limit: int = Query(100, description="Максимальное количество строк", ge=1, le=1000),
     sort_by: str | None = Query(None),
     sort_order: Literal["asc", "desc"] = Query(default="asc"),
-    filter: list[str] | None = Query(
-        None, description="Фильтр в формате field:op:value (можно несколько)"
-    ),
+    filter: Annotated[list[str] | None, Query(description="Фильтры")] = None,
     table_id: int = Path(..., description="ID таблицы", ge=1),
 ):
 

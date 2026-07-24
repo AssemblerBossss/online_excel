@@ -1,4 +1,4 @@
-from .rabbitmq import RpcClient
 from .event_consumer import EventConsumerBase
+from .rabbitmq import RpcClient
 
-__all__ = ["RpcClient", "EventConsumerBase"]
+__all__ = ["EventConsumerBase", "RpcClient"]

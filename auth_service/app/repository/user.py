@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Sequence
+
 from sqlalchemy import delete, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select

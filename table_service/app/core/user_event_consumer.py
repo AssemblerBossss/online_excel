@@ -1,13 +1,15 @@
 from __future__ import annotations
+
 import json
 import logging
-import aio_pika
 from datetime import datetime
+from typing import TYPE_CHECKING
 
+import aio_pika
+
+from table_service.app.core import app_settings
 from table_service.app.core.database import AsyncSessionFactory
 from table_service.app.infrastructure import EventConsumerBase
-from table_service.app.core import app_settings
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from table_service.app.repository import UserRepository
@@ -54,7 +56,7 @@ class UserEventConsumer:
                 logger.error(f"Ошибка обработки события: {e}", exc_info=True)
 
     async def _dispatch(
-        self, event_type: str, body: dict, repo: "UserRepository"
+        self, event_type: str, body: dict, repo: UserRepository
     ) -> None:
         if event_type in ("user.registered", "user.updated"):
             timestamp = datetime.fromisoformat(body["timestamp"].replace("Z", "+00:00"))

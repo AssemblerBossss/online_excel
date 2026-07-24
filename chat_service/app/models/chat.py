@@ -2,16 +2,17 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
-    UniqueConstraint,
-    String,
-    ForeignKey,
-    DateTime,
-    Text,
-    Index,
     Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from chat_service.app.core import Base
 
 

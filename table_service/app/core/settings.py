@@ -1,5 +1,6 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import cached_property
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LOG_FORMAT_DEFAULT = (
     "[%(asctime)s.%(msecs)03d] %(module)10s:%(lineno)-3d %(levelname)-7s - %(message)s"

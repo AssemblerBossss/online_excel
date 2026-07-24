@@ -1,12 +1,11 @@
-from fastapi import APIRouter, Depends, status, Query, BackgroundTasks
-
 from typing import Annotated
 
-from chat_service.app.schemas import DialogOut, MessageOut, MessageCreateRequest
-from chat_service.app.api.dependencies import get_current_user_email, get_chat_service
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+
+from chat_service.app.api.dependencies import get_chat_service, get_current_user_email
+from chat_service.app.schemas import DialogOut, MessageCreateRequest, MessageOut
 from chat_service.app.schemas.chat import PaginatedResponse
 from chat_service.app.services import ChatService
-
 
 router = APIRouter()
 

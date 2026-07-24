@@ -1,9 +1,10 @@
-import pytest
 from typing import Any
 
+import pytest
+
 from table_service.app.exceptions import ValidationException
-from table_service.app.services.data_validation import DataValidationService
 from table_service.app.schemas import TableRowCreate
+from table_service.app.services.data_validation import DataValidationService
 
 
 @pytest.fixture(scope="function")
