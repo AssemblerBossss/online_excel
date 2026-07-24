@@ -24,5 +24,15 @@ type PostgresConfig struct {
 	Password       string `mapstructure:"password"`
 	Database       string `mapstructure:"database"`
 	SSLMode        string `mapstructure:"sslmode"`
-	MaxConnections int    `mapstructure:"max_connections"`
+	MaxConnections int32  `mapstructure:"max_connections"`
+}
+
+type RabbitMQConfig struct {
+	Host       string `mapstructure:"host"`
+	Port       int    `mapstructure:"port"`
+	Username   string `mapstructure:"username"`
+	Password   string `mapstructure:"password"`
+	Exchange   string `mapstructure:"exchange"`
+	Queue      string `mapstructure:"queue"`
+	RoutingKey string `mapstructure:":"`
 }
