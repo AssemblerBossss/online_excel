@@ -21,6 +21,6 @@ WORKDIR /
 
 COPY --from=builder /app/notification-service .
 
-EXPOSE 8080
+EXPOSE 8083
 
 ENTRYPOINT ["/notification-service"]
