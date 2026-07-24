@@ -1,7 +1,8 @@
 import logging
 
 import pandas as pd
-from elasticsearch import NotFoundError, ConnectionError as ESConnectionError
+from elasticsearch import ConnectionError as ESConnectionError
+from elasticsearch import NotFoundError
 from fastapi import UploadFile
 from pydantic import ValidationError
 

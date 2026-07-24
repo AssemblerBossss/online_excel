@@ -31,9 +31,9 @@ class UnitOfWork:
         try:
             yield self
             await self._session.commit()
-        except Exception as e:
+        except Exception:
             await self._session.rollback()
-            raise e
+            raise
         finally:
             await self._session.close()
             self._session = None
