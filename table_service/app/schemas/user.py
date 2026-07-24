@@ -1,6 +1,6 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel
 
 
 class SUserFilter(BaseModel):
@@ -20,6 +20,6 @@ class SCurrentUser(BaseModel):
     role: str
     is_active: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
