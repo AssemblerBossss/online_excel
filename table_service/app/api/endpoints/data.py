@@ -72,8 +72,7 @@ async def list_table_rows(
     limit: int = Query(100, description="Максимальное количество строк", ge=1, le=1000),
     sort_by: str | None = Query(None),
     sort_order: Literal["asc", "desc"] = Query(default="asc"),
-    filter: list[str] | None = Query(default=None, description="Фильтр в формате field:op:value (можно несколько)"
-    ),
+    filter: Annotated[list[str] | None, Query(description="Фильтры")] = None,
     table_id: int = Path(..., description="ID таблицы", ge=1),
 ):
 

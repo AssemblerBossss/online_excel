@@ -1,6 +1,7 @@
 import logging
 
 import pandas as pd
+from elasticsearch import NotFoundError, ConnectionError as ESConnectionError
 from fastapi import UploadFile
 from pydantic import ValidationError
 
@@ -360,12 +361,19 @@ class TableService:
             if self.search_service:
                 try:
                     await self.search_service.delete_from_index(table_id=table_id)
-                except Exception:
+                except NotFoundError:
+                    logger.debug("Table %s not found in search index", table_id)
+                except ESConnectionError as e:
                     logger.warning(
-                        "Failed to delete table %s from search index, "
-                        "data may be orphaned until next sync",
+                        "Failed to delete table %s from search index: connection error: %s",
                         table_id,
+                        e,
                     )
+                except Exception:
+                    logger.exception(
+                        "Unexpected error deleting table %s from search index", table_id
+                    )
+                    raise
 
             logger.info(
                 "User %s deleted table %s (name: %s)", user_id, table_id, table.name
@@ -389,12 +397,19 @@ class TableService:
             if self.search_service:
                 try:
                     await self.search_service.delete_from_index(table_id=table_id)
-                except Exception:
+                except NotFoundError:
+                    logger.debug("Table %s not found in search index", table_id)
+                except ESConnectionError as e:
                     logger.warning(
-                        "Failed to delete table %s from search index, "
-                        "data may be orphaned until next sync",
+                        "Failed to delete table %s from search index: connection error: %s",
                         table_id,
+                        e,
                     )
+                except Exception:
+                    logger.exception(
+                        "Unexpected error deleting table %s from search index", table_id
+                    )
+                    raise
 
                 logger.info(
                     "User %s deleted table %s (name: %s)", user_id, table_id, table.name

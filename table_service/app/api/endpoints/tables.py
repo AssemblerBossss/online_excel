@@ -199,9 +199,9 @@ async def create_table_from_excel(
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
     redis: Annotated[Redis, Depends(get_redis)],
+    file: Annotated[UploadFile, File(description="Excel file to process")],
     table_name: str = Form(...),
     description: str = Form(None),
-    file: UploadFile = File(default=None, description="Excel file to process"),  # noqa: B008
 ) -> DataTableResponse:
     result = await table_service.create_table_from_excel_file(
         uow_session=uow_session,
