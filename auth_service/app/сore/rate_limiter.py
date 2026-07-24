@@ -1,5 +1,6 @@
-from slowapi import Limiter
 from fastapi import Request
+from slowapi import Limiter
+
 from auth_service.app.config import auth_service_settings
 
 

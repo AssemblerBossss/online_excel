@@ -233,7 +233,6 @@ async def delete_table(
     )
     await invalidate_tables_cache(redis)
     await invalidate_trash_cache(redis)
-    return None
 
 
 @router.post("/{table_id}/pin", status_code=status.HTTP_204_NO_CONTENT)
@@ -251,7 +250,6 @@ async def pin_table(
         user_role=current_user.role,
     )
     await invalidate_tables_cache(redis)
-    return None
 
 
 @router.delete("/{table_id}/pin", status_code=status.HTTP_204_NO_CONTENT)
@@ -269,4 +267,3 @@ async def unpin_table(
         user_role=current_user.role,
     )
     await invalidate_tables_cache(redis)
-    return None

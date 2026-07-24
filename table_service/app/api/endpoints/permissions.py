@@ -107,4 +107,3 @@ async def delete_permission(
     )
     await invalidate_tables_cache(redis)
     await invalidate_trash_cache(redis)
-    return None

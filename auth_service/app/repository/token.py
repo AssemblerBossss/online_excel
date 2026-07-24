@@ -1,8 +1,9 @@
 import logging
 from collections.abc import Sequence
-from sqlalchemy import delete, select, update, and_
+from datetime import UTC, datetime
+
+from sqlalchemy import and_, delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timezone
 
 from auth_service.app.models import RefreshToken
 
@@ -51,7 +52,7 @@ class TokenRepository:
         query = select(RefreshToken).where(
             and_(
                 RefreshToken.user_id == user_id,
-                RefreshToken.expires_at > datetime.now(timezone.utc),
+                RefreshToken.expires_at > datetime.now(UTC),
             )
         )
         result = await self._session.execute(query)
@@ -70,7 +71,7 @@ class TokenRepository:
 
     async def delete_expired(self) -> int:
         query = delete(RefreshToken).where(
-            RefreshToken.expires_at < datetime.now(timezone.utc)
+            RefreshToken.expires_at < datetime.now(UTC)
         )
         result = await self._session.execute(query)
         await self._session.flush()

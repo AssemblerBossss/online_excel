@@ -68,7 +68,6 @@ async def permanent_delete(
         user_role=current_user.role,
     )
     await invalidate_trash_cache(redis)
-    return None
 
 
 @router.post("/{table_id}/restore", status_code=status.HTTP_204_NO_CONTENT)

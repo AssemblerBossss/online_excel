@@ -1,8 +1,9 @@
 from collections.abc import Sequence
-from sqlalchemy import select, delete, insert, update
 
-from table_service.app.repository.base import Base
+from sqlalchemy import delete, insert, select, update
+
 from table_service.app.models import TablePermission, UserProjection
+from table_service.app.repository.base import Base
 
 
 class PermissionRepository(Base):

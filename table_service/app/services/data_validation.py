@@ -2,8 +2,8 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from table_service.app.schemas import TableRowCreate, TableRowUpdate
 from table_service.app.exceptions import ValidationException
+from table_service.app.schemas import TableRowCreate, TableRowUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,6 @@ class DataValidationService:
 
     def __init__(self):
         """Initialize validation service."""
-        pass
 
     def validate_row_data(
         self,

@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 from datetime import datetime
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 
 # Отправка сообщений (POST /chat/messages)

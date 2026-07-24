@@ -81,13 +81,12 @@
 import asyncio
 from logging.config import fileConfig
 
-from sqlalchemy.ext.asyncio import async_engine_from_config
-from sqlalchemy import pool
 from alembic import context
-
+from sqlalchemy import pool
+from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from chat_service.app.core.database import Base
-from chat_service.app.models import ChatUser, Chat, Message  # noqa: F401
+from chat_service.app.models import Chat, ChatUser, Message  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

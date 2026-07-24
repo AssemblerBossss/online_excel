@@ -1,8 +1,9 @@
-import pytest
 from io import BytesIO
 from unittest.mock import MagicMock
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+import pytest
 from fastapi import UploadFile
 
 

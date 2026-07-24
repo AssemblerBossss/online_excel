@@ -56,7 +56,7 @@ class UserEventConsumer:
                 logger.error(f"Ошибка обработки события: {e}", exc_info=True)
 
     async def _dispatch(
-        self, event_type: str, body: dict, repo: "UserRepository"
+        self, event_type: str, body: dict, repo: UserRepository
     ) -> None:
         if event_type in ("user.registered", "user.updated"):
             timestamp = datetime.fromisoformat(body["timestamp"].replace("Z", "+00:00"))

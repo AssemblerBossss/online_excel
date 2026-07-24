@@ -1,7 +1,8 @@
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
-from table_service.app.repository.base import Base
+
 from table_service.app.models import TablePin
+from table_service.app.repository.base import Base
 
 
 class TablePinRepository(Base):

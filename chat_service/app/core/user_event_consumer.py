@@ -39,7 +39,7 @@ class UserEventConsumer:
         logger.info("UserEventConsumer отключен")
 
     async def _dispatch(
-        self, event_type: str, body: dict, repo: "UserRepository"
+        self, event_type: str, body: dict, repo: UserRepository
     ) -> None:
         user_id = int(body["user_id"])
 

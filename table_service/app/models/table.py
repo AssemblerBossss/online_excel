@@ -1,8 +1,10 @@
 from __future__ import annotations
-from sqlalchemy import String, Integer, Boolean, DateTime, Text, ForeignKey, JSON
+
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from typing import Optional, TYPE_CHECKING, List, Dict, Any
 
 if TYPE_CHECKING:
     from table_service.app.models.data import TableRow
@@ -15,30 +17,30 @@ class DataTable(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, nullable=False, index=True)
-    description: Mapped[Optional[str]] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
 
-    columns_schema: Mapped[List[Dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    columns_schema: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
 
     created_by_id: Mapped[int] = mapped_column(Integer, nullable=False)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    updated_at: Mapped[Optional[DateTime]] = mapped_column(
+    updated_at: Mapped[DateTime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now()
     )
 
-    permissions: Mapped[List["TablePermission"]] = relationship(
+    permissions: Mapped[list[TablePermission]] = relationship(
         "TablePermission", back_populates="table", cascade="all, delete-orphan"
     )
-    rows: Mapped[List["TableRow"]] = relationship(
+    rows: Mapped[list[TableRow]] = relationship(
         "TableRow", back_populates="table", cascade="all, delete-orphan"
     )
 
     # Для помещения в корзину
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    deleted_at: Mapped[Optional[DateTime]] = mapped_column(
+    deleted_at: Mapped[DateTime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
@@ -60,4 +62,4 @@ class TablePermission(Base):
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    table: Mapped["DataTable"] = relationship("DataTable", back_populates="permissions")
+    table: Mapped[DataTable] = relationship("DataTable", back_populates="permissions")

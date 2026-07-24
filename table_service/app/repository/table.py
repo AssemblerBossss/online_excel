@@ -1,10 +1,11 @@
-from sqlalchemy import select, delete, Sequence, update, or_
+from datetime import UTC, datetime
+
+from sqlalchemy import Sequence, delete, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
-from datetime import datetime, timezone
 
-from table_service.app.repository.base import Base
 from table_service.app.models import DataTable, TablePermission
+from table_service.app.repository.base import Base
 
 
 class TableRepository(Base):
@@ -124,7 +125,7 @@ class TableRepository(Base):
         stmt = (
             update(DataTable)
             .where(DataTable.id == table_id)
-            .values(is_deleted=True, deleted_at=datetime.now(timezone.utc))
+            .values(is_deleted=True, deleted_at=datetime.now(UTC))
         ).returning(DataTable.id)
 
         result = await self._session.execute(stmt)

@@ -1,6 +1,7 @@
 import logging
-from elasticsearch import AsyncElasticsearch
-from elasticsearch import NotFoundError, ConnectionError as ESConnectionError
+
+from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import ConnectionError as ESConnectionError
 
 from table_service.app.core.elastic import TABLE_INDEX
 

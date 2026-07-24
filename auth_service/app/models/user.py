@@ -1,8 +1,8 @@
-from sqlalchemy import String, Integer, Boolean, DateTime, Enum, ForeignKey
+import enum
+
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from typing import Optional
-import enum
 
 from .base import Base
 
@@ -30,7 +30,7 @@ class User(Base):
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    updated_at: Mapped[Optional[DateTime]] = mapped_column(
+    updated_at: Mapped[DateTime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now()
     )
 
@@ -47,10 +47,10 @@ class RefreshToken(Base):
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    expires_at: Mapped[Optional[DateTime]] = mapped_column(
+    expires_at: Mapped[DateTime | None] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
-    created_at: Mapped[Optional[DateTime]] = mapped_column(
+    created_at: Mapped[DateTime | None] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)

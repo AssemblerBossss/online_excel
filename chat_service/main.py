@@ -1,10 +1,11 @@
 import asyncio
-from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
-from chat_service.app.core.user_event_consumer import user_event_consumer
-from chat_service.app.core.realtime import redis_pubsub, dispatch_event
+from fastapi import FastAPI
+
 from chat_service.app.api.endpoints import chat_router, ws_router
+from chat_service.app.core.realtime import dispatch_event, redis_pubsub
+from chat_service.app.core.user_event_consumer import user_event_consumer
 
 
 @asynccontextmanager

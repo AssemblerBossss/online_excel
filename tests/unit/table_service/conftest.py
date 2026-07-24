@@ -1,15 +1,17 @@
-import pytest
+from contextlib import asynccontextmanager, contextmanager
 from unittest.mock import AsyncMock, MagicMock
-from contextlib import contextmanager, asynccontextmanager
-from tests.fixtures.excel_factories import (  # noqa: F401
-    valid_excel_file,
-    excel_file_with_empty_sheet,
-    excel_file_with_mixed_types,
-    excel_file_large,
-    excel_file_special_chars,
-)
+
+import pytest
+
 from table_service.app.models import DataTable
 from table_service.app.services.table import TableService
+from tests.fixtures.excel_factories import (  # noqa: F401
+    excel_file_large,
+    excel_file_special_chars,
+    excel_file_with_empty_sheet,
+    excel_file_with_mixed_types,
+    valid_excel_file,
+)
 
 
 @pytest.fixture

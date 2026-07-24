@@ -1,33 +1,34 @@
 from collections.abc import AsyncIterator
+
 from sqlalchemy import (
+    ColumnElement,
+    Numeric,
+    Sequence,
+    String,
+    asc,
+    cast,
+    delete,
+    desc,
+    func,
+    insert,
+    literal,
     select,
     update,
-    delete,
-    asc,
-    desc,
-    Sequence,
-    literal,
-    insert,
-    String,
-    cast,
-    ColumnElement,
-    func,
-    Numeric,
 )
 
 from table_service.app.models import TableRow
 from table_service.app.repository.base import Base
 from table_service.app.schemas import (
+    FilterOperator,
+    RowFilter,
     TableRowCreate,
     TableRowUpdate,
-    RowFilter,
-    FilterOperator,
 )
 
 
 class DataRepository(Base):
     # Реальные колонки таблицы (всё остальное живёт в JSON-поле row_data)
-    _REAL_COLUMNS = {"id", "created_at", "updated_at"}
+    _REAL_COLUMNS = frozenset({"id", "created_at", "updated_at"})
 
     @classmethod
     def _text_expr(cls, field: str) -> ColumnElement[str]:
@@ -281,9 +282,11 @@ class DataRepository(Base):
         Возвращает ID реально удалённых строк (может быть меньше запрошенных —
         часть могла уже не существовать).
         """
-        stmt = delete(TableRow).where(
-            TableRow.table_id == table_id, TableRow.id.in_(row_ids)
-        ).returning(TableRow.id)
+        stmt = (
+            delete(TableRow)
+            .where(TableRow.table_id == table_id, TableRow.id.in_(row_ids))
+            .returning(TableRow.id)
+        )
 
         result = await self._session.execute(stmt)
         return result.scalars().all()

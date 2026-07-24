@@ -6,7 +6,6 @@ import httpx
 import pytest
 import pytest_asyncio
 
-
 GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8080")
 USER_SYNC_TIMEOUT = 10.0
 
