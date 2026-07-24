@@ -162,6 +162,9 @@ class PermissionService:
             if not target_user:
                 raise UserNotFoundException()
 
+            if target_user.id == user_id:
+                raise PermissionAlreadyExistsException()
+
             if await uow_session.permissions.get_permissions(
                 table_id=table_id, user_id=target_user.id
             ):
