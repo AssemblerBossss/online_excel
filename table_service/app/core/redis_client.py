@@ -1,4 +1,5 @@
 from redis.asyncio import Redis
+
 from table_service.app.core.settings import app_settings
 
 _redis_client: Redis | None = None

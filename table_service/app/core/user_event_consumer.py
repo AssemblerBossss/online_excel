@@ -1,13 +1,15 @@
 from __future__ import annotations
+
 import json
 import logging
-import aio_pika
 from datetime import datetime
+from typing import TYPE_CHECKING
 
+import aio_pika
+
+from table_service.app.core import app_settings
 from table_service.app.core.database import AsyncSessionFactory
 from table_service.app.infrastructure import EventConsumerBase
-from table_service.app.core import app_settings
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from table_service.app.repository import UserRepository

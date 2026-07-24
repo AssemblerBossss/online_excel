@@ -1,7 +1,7 @@
+import json
 import logging
 import sys
-import json
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 _STANDARD_ATTRS = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
 
