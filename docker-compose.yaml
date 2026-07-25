@@ -279,6 +279,13 @@ services:
       - RABBITMQ_USER=${RABBITMQ_USER:-guest}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      # Redis
+      - CACHE_HOST=${REDIS_HOST:-redis}
+      - CACHE_PORT=${REDIS_PORT:-6379}
+      - CACHE_DB=${CACHE_DB:-0}
+      # Elasticsearch
+      - ES_HOST=${ES_HOST:-elasticsearch}
+      - ES_PORT=${ES_PORT:-9200}
       # JWT (RS256 — подпись приватным ключом, Traefik проверяет публичным)
       - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
       - JWT_PRIVATE_KEY_PATH=/run/secrets/jwt_private.pem
@@ -293,6 +300,8 @@ services:
       chat_migrate:
         condition: service_completed_successfully
       rabbitmq:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     volumes:
       - ./chat_service:/app/chat_service
@@ -410,8 +419,8 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    #    ports:
-    #      - "9200:9200"
+    ports:
+      - "9200:9200"
     healthcheck:
       test: [ "CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'" ]
       interval: 10s

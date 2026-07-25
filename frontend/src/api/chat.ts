@@ -27,6 +27,10 @@ export interface WsTicket {
     expires_in: number;
 }
 
+export interface UserSuggestion {
+    email: string;
+}
+
 /**
  * Список диалогов текущего пользователя с последним сообщением
  * и счётчиком непрочитанных по каждому собеседнику.
@@ -86,3 +90,18 @@ export const getWsTicket = async (): Promise<WsTicket> => {
     const response = await api.post("/chat/ws-ticket");
     return response.data;
 };
+
+
+/**
+ * Поиск пользователей по префиксу email для автодополнения.
+ * Backend: ES (основной) → PG (fallback).
+ */
+export const searchUsers = async (
+    query: string,
+    limit: number = 5,
+): Promise<UserSuggestion[]> => {
+    const  response = await api.get("/chat/users/search", {params: {q: query, limit}});
+
+    return response.data;
+}
+
