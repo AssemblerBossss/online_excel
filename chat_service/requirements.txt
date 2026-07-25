@@ -15,3 +15,5 @@ slowapi==0.1.9
 redis>=5.0.0
 miniopy-async==1.23.5
 prometheus-fastapi-instrumentator==7.1.0
+elastic-transport==9.2.1
+elasticsearch==9.3.0

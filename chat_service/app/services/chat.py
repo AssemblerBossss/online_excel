@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 from fastapi import BackgroundTasks
 
@@ -14,13 +15,17 @@ from chat_service.app.schemas import (
     MessageCreateRequest,
     MessageOut,
     PaginatedResponse,
+    UserSuggestion,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ChatService:
     def __init__(self, uow: UnitOfWork):
         self._uow = uow
         self.repo = uow.chat_repo
+        self.es_users = uow.es_users
 
     async def send_message(
         self,
@@ -158,3 +163,28 @@ class ChatService:
                 chat.unread_count_user2 = 0
 
         return updated_count
+
+    async def search_users(
+        self, current_user_email: str, prefix: str, limit: int = 5
+    ) -> list[UserSuggestion]:
+        prefix = (prefix or "").strip()
+        if len(prefix) < 2:
+            return []
+        limit = max(1, min(limit, 20))
+
+        try:
+            emails = await self.es_users.search_by_email_prefix(
+                prefix=prefix,
+                exclude_email=current_user_email,
+                limit=limit,
+            )
+            return [UserSuggestion(email=e) for e in emails]
+        except Exception as exc:
+            logger.exception("ES поиск не удался, fallback на PG: %s", exc)
+
+        users = await self.repo.search_by_email_prefix(
+            prefix=prefix,
+            exclude_email=current_user_email,
+            limit=limit,
+        )
+        return [UserSuggestion(email=u.email) for u in users]

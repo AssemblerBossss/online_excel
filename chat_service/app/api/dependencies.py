@@ -4,6 +4,9 @@ from typing import Annotated
 from fastapi import Depends, Header
 
 from chat_service.app.core import AsyncSessionFactory, UnitOfWork
+from chat_service.app.core.es_client import es_client
+from chat_service.app.repository import ElasticSearchUserRepository
+
 from chat_service.app.services import ChatService
 
 
@@ -14,8 +17,11 @@ async def get_current_user_email(
     return x_user_email
 
 
+_es_user_repo = ElasticSearchUserRepository(es_client)
+
+
 async def get_async_uow_session() -> AsyncGenerator[UnitOfWork]:
-    uow = UnitOfWork(AsyncSessionFactory)
+    uow = UnitOfWork(AsyncSessionFactory, es_repo=_es_user_repo)
     async with uow.start():
         yield uow
 

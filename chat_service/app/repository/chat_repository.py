@@ -103,3 +103,23 @@ class ChatRepository:
         )
         result = await self._session.execute(stmt)
         return result.rowcount
+
+    async def search_by_email_prefix(
+        self, prefix: str, exclude_email: str, limit: int = 5
+    ) -> list[ChatUser]:
+        """
+        Fallback поиск по email в локальной проекции пользователей
+        Используется, если ElasticSearch недоступен
+        """
+        stmt = (
+            select(ChatUser).where(
+            ChatUser.email.ilike(f"{prefix}%"),
+            ChatUser.email != exclude_email,
+            ChatUser.is_active == True,
+            )
+            .order_by(ChatUser.email.asc())
+            .limit(limit)
+        )
+
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())

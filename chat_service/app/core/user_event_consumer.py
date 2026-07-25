@@ -8,8 +8,10 @@ from typing import TYPE_CHECKING
 import aio_pika
 
 from chat_service.app.core.database import AsyncSessionFactory
+from chat_service.app.core.es_client import es_client
 from chat_service.app.core.settings import app_settings
 from chat_service.app.infrastructure import EventConsumerBase
+from chat_service.app.repository import ElasticSearchUserRepository
 
 if TYPE_CHECKING:
     from chat_service.app.repository import UserRepository
@@ -24,6 +26,7 @@ class UserEventConsumer:
 
     def __init__(self) -> None:
         self._base = EventConsumerBase(amqp_url=app_settings.RABBITMQ_URL)
+        self._es_repo = ElasticSearchUserRepository(es_client)
 
     async def connect(self) -> None:
         await self._base.connect(
@@ -62,11 +65,28 @@ class UserEventConsumer:
             )
             logger.info(f"Локальная копия пользователя upsert: user_id={user_id}")
 
+            try:
+                await self._es_repo.upsert(
+                    user_id=user_id,
+                    email=body["email"],
+                    first_name=body.get("first_name"),
+                    last_name=body.get("last_name"),
+                    is_active=True,
+                )
+            except Exception as exc:
+                logger.error("Не удалось записать user_id=%s в ES: %s", user_id, exc)
+
         elif event_type == "user.deleted":
             await repo.mark_deleted(user_id)
             logger.info(
                 f"Локальная копия пользователя помечена как удалённая: user_id={user_id}"
             )
+            try:
+                await self._es_repo.deactivate_user(user_id)
+            except Exception as exc:
+                logger.error(
+                    "Не удалось деактивировать user_id=%s в ES: %s", user_id, exc
+                )
 
         else:
             logger.warning(f"Неизвестный тип события для chat_service: {event_type}")
