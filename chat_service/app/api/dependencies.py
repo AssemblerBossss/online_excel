@@ -1,8 +1,11 @@
-from fastapi import Header, Depends
+from collections.abc import AsyncGenerator
+from typing import Annotated
 
-from typing import AsyncGenerator, Annotated
+from fastapi import Depends, Header
 
-from chat_service.app.core import UnitOfWork, AsyncSessionFactory
+from chat_service.app.core import AsyncSessionFactory, UnitOfWork
+from chat_service.app.core.es_client import es_client
+from chat_service.app.repository import ElasticSearchUserRepository
 from chat_service.app.services import ChatService
 
 
@@ -13,8 +16,11 @@ async def get_current_user_email(
     return x_user_email
 
 
-async def get_async_uow_session() -> AsyncGenerator[UnitOfWork, None]:
-    uow = UnitOfWork(AsyncSessionFactory)
+_es_user_repo = ElasticSearchUserRepository(es_client)
+
+
+async def get_async_uow_session() -> AsyncGenerator[UnitOfWork]:
+    uow = UnitOfWork(AsyncSessionFactory, es_repo=_es_user_repo)
     async with uow.start():
         yield uow
 

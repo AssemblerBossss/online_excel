@@ -1,8 +1,15 @@
-from .chat import MessageOut, MessageCreateRequest, DialogOut, PaginatedResponse
+from .chat import (
+    DialogOut,
+    MessageCreateRequest,
+    MessageOut,
+    PaginatedResponse,
+    UserSuggestion,
+)
 
 __all__ = [
-    "MessageOut",
-    "MessageCreateRequest",
     "DialogOut",
+    "MessageCreateRequest",
+    "MessageOut",
     "PaginatedResponse",
+    "UserSuggestion",
 ]

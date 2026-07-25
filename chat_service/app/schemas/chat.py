@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 from datetime import datetime
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 
 # Отправка сообщений (POST /chat/messages)
@@ -49,3 +50,10 @@ class PaginatedResponse(BaseModel):
     total: int
     page: int | None = None
     cursor: str | None = None
+
+
+# Подсказки по email при поиске собеседника в чате
+class UserSuggestion(BaseModel):
+    email: EmailStr
+
+    model_config = ConfigDict(from_attributes=True)
