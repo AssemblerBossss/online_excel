@@ -1,6 +1,7 @@
+from collections.abc import Callable
+
 import aio_pika
 from aio_pika import ExchangeType
-from typing import Callable
 
 from table_service.app.core.settings import app_settings
 

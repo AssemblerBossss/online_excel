@@ -1,9 +1,10 @@
 from typing import Annotated
-from fastapi import APIRouter, Query, Depends
+
+from fastapi import APIRouter, Depends, Query
 from starlette import status
 
-from table_service.app.services import SearchService
 from table_service.app.api.dependencies import get_current_user, get_search_service
+from table_service.app.services import SearchService
 
 router = APIRouter()
 

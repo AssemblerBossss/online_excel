@@ -1,8 +1,8 @@
 import secrets
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
-from datetime import datetime, timedelta, timezone
+
 from jose import jwt
 
 from auth_service.app.config import auth_service_settings
@@ -18,22 +18,22 @@ def _public_key() -> str:
     return Path(auth_service_settings.JWT_PUBLIC_KEY_PATH).read_text()
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Создает JWT Access Token"""
 
     to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(
+        expire = datetime.now(UTC) + timedelta(
             minutes=auth_service_settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
 
     to_encode.update(
         {
             "exp": expire,
-            "iat": datetime.now(timezone.utc),
+            "iat": datetime.now(UTC),
             "sub": str(data["user_id"]),
             "email": data["email"],
             "role": data["role"],

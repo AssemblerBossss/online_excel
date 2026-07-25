@@ -1,26 +1,26 @@
 import logging
+from datetime import UTC, datetime
 from typing import Literal
-from datetime import datetime, timezone
 
 from table_service.app.core.unit_of_work import UnitOfWork
-from table_service.app.schemas import (
-    TableRowResponse,
-    TableRowCreate,
-    TableRowUpdate,
-    RowFilter,
-    COMPARISON_OPERATORS,
-    PaginatedRows,
-    SRowEvent,
-)
 from table_service.app.exceptions import (
     AccessDeniedException,
-    ValidationException,
     NotFoundException,
+    ValidationException,
 )
 from table_service.app.models import TableRow
-from table_service.app.schemas import RowEventType
-from table_service.app.services.permission import PermissionService
+from table_service.app.schemas import (
+    COMPARISON_OPERATORS,
+    PaginatedRows,
+    RowEventType,
+    RowFilter,
+    SRowEvent,
+    TableRowCreate,
+    TableRowResponse,
+    TableRowUpdate,
+)
 from table_service.app.services.data_validation import DataValidationService
+from table_service.app.services.permission import PermissionService
 from table_service.app.services.row_events import RowEventPublisher
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class DataService:
                 row_id=row_id,
                 actor_id=actor_id,
                 row=row,
-                occurred_at=datetime.now(timezone.utc),
+                occurred_at=datetime.now(UTC),
             )
         )
 

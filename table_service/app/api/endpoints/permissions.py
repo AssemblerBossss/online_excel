@@ -1,22 +1,23 @@
 from typing import Annotated
+
 from fastapi import APIRouter, Depends, status
 from redis.asyncio import Redis
 
-from table_service.app.schemas import (
-    TablePermissionCreate,
-    TablePermissionResponse,
-    SCurrentUser,
-    TablePermissionUpdate,
-)
-from table_service.app.core.unit_of_work import UnitOfWork
-from table_service.app.services import PermissionService
 from table_service.app.api.cache import invalidate_tables_cache, invalidate_trash_cache
 from table_service.app.api.dependencies import (
-    get_permission_service,
-    get_current_active_user,
     get_async_uow_session,
+    get_current_active_user,
+    get_permission_service,
     get_redis,
 )
+from table_service.app.core.unit_of_work import UnitOfWork
+from table_service.app.schemas import (
+    SCurrentUser,
+    TablePermissionCreate,
+    TablePermissionResponse,
+    TablePermissionUpdate,
+)
+from table_service.app.services import PermissionService
 
 router = APIRouter()
 
@@ -106,4 +107,3 @@ async def delete_permission(
     )
     await invalidate_tables_cache(redis)
     await invalidate_trash_cache(redis)
-    return None

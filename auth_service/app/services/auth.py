@@ -1,29 +1,28 @@
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional
+from datetime import UTC, datetime, timedelta
 
 from auth_service.app.config import auth_service_settings
+from auth_service.app.events import event_publisher
 from auth_service.app.exceptions import (
-    UserAlreadyExistsException,
     IncorrectEmailOrPasswordException,
     InvalidRefreshTokenException,
+    UserAlreadyExistsException,
     UserInactiveException,
 )
-from auth_service.app.schemas import UserRegisterEvent
-from auth_service.app.сore.unit_of_work import UnitOfWork
-from auth_service.app.events import event_publisher
-from auth_service.app.models import User, RefreshToken
+from auth_service.app.models import RefreshToken, User
 from auth_service.app.schemas import (
-    SUserRegister,
     SUserAuth,
+    SUserRegister,
     Token,
+    UserRegisterEvent,
 )
 from auth_service.app.utils import (
-    get_password_hash,
     create_access_token,
     create_refresh_token,
+    get_password_hash,
     verify_password,
 )
+from auth_service.app.сore.unit_of_work import UnitOfWork
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +42,7 @@ class AuthService:
     def _create_refresh_token_data(self) -> tuple[str, datetime]:
         """Создать пару (refresh_token, expires_at)."""
         refresh_token = create_refresh_token()
-        expires = datetime.now(timezone.utc) + timedelta(
+        expires = datetime.now(UTC) + timedelta(
             days=auth_service_settings.REFRESH_TOKEN_EXPIRE_DAYS
         )
         return refresh_token, expires
@@ -79,18 +78,18 @@ class AuthService:
             user_id=user.id,
             email=user.email,
             role=str(user.role),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await self.event_publisher.publish(event)
-        logger.info("Событие user.registered опубликовано для {}".format(user.email))
+        logger.info(f"Событие user.registered опубликовано для {user.email}")
         return user
 
     async def login_user(
         self,
         user_data: SUserAuth,
         uow_session: UnitOfWork,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
     ) -> Token:
         """Аутентифицирует пользователя и возвращает токены."""
         async with uow_session.start():
@@ -122,8 +121,8 @@ class AuthService:
         self,
         refresh_token: str,
         uow_session: UnitOfWork,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
     ) -> Token:
         """хранит локальную таблицу пользователей
         Обновление токенов по refresh token
@@ -147,7 +146,7 @@ class AuthService:
             if (
                 not token_record
                 or token_record.revoked
-                or token_record.expires_at < datetime.now(timezone.utc)
+                or token_record.expires_at < datetime.now(UTC)
             ):
                 raise InvalidRefreshTokenException()
 
@@ -178,7 +177,7 @@ class AuthService:
 
     async def logout(
         self, refresh_token: str, uow_session: UnitOfWork
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         async with uow_session.start():
             await uow_session.token.update(
                 filters={"refresh_token": refresh_token}, values={"revoked": True}
@@ -189,7 +188,7 @@ class AuthService:
 
     async def logout_all_devices(
         self, user_id: int, uow_session: UnitOfWork
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
 
         async with uow_session.start():
             count = await uow_session.token.revoke_all_user_tokens(user_id=user_id)

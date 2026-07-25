@@ -1,12 +1,13 @@
 from contextlib import asynccontextmanager
-from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
 from table_service.app.repository import (
-    TableRepository,
     DataRepository,
     PermissionRepository,
-    UserRepository,
     TablePinRepository,
+    TableRepository,
+    UserRepository,
 )
 
 
@@ -30,9 +31,9 @@ class UnitOfWork:
         try:
             yield self
             await self._session.commit()
-        except Exception as e:
+        except Exception:
             await self._session.rollback()
-            raise e
+            raise
         finally:
             await self._session.close()
             self._session = None

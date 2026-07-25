@@ -1,29 +1,31 @@
 import logging
 
-from fastapi import UploadFile
 import pandas as pd
+from elasticsearch import ConnectionError as ESConnectionError
+from elasticsearch import NotFoundError
+from fastapi import UploadFile
 from pydantic import ValidationError
 
 from table_service.app.core.unit_of_work import UnitOfWork
-from table_service.app.schemas import (
-    DataTableResponse,
-    DataTableCreate,
-    DataTableUpdate,
-)
-from table_service.app.models import DataTable
-from table_service.app.services.excel_processor import ExcelProcessorService
-from table_service.app.services.search import SearchService
-from table_service.app.services.permission import PermissionService
 from table_service.app.exceptions import (
-    NotFoundException,
     CanNotCreateTableException,
-    InvalidFileFormatException,
-    InvalidFileMimeTypeException,
-    EmptyFileException,
-    FileParseException,
     CanNotDeleteTableException,
     CanNotUpdateTableException,
+    EmptyFileException,
+    FileParseException,
+    InvalidFileFormatException,
+    InvalidFileMimeTypeException,
+    NotFoundException,
 )
+from table_service.app.models import DataTable
+from table_service.app.schemas import (
+    DataTableCreate,
+    DataTableResponse,
+    DataTableUpdate,
+)
+from table_service.app.services.excel_processor import ExcelProcessorService
+from table_service.app.services.permission import PermissionService
+from table_service.app.services.search import SearchService
 
 logger = logging.getLogger(__name__)
 
@@ -360,12 +362,19 @@ class TableService:
             if self.search_service:
                 try:
                     await self.search_service.delete_from_index(table_id=table_id)
-                except Exception:
+                except NotFoundError:
+                    logger.debug("Table %s not found in search index", table_id)
+                except ESConnectionError as e:
                     logger.warning(
-                        "Failed to delete table %s from search index, "
-                        "data may be orphaned until next sync",
+                        "Failed to delete table %s from search index: connection error: %s",
                         table_id,
+                        e,
                     )
+                except Exception:
+                    logger.exception(
+                        "Unexpected error deleting table %s from search index", table_id
+                    )
+                    raise
 
             logger.info(
                 "User %s deleted table %s (name: %s)", user_id, table_id, table.name
@@ -389,12 +398,19 @@ class TableService:
             if self.search_service:
                 try:
                     await self.search_service.delete_from_index(table_id=table_id)
-                except Exception:
+                except NotFoundError:
+                    logger.debug("Table %s not found in search index", table_id)
+                except ESConnectionError as e:
                     logger.warning(
-                        "Failed to delete table %s from search index, "
-                        "data may be orphaned until next sync",
+                        "Failed to delete table %s from search index: connection error: %s",
                         table_id,
+                        e,
                     )
+                except Exception:
+                    logger.exception(
+                        "Unexpected error deleting table %s from search index", table_id
+                    )
+                    raise
 
                 logger.info(
                     "User %s deleted table %s (name: %s)", user_id, table_id, table.name

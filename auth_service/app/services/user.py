@@ -1,20 +1,20 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from auth_service.app.config import auth_service_settings
 from auth_service.app.events import event_publisher
 from auth_service.app.exceptions import (
-    ForbiddenException,
     FileTooLargeException,
+    ForbiddenException,
+    IncorrectPasswordException,
     UserAlreadyExistsException,
     UserNotFoundException,
-    IncorrectPasswordException,
 )
 from auth_service.app.schemas import (
-    SUserInfo,
-    UserRole,
-    SUserProfileUpdate,
-    UserUpdateEvent,
     SUserChangePassword,
+    SUserInfo,
+    SUserProfileUpdate,
+    UserRole,
+    UserUpdateEvent,
 )
 from auth_service.app.utils import avatar_storage, get_password_hash, verify_password
 from auth_service.app.сore import UnitOfWork
@@ -84,7 +84,7 @@ class UserService:
                 user_id=user_id,
                 email=user.email,
                 role=str(user.role),
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
         )
         return SUserInfo.model_validate(user)
@@ -146,7 +146,7 @@ class UserService:
                     user_id=user.id,
                     email=user.email,
                     role=str(user.role),
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                 )
             )
         return SUserInfo.model_validate(user)

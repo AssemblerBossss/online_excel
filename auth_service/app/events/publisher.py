@@ -1,8 +1,8 @@
 import os
-import aio_pika
-from aio_pika import Message, DeliveryMode, ExchangeType
-from pydantic import BaseModel
 
+import aio_pika
+from aio_pika import DeliveryMode, ExchangeType, Message
+from pydantic import BaseModel
 
 RABBITMQ_URL = os.getenv("RABBITMQ_URL")
 

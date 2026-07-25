@@ -1,4 +1,4 @@
-from typing_extensions import deprecated
+from warnings import deprecated
 
 from table_service.app.infrastructure import RpcClient
 

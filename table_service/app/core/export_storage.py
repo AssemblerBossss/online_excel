@@ -2,6 +2,7 @@ import json
 from datetime import timedelta
 from io import BytesIO
 from urllib.parse import quote
+
 from miniopy_async import Minio
 
 from table_service.app.core.settings import app_settings

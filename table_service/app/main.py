@@ -1,52 +1,53 @@
 import asyncio
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager, suppress
-from typing import AsyncGenerator
-from fastapi import FastAPI, APIRouter, Request
-from fastapi.responses import JSONResponse
+
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
-from redis.asyncio import Redis
 from prometheus_fastapi_instrumentator import Instrumentator
+from redis.asyncio import Redis
 
 from table_service.app.api.endpoints import (
     data_router,
-    tables_router,
-    search_router,
-    permissions_router,
     health_router,
+    permissions_router,
+    search_router,
+    tables_router,
     trash_router,
     ws_router,
 )
 from table_service.app.core import (
     app_settings,
-    user_event_consumer,
-    setup_service_logging,
-    close_redis_client,
     close_es_client,
-    init_es_index,
-    get_redis_client,
+    close_redis_client,
     export_storage,
+    get_redis_client,
+    init_es_index,
+    setup_service_logging,
+    user_event_consumer,
 )
 from table_service.app.core.ws_manager import table_ws_manager
 from table_service.app.exceptions import (
     AccessDeniedException,
-    ValidationException,
-    NotFoundException,
+    AppException,
+    CanNotCreatePermissionException,
     CanNotCreateTableException,
+    CanNotUpdateTableException,
+    EmptyFileException,
+    ExportJobNotFoundException,
+    FileParseException,
     ForbiddenException,
     InvalidFileFormatException,
     InvalidFileMimeTypeException,
-    EmptyFileException,
-    FileParseException,
-    AppException,
-    CanNotUpdateTableException,
-    PermissionAlreadyExistsException,
-    CanNotCreatePermissionException,
     InvalidWSTicketException,
-    ExportJobNotFoundException,
+    NotFoundException,
+    PermissionAlreadyExistsException,
     UserNotFoundException,
+    ValidationException,
 )
 
 setup_service_logging()
@@ -133,7 +134,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[dict]:
     """Управление жизненным циклом приложения."""
     await init_es_index()
 

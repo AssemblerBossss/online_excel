@@ -6,6 +6,7 @@ from fastapi import Depends, Header
 from chat_service.app.core import AsyncSessionFactory, UnitOfWork
 from chat_service.app.core.es_client import es_client
 from chat_service.app.repository import ElasticSearchUserRepository
+
 from chat_service.app.services import ChatService
 
 

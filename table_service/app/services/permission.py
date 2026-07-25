@@ -1,17 +1,17 @@
 import logging
 
+from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.exceptions import (
-    NotFoundException,
     AccessDeniedException,
-    PermissionAlreadyExistsException,
     CanNotCreatePermissionException,
+    NotFoundException,
+    PermissionAlreadyExistsException,
     UserNotFoundException,
 )
 from table_service.app.models import DataTable, TablePermission
-from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.schemas import (
-    TablePermissionResponse,
     TablePermissionCreate,
+    TablePermissionResponse,
     TablePermissionUpdate,
 )
 
@@ -90,9 +90,7 @@ class PermissionService:
         perm: TablePermission | None = await uow_session.permissions.get_permissions(
             table_id=table.id, user_id=user_id
         )
-        if perm and (perm.can_read or perm.can_write or perm.can_manage):
-            return True
-        return False
+        return bool(perm and (perm.can_read or perm.can_write or perm.can_manage))
 
     async def check_write_access(
         self, uow_session: UnitOfWork, table: DataTable, user_id: int, user_role: str
@@ -105,9 +103,7 @@ class PermissionService:
         perm: TablePermission | None = await uow_session.permissions.get_permissions(
             table_id=table.id, user_id=user_id
         )
-        if perm and (perm.can_write or perm.can_manage):
-            return True
-        return False
+        return bool(perm and (perm.can_write or perm.can_manage))
 
     async def check_manage_access(
         self, uow_session: UnitOfWork, table: DataTable, user_id: int, user_role: str
@@ -120,9 +116,7 @@ class PermissionService:
         perm: TablePermission | None = await uow_session.permissions.get_permissions(
             table_id=table.id, user_id=user_id
         )
-        if perm and perm.can_manage:
-            return True
-        return False
+        return bool(perm and perm.can_manage)
 
     async def get_permissions(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
@@ -161,6 +155,9 @@ class PermissionService:
             target_user = await uow_session.users.get_by_email(data.email)
             if not target_user:
                 raise UserNotFoundException()
+
+            if target_user.id == user_id:
+                raise PermissionAlreadyExistsException()
 
             if await uow_session.permissions.get_permissions(
                 table_id=table_id, user_id=target_user.id

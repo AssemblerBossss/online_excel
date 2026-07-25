@@ -1,7 +1,8 @@
-from enum import Enum
-from pydantic import BaseModel, field_validator, ConfigDict, Field
-from typing import Any
 from datetime import datetime
+from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TableRowBase(BaseModel):
@@ -48,7 +49,6 @@ class TableRowInDB(TableRowBase):
 class TableRowResponse(TableRowInDB):
     """Схема ответа для получения данных строки таблицы"""
 
-    pass
 
 
 class FilterOperator(str, Enum):

@@ -1,6 +1,7 @@
-from pydantic import BaseModel
-from typing import Any
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel
 
 
 class DataTableBase(BaseModel):
@@ -14,7 +15,6 @@ class DataTableBase(BaseModel):
 class DataTableUpdate(DataTableBase):
     """Схема для обновления таблицы"""
 
-    pass
 
 
 class DataTableCreate(DataTableBase):

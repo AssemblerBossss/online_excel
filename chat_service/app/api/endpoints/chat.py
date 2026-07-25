@@ -7,6 +7,7 @@ from chat_service.app.schemas import DialogOut, MessageCreateRequest, MessageOut
 from chat_service.app.schemas.chat import PaginatedResponse, UserSuggestion
 from chat_service.app.services import ChatService
 
+
 router = APIRouter()
 
 

@@ -1,4 +1,5 @@
 from elasticsearch import AsyncElasticsearch
+
 from table_service.app.core.settings import app_settings
 
 _es_client: AsyncElasticsearch | None = None

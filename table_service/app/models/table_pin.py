@@ -1,6 +1,5 @@
-from sqlalchemy import Integer, DateTime, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import func
 
 from table_service.app.core import Base
 
