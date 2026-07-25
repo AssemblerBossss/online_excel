@@ -25,6 +25,7 @@ class UserEventConsumer:
     def __init__(self) -> None:
         self._base = EventConsumerBase(amqp_url=app_settings.RABBITMQ_URL)
 
+
     async def connect(self) -> None:
         await self._base.connect(
             exchange_name=self.EXCHANGE_NAME,

@@ -10,9 +10,10 @@ PostgreSQL остаётся единственным источником ист
 
 import logging
 
-from elasticsearch import AsyncElasticsearch, NotFoundError, ConnectionError as ESConnectionError
-from chat_service.app.core.settings import app_settings
+from elasticsearch import AsyncElasticsearch
+from elasticsearch import ConnectionError as ESConnectionError
 
+from chat_service.app.core.settings import app_settings
 
 logger = logging.getLogger(__name__)
 
@@ -59,17 +60,20 @@ class ElasticsearchClient:
 
     def __init__(self) -> None:
         self._client: AsyncElasticsearch | None = None
-        self._index_name: str = app_settings.ES_INDEX_NAME
+        self._index_name: str = app_settings.ES_INDEX_USERS
 
     @property
     def client(self) -> AsyncElasticsearch:
         # Ленивая инициализация: клиент создаётся при первом обращении
         if self._client is None:
             self._client = AsyncElasticsearch(
-                hosts=[app_settings.ES_HOST],
+                hosts=[app_settings.ES_URL],
+                basic_auth=(app_settings.ES_USER, app_settings.ES_PASSWORD)
+                if app_settings.ES_USER
+                else None,
                 request_timeout=5.0,
                 retry_on_timeout=True,
-                max_retries=5
+                max_retries=5,
             )
         return self._client
 
@@ -80,7 +84,7 @@ class ElasticsearchClient:
     async def is_available(self) -> bool:
         """Проверяет доступность ES без выбрасывания исключений."""
         try:
-            exists = await self.client.ping()
+            return await self.client.ping()
         except ESConnectionError:
             return False
         except Exception as exc:
@@ -90,11 +94,12 @@ class ElasticsearchClient:
     async def ensure_index(self) -> None:
         """Создает индекс с нужным маппингом, если его нет"""
         try:
-            exists = await self.client.indices.exists(self.index_name)
+            exists = await self.client.indices.exists(index=self.index_name)
             if not exists:
                 await self.client.indices.create(
                     index=self._index_name,
-                    body=USERS_INDEX_MAPPING
+                    settings=USERS_INDEX_MAPPING["settings"],
+                    mappings=USERS_INDEX_MAPPING["mappings"],
                 )
                 logger.info("Создан ES-индекс '%s'", self._index_name)
             else:
@@ -109,13 +114,9 @@ class ElasticsearchClient:
             logger.exception("Ошибка при инициализации ES-индекса: %s", exc)
 
     async def close(self) -> None:
-        if self.client is not None:
-            await self.client.close()
+        if self._client is not None:
+            await self._client.close()
             self._client = None
 
+
 es_client = ElasticsearchClient()
-
-
-
-
-
