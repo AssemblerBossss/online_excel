@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     RABBITMQ_USER: str = "guest"
     RABBITMQ_PASSWORD: str = "guest"
 
+    ES_HOST: str = "elasticsearch"
+    ES_PORT: int = 9200
+    ES_USER: str | None = None
+    ES_PASSWORD: str | None = None
+    ES_INDEX_USERS: str = "chat_users"
+
     @cached_property
     def DATABASE_URL(self) -> str:
         return f"{self.DB_DRIVER}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
@@ -50,6 +56,10 @@ class Settings(BaseSettings):
     @cached_property
     def REDIS_URL(self) -> str:
         return f"redis://{self.CACHE_HOST}:{self.CACHE_PORT}/{self.CACHE_DB}"
+
+    @cached_property
+    def ES_URL(self) -> str:
+        return f"http://{self.ES_HOST}:{self.ES_PORT}"
 
     model_config = SettingsConfigDict(
         env_file=[".env.development", "local.env"],
