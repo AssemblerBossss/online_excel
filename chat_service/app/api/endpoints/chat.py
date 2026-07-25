@@ -1,12 +1,11 @@
-from fastapi import APIRouter, Depends, status, Query, BackgroundTasks
-
 from typing import Annotated
 
-from chat_service.app.schemas import DialogOut, MessageOut, MessageCreateRequest
-from chat_service.app.api.dependencies import get_current_user_email, get_chat_service
-from chat_service.app.schemas.chat import PaginatedResponse
-from chat_service.app.services import ChatService
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 
+from chat_service.app.api.dependencies import get_chat_service, get_current_user_email
+from chat_service.app.schemas import DialogOut, MessageCreateRequest, MessageOut
+from chat_service.app.schemas.chat import PaginatedResponse, UserSuggestion
+from chat_service.app.services import ChatService
 
 router = APIRouter()
 
@@ -20,6 +19,30 @@ async def get_dialogs(
 ) -> list[DialogOut]:
     """Возвращает все диалоги текущего пользователя с последним сообщением и счетчиком непрочитанных."""
     return await chat_service.get_dialogs(user_email)
+
+
+@router.get(
+    "/users/search",
+    response_model=list[UserSuggestion],
+    summary="Поиск пользователю при поиске email (автодополнение)",
+)
+async def search_users(
+    chat_service: Annotated[ChatService, Depends(get_chat_service)],
+    q: str = Query(..., min_length=1, max_length=200, description="Префикс email"),
+    limit: int = Query(5, ge=1, le=20),
+    user_email: str = Depends(get_current_user_email),
+) -> list[UserSuggestion]:
+    """
+    Поиск пользователей по началу email (автодополнение).
+
+    - Использует Elasticsearch для быстрого поиска
+    - При недоступности ES — fallback на PostgreSQL
+    - Возвращает только активных пользователей
+    - Исключает email текущего пользователя
+    """
+    return await chat_service.search_users(
+        current_user_email=user_email, prefix=q, limit=limit
+    )
 
 
 @router.post(
