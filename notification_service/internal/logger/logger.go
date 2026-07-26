@@ -5,6 +5,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// New creates a configured zap.Logger with JSON encoding and ISO8601 timestamps.
+// Level can be: debug, info, warn, error. Defaults to info on invalid input.
 func New(level string) (*zap.Logger, error) {
 	var lvl zapcore.Level
 

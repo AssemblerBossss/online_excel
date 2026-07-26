@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Load reads and parses the config file at path into a Config struct.
+// Supports environment variables with NOTIFICATION_ prefix.
 func Load(path string) (*Config, error) {
 	v := viper.New()
 	v.SetConfigFile(path)
@@ -24,6 +26,7 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
+// DSN returns a PostgreSQL connection string.
 func (c PostgresConfig) DSN() string {
 
 	return fmt.Sprintf(
