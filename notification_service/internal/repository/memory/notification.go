@@ -8,7 +8,7 @@ import (
 )
 
 type NotificationRepository struct {
-	mu   sync.Mutex
+	mu   sync.RWMutex
 	data map[string]*domain.Notification
 }
 
@@ -26,8 +26,8 @@ func (r *NotificationRepository) Create(ctx context.Context, notification *domai
 }
 
 func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*domain.Notification, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	notification, ok := r.data[id]
 	if !ok {
@@ -37,8 +37,8 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*domai
 }
 
 func (r *NotificationRepository) List(ctx context.Context) ([]*domain.Notification, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	result := make([]*domain.Notification, 0, len(r.data))
 
