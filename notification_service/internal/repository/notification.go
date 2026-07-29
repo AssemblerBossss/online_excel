@@ -1,9 +1,13 @@
 package repository
 
-import "context"
+import (
+	"context"
+
+	"notification_service/internal/domain"
+)
 
 type NotificationRepository interface {
-	Create(ctx context.Context, notification *NotificationStub) error
-	GetByID(ctx context.Context, id string) (*NotificationStub, error)
-	List(ctx context.Context) []*NotificationStub
+	Create(ctx context.Context, notification *domain.Notification) error
+	GetByID(ctx context.Context, id string) (*domain.Notification, error)
+	List(ctx context.Context) ([]*domain.Notification, error)
 }
