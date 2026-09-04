@@ -12,8 +12,8 @@ type Config struct {
 
 type ServerConfig struct {
 	Host            string        `yaml:"host" env:"SERVER_HOST" env-default:"localhost"`
-	Port            int           `yaml:"port" env:"SERVER_PORT", env-default:"8080"`
-	ShutdownTimeout time.Duration `yaml:"shutdown_timeout" env:SERVER_SHUTDOWN_TIMEOUT" env-default:"10s""`
+	Port            int           `yaml:"port" env:"SERVER_PORT" env-default:"8080"`
+	ShutdownTimeout time.Duration `yaml:"shutdown_timeout" env:"SERVER_SHUTDOWN_TIMEOUT" env-default:"10s"`
 }
 
 type LoggerConfig struct {

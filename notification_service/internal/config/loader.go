@@ -24,7 +24,7 @@ func Load(path string) (Config, error) {
 	}
 
 	if cfg.Postgres.MinConnections > cfg.Postgres.MaxConnections {
-		return Config{}, fmt.Errorf("postgres max connections must be greater than or equal to max connections")
+		return Config{}, fmt.Errorf("postgres max connections must be greater than or equal to min connections")
 	}
 	return cfg, nil
 }
