@@ -1,6 +1,9 @@
 package config
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type Config struct {
 	Server ServerConfig `yaml:"server"`
@@ -40,4 +43,8 @@ type RabbitMQConfig struct {
 	Exchange   string `yaml:"exchange" env-default:"user.events"`
 	Queue      string `yaml:"queue" env-default:"notification.events"`
 	RoutingKey string `yaml:"routing_key" env-default:"user.*"`
+}
+
+func (s ServerConfig) Address() string {
+	return fmt.Sprintf("%s:%d", s.Host, s.Port)
 }
