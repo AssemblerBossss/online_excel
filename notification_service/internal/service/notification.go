@@ -2,13 +2,21 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"notification_service/internal/domain"
 	"notification_service/internal/repository"
-	"notification_service/internal/transport/http"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type CreateNotificationInput struct {
+	UserID    string
+	Channel   domain.NotificationChannel
+	Recipient string
+	Subject   string
+	Body      string
+}
 
 type NotificationService struct {
 	repository repository.NotificationRepository
@@ -21,7 +29,7 @@ func NewNotificationService(repository repository.NotificationRepository) *Notif
 }
 func (s *NotificationService) Create(
 	ctx context.Context,
-	req http.CreateNotificationRequest,
+	req CreateNotificationInput,
 ) (*domain.Notification, error) {
 	now := time.Now()
 
@@ -43,13 +51,21 @@ func (s *NotificationService) Create(
 	return notification, nil
 }
 
-func (s *NotificationService) Get(
+func (s *NotificationService) GetByID(
 	ctx context.Context,
 	id string,
 ) (*domain.Notification, error) {
-	return s.repository.GetByID(ctx, id)
+	notification, err := s.repository.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get notification: %w", err)
+	}
+	return notification, nil
 }
 
 func (s *NotificationService) List(ctx context.Context) ([]*domain.Notification, error) {
-	return s.repository.List(ctx)
+	notifications, err := s.repository.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get notification: %w", err)
+	}
+	return notifications, nil
 }
