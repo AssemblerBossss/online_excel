@@ -3,27 +3,30 @@ package config
 import (
 	"fmt"
 
-	"github.com/spf13/viper"
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
 // Load reads and parses the config file at path into a Config struct.
 // Supports environment variables with NOTIFICATION_ prefix.
-func Load(path string) (*Config, error) {
-	v := viper.New()
-	v.SetConfigFile(path)
-	v.SetEnvPrefix("NOTIFICATION")
-	v.AutomaticEnv()
-
-	if err := v.ReadInConfig(); err != nil {
-		return nil, err
-	}
-
+func Load(path string) (Config, error) {
 	var cfg Config
 
-	if err := v.Unmarshal(&cfg); err != nil {
-		return nil, err
+	if err := cleanenv.ReadConfig(path, &cfg); err != nil {
+		return Config{}, fmt.Errorf("read config: %w", err)
 	}
-	return &cfg, nil
+
+	if cfg.Postgres.MaxConnections < 1 {
+		return Config{}, fmt.Errorf("postgres max connections must be greater than zero")
+	}
+
+	if cfg.Postgres.MinConnections < 1 {
+		return Config{}, fmt.Errorf("postgres min connections must be greater than zero")
+	}
+
+	if cfg.Postgres.MinConnections > cfg.Postgres.MaxConnections {
+		return Config{}, fmt.Errorf("postgres max connections must be greater than or equal to max connections")
+	}
+	return cfg, nil
 }
 
 // DSN returns a PostgreSQL connection string.
