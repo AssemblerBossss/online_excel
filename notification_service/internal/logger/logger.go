@@ -1,28 +1,17 @@
 package logger
 
 import (
+	"fmt"
+	"strings"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 // New creates a configured zap.Logger with JSON encoding and ISO8601 timestamps.
 // Level can be: debug, info, warn, error. Defaults to info on invalid input.
-func New(level string) (*zap.Logger, error) {
+func New(level string, development bool) (*zap.Logger, error) {
 	var lvl zapcore.Level
-
-	switch level {
-	case "debug":
-		lvl = zap.DebugLevel
-	case "info":
-		lvl = zap.InfoLevel
-	case "warn":
-		lvl = zap.WarnLevel
-	case "error":
-		lvl = zap.ErrorLevel
-
-	default:
-		lvl = zap.InfoLevel
-	}
 
 	cfg := zap.NewProductionConfig()
 	cfg.Level = zap.NewAtomicLevelAt(lvl)
@@ -32,4 +21,19 @@ func New(level string) (*zap.Logger, error) {
 
 	return cfg.Build()
 
+}
+func parseLevel(level string) (zapcore.Level, error) {
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "debug":
+		return zap.DebugLevel, nil
+	case "info":
+		return zap.InfoLevel, nil
+	case "warn", "warning":
+		return zap.WarnLevel, nil
+	case "error":
+		return zap.ErrorLevel, nil
+
+	default:
+		return zap.InfoLevel, fmt.Errorf("unknown log level %q", level)
+	}
 }
