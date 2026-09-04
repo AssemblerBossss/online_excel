@@ -48,6 +48,20 @@ func (h *Handler) CreateNotification(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, toNotificationResponse(notification))
 }
 
+func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
+	notifications, err := h.service.List(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to list notifications"})
+		return
+	}
+
+	items := make([]*NotificationResponse, 0, len(notifications))
+	for _, notification := range notifications {
+		items = append(items, toNotificationResponse(notification))
+	}
+	writeJSON(w, http.StatusOK, ListNotificationsResponse{Items: items})
+
+}
 func validateCreateNotificationRequest(req CreateNotificationRequest) error {
 	if req.UserID == "" {
 		return errors.New("missing user ID")
