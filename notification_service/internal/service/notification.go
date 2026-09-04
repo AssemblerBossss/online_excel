@@ -4,6 +4,7 @@ import (
 	"context"
 	"notification_service/internal/domain"
 	"notification_service/internal/repository"
+	"notification_service/internal/transport/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,7 +21,7 @@ func NewNotificationService(repository repository.NotificationRepository) *Notif
 }
 func (s *NotificationService) Create(
 	ctx context.Context,
-	req CreateNotificationRequest,
+	req http.CreateNotificationRequest,
 ) (*domain.Notification, error) {
 	now := time.Now()
 
@@ -39,5 +40,16 @@ func (s *NotificationService) Create(
 	if err := s.repository.Create(ctx, notification); err != nil {
 		return nil, err
 	}
-	return notification, nill
+	return notification, nil
+}
+
+func (s *NotificationService) Get(
+	ctx context.Context,
+	id string,
+) (*domain.Notification, error) {
+	return s.repository.GetByID(ctx, id)
+}
+
+func (s *NotificationService) List(ctx context.Context) ([]*domain.Notification, error) {
+	return s.repository.List(ctx)
 }
