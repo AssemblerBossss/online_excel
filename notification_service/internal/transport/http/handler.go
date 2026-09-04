@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"notification_service/internal/domain"
 
@@ -45,6 +46,39 @@ func (h *Handler) CreateNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, toNotificationResponse(notification))
+}
+
+func validateCreateNotificationRequest(req CreateNotificationRequest) error {
+	if req.UserID == "" {
+		return errors.New("missing user ID")
+	}
+	if req.Recipient == "" {
+		return errors.New("recipient is required")
+	}
+	if req.Subject == "" {
+		return errors.New("subject is required")
+	}
+	if req.Body == "" {
+		return errors.New("body is required")
+	}
+	if req.Channel != string(domain.ChannelEmail) &&
+		req.Channel != string(domain.ChannelPush) {
+		return errors.New("invalid channel")
+	}
+	return nil
+}
+
+func toNotificationResponse(notification *domain.Notification) *NotificationResponse {
+	return &NotificationResponse{
+		ID:        notification.ID,
+		UserID:    notification.UserID,
+		Channel:   string(notification.Channel),
+		Recipient: notification.Recipient,
+		Subject:   notification.Subject,
+		Body:      notification.Body,
+		CreatedAt: notification.CreatedAt,
+		SentAt:    notification.SentAt,
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, data any) {
