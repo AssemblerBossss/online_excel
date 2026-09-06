@@ -26,6 +26,7 @@ func (h *Handler) CreateNotification(w http.ResponseWriter, r *http.Request) {
 
 	if err := validateCreateNotificationRequest(req); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
 	}
 
 	notification, err := h.service.Create(

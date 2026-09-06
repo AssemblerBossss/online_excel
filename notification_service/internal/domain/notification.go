@@ -14,8 +14,8 @@ const (
 type NotificationChannel string
 
 const (
-	ChannelEmail NotificationChannel = "EMAIL"
-	ChannelPush  NotificationChannel = "PUSH"
+	ChannelEmail NotificationChannel = "email"
+	ChannelPush  NotificationChannel = "push"
 )
 
 type Notification struct {
