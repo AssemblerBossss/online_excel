@@ -76,7 +76,6 @@ func (h *Handler) GetNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, toNotificationResponse(notification))
-	return
 }
 
 func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
@@ -93,8 +92,8 @@ func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 		items = append(items, toNotificationResponse(notification))
 	}
 	writeJSON(w, http.StatusOK, ListNotificationsResponse{Items: items})
-
 }
+
 func validateCreateNotificationRequest(req CreateNotificationRequest) error {
 	if req.UserID == "" {
 		return errors.New("missing user ID")

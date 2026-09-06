@@ -1,14 +1,18 @@
 -- +goose Up
 
 CREATE TABLE notifications (
-    id          UUID PRIMARY KEY DEFAULT uuidv7(),
-    user_id     BIGINT NOT NULL,
-    type        TEXT NOT NULL,
-    title       TEXT NOT NULL,
-    message     TEXT NOT NULL,
-    is_read     BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at  TIMESTAMPZ NOT NULL DEFAULT now(),
-    read_at     TIMESTAMPZ
+    id         UUID        PRIMARY KEY DEFAULT uuidv7(),
+    user_id    BIGINT      NOT NULL,
+    channel    TEXT        NOT NULL,
+    status     TEXT        NOT NULL,
+    recipient  TEXT        NOT NULL,
+    subject    TEXT        NOT NULL,
+    body       TEXT        NOT NULL,
+    body       TEXT        NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    sent_at    TIMESTAMPTZ,
+    error      TEXT
 )
 
 CREATE INDEX idx_notifications_user
@@ -16,7 +20,3 @@ CREATE INDEX idx_notifications_user
 
 CREATE INDEX idx_notifications_created
     ON notifications(created_at DESC);
-
--- +goose Down
-
-DROP TABLE notifications;

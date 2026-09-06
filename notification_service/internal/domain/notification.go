@@ -10,10 +10,10 @@ var ErrNotificationNotFound = errors.New("notification not found")
 type NotificationStatus string
 
 const (
-	StatusPending    NotificationStatus = "PENDING"
-	StatusProcessing NotificationStatus = "PROCESSING"
-	StatusSent       NotificationStatus = "SENT"
-	StatusFailed     NotificationStatus = "FAILED"
+	StatusPending    NotificationStatus = "pending"
+	StatusProcessing NotificationStatus = "processing"
+	StatusSent       NotificationStatus = "sent"
+	StatusFailed     NotificationStatus = "failed"
 )
 
 type NotificationChannel string
