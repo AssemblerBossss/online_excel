@@ -7,6 +7,8 @@ import (
 	"notification_service/internal/domain"
 
 	"notification_service/internal/service"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
@@ -16,6 +18,7 @@ type Handler struct {
 func NewHandler(service *service.NotificationService) *Handler {
 	return &Handler{service: service}
 }
+
 func (h *Handler) CreateNotification(w http.ResponseWriter, r *http.Request) {
 	var req CreateNotificationRequest
 
@@ -49,10 +52,39 @@ func (h *Handler) CreateNotification(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, toNotificationResponse(notification))
 }
 
+func (h *Handler) GetNotification(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{
+			Error: "invalid request body",
+		})
+		return
+	}
+
+	notification, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotificationNotFound) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{
+				Error: "notification not found",
+			})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
+			Error: "failed to get notification",
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, toNotificationResponse(notification))
+	return
+}
+
 func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 	notifications, err := h.service.List(r.Context())
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to list notifications"})
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
+			Error: "failed to list notifications",
+		})
 		return
 	}
 

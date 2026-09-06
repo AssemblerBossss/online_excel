@@ -1,6 +1,11 @@
 package domain
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+var ErrNotificationNotFound = errors.New("notification not found")
 
 type NotificationStatus string
 
