@@ -35,5 +35,5 @@ type Notification struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	SentAt    *time.Time
-	Error     *error
+	Error     *string
 }

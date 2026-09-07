@@ -53,12 +53,6 @@ func (r *NotificationRepository) Create(ctx context.Context, notification *domai
 			$11
 		)
 		`
-	var errorMessage *string
-
-	if notification.Error != nil {
-		errorMessage = new((*notification.Error).Error())
-	}
-
 	_, err := r.db.Exec(ctx,
 		query,
 		notification.ID,
@@ -71,7 +65,7 @@ func (r *NotificationRepository) Create(ctx context.Context, notification *domai
 		notification.CreatedAt,
 		notification.UpdatedAt,
 		notification.SentAt,
-		errorMessage,
+		notification.Error,
 	)
 
 	if err != nil {
@@ -99,7 +93,6 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*domai
 	`
 
 	var notification domain.Notification
-	var errorMessage *string
 
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&notification.ID,
@@ -112,7 +105,7 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*domai
 		&notification.CreatedAt,
 		&notification.UpdatedAt,
 		&notification.SentAt,
-		&errorMessage)
+		&notification.Error)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -120,12 +113,6 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*domai
 		}
 		return nil, fmt.Errorf("get notification: %w", err)
 	}
-
-	if errorMessage != nil {
-		err := errors.New(*errorMessage)
-		notification.Error = &err
-	}
-
 	return &notification, nil
 }
 
@@ -157,7 +144,6 @@ func (r *NotificationRepository) List(ctx context.Context) ([]*domain.Notificati
 
 	for rows.Next() {
 		var notification domain.Notification
-		var errorMessage *string
 
 		if err := rows.Scan(
 			&notification.ID,
@@ -170,12 +156,9 @@ func (r *NotificationRepository) List(ctx context.Context) ([]*domain.Notificati
 			&notification.CreatedAt,
 			&notification.UpdatedAt,
 			&notification.SentAt,
-			&errorMessage,
+			&notification.Error,
 		); err != nil {
 			return nil, fmt.Errorf("scan notifications: %w", err)
-		}
-		if errorMessage != nil {
-			notification.Error = new(errors.New(*errorMessage))
 		}
 		notifications = append(notifications, &notification)
 	}
