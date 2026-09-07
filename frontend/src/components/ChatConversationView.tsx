@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from "react";
-import {getMessages, markChatAsRead, MessageOut, sendMessage} from "../api/chat";
+import {editMessage, getMessages, markChatAsRead, MessageOut, sendMessage} from "../api/chat";
 import {ChatSocketEvent} from "../hooks/useChatSocket";
 import {colors, rounded, spacing, typography} from "../styles/theme";
 
@@ -25,7 +25,10 @@ const ChatConversationView: React.FC<ChatConversationViewProps> = ({
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
     const [error, setError] = useState("");
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    const [editDraft, setEditDraft] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
 
     useEffect(() => {
         setIsLoading(true);
@@ -83,6 +86,27 @@ const ChatConversationView: React.FC<ChatConversationViewProps> = ({
         }
     };
 
+    const startEdit = (msg: MessageOut) => {
+        setEditingMessageId(msg.id);
+        setEditDraft(msg.content);
+    };
+
+    const handleSaveEdit = async () => {
+        const content = editDraft.trim();
+        if (!editingMessageId || !content) return;
+        try {
+            const updated = await editMessage(editingMessageId, content);
+            setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+            setEditingMessageId(null);
+        } catch (err: any) {
+            setError(err.response?.data?.detail || "Не удалось отредактировать сообщение");
+        }
+    };
+    const cancelEdit = () => {
+        setEditingMessageId(null);
+        setEditDraft("");
+    };
+
     return (
         <>
             <div style={styles.header}>
@@ -117,12 +141,56 @@ const ChatConversationView: React.FC<ChatConversationViewProps> = ({
                                         ...(isMine ? styles.messageBubbleMine : styles.messageBubbleTheirs),
                                     }}
                                 >
-                                    <div style={styles.messageContent}>{msg.content}</div>
+                                    {editingMessageId === msg.id ? (
+                                        <div style={styles.editRow}>
+                                            <input
+                                                style={styles.editInput}
+                                                value={editDraft}
+                                                onChange={(e) => setEditDraft(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") handleSaveEdit();
+                                                    if (e.key === "Escape") cancelEdit();
+                                                }}
+                                                autoFocus
+                                            />
+                                            <button
+                                                style={styles.editActionButton}
+                                                onClick={handleSaveEdit}
+                                                aria-label="Сохранить"
+                                                type="button"
+                                            >
+                                                ✓
+                                            </button>
+                                            <button
+                                                style={styles.editActionButton}
+                                                onClick={cancelEdit}
+                                                aria-label="Отменить"
+                                                type="button"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div style={styles.messageContentRow}>
+                                            <div style={styles.messageContent}>{msg.content}</div>
+                                            {isMine && (
+                                                <button
+                                                    style={styles.editTrigger}
+                                                    onClick={() => startEdit(msg)}
+                                                    aria-label="Редактировать"
+                                                    type="button"
+                                                >
+                                                    ✎
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
                                     <div style={styles.messageTime}>
                                         {new Date(msg.created_at).toLocaleTimeString("ru-RU", {
                                             hour: "2-digit",
                                             minute: "2-digit",
                                         })}
+                                        {msg.edited_at && <span style={styles.editedMark}> · изменено</span>}
                                     </div>
                                 </div>
                             </div>
@@ -241,15 +309,58 @@ const styles: Record<string, React.CSSProperties> = {
         border: `1px solid ${colors.hairline}`,
         borderBottomLeftRadius: rounded.xs,
     },
+    messageContentRow: {
+        display: "flex",
+        alignItems: "flex-start",
+        gap: spacing.xxs,
+    },
     messageContent: {
         ...typography.bodySm,
         wordBreak: "break-word",
+    },
+    editTrigger: {
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        color: "inherit",
+        opacity: 0.7,
+        fontSize: 12,
+        padding: 0,
+        flexShrink: 0,
+    },
+    editRow: {
+        display: "flex",
+        alignItems: "center",
+        gap: spacing.xxs,
+    },
+    editInput: {
+        ...typography.bodySm,
+        flex: 1,
+        minWidth: 0,
+        padding: `${spacing.xxs}px ${spacing.xs}px`,
+        borderRadius: rounded.sm,
+        border: `1px solid ${colors.hairline}`,
+        background: colors.canvas,
+        color: colors.ink,
+        boxSizing: "border-box",
+    },
+    editActionButton: {
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        color: "inherit",
+        fontSize: 14,
+        padding: 0,
+        flexShrink: 0,
     },
     messageTime: {
         ...typography.caption,
         opacity: 0.7,
         marginTop: spacing.xxs,
         textAlign: "right",
+    },
+    editedMark: {
+        fontStyle: "italic",
     },
     inputArea: {
         display: "flex",
