@@ -20,3 +20,7 @@ CREATE INDEX idx_notifications_user
 
 CREATE INDEX idx_notifications_created
     ON notifications(created_at DESC);
+
+-- +goose Down
+
+DROP TABLE notifications;
