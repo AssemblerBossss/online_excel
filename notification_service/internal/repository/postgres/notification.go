@@ -85,18 +85,18 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*domai
 		SELECT 
 		    id,
 		    user_id,
-    channel,    
-    status,   
-    recipient,  
-    subject ,  
-    body,            
-    created_at,
-    updated_at, 
-    sent_at,
-    error   
-FROM notifications
+			channel,    
+			status,   
+			recipient,  
+			subject ,  
+			body,            
+			created_at,
+			updated_at, 
+			sent_at,
+			error   
+		FROM notifications
 		WHERE id = $1
-		`
+	`
 
 	var notification domain.Notification
 	var errorMessage *string
@@ -130,13 +130,58 @@ FROM notifications
 }
 
 func (r *NotificationRepository) List(ctx context.Context) ([]*domain.Notification, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	const query = `
+		SELECT 
+		    id,
+		    user_id,
+			channel,    
+			status,   
+			recipient,  
+			subject ,  
+			body,            
+			created_at,
+			updated_at, 
+			sent_at,
+			error   
+		FROM notifications
+		ORDER BY created_at DESC
+	`
 
-	result := make([]*domain.Notification, 0, len(r.data))
-
-	for _, notification := range r.data {
-		result = append(result, notification)
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("list notifications: %w", err)
 	}
-	return result, nil
+	defer rows.Close()
+
+	notifications := make([]*domain.Notification, 0)
+
+	for rows.Next() {
+		var notification domain.Notification
+		var errorMessage *string
+
+		if err := rows.Scan(
+			&notification.ID,
+			&notification.UserID,
+			&notification.Channel,
+			&notification.Status,
+			&notification.Recipient,
+			&notification.Subject,
+			&notification.Body,
+			&notification.CreatedAt,
+			&notification.UpdatedAt,
+			&notification.SentAt,
+			&errorMessage,
+		); err != nil {
+			return nil, fmt.Errorf("scan notifications: %w", err)
+		}
+		if errorMessage != nil {
+			notification.Error = new(errors.New(*errorMessage))
+		}
+		notifications = append(notifications, &notification)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate notifications: %w", err)
+	}
+	return notifications, nil
 }
