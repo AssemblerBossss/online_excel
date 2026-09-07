@@ -33,3 +33,19 @@ async def publish_new_message(target_email: str, chat_id, message) -> None:
             },
         }
     )
+
+
+# async def publish_message_edited(target_email: str, chat_id, message) -> None:
+# Уведомление о том, что собеседник отредактировал сообщение, пока решил не добавлять
+#     await redis_pubsub.publish(
+#         {
+#             "type": "message_edited",
+#             "target_email": target_email,
+#             "chat_id": str(chat_id),
+#             "message": {
+#                 "id": str(message.id),
+#                 "content": message.content,
+#                 "edited_at": message.edited_at.isoformat() if message.edited_at else None,
+#             },
+#         }
+#     )

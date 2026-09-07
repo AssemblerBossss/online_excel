@@ -112,10 +112,11 @@ class ChatRepository:
         Используется, если ElasticSearch недоступен
         """
         stmt = (
-            select(ChatUser).where(
-            ChatUser.email.ilike(f"{prefix}%"),
-            ChatUser.email != exclude_email,
-            ChatUser.is_active == True,
+            select(ChatUser)
+            .where(
+                ChatUser.email.ilike(f"{prefix}%"),
+                ChatUser.email != exclude_email,
+                ChatUser.is_active == True,
             )
             .order_by(ChatUser.email.asc())
             .limit(limit)
@@ -123,3 +124,9 @@ class ChatRepository:
 
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_message_by_id(self, message_id: uuid.UUID) -> Message | None:
+        """Найти сообщение по id"""
+        stmt = select(Message).where(Message.id == message_id)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()

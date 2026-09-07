@@ -1,9 +1,15 @@
-from typing import Annotated
-
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 
+import uuid
+from typing import Annotated
+
 from chat_service.app.api.dependencies import get_chat_service, get_current_user_email
-from chat_service.app.schemas import DialogOut, MessageCreateRequest, MessageOut
+from chat_service.app.schemas import (
+    DialogOut,
+    MessageCreateRequest,
+    MessageOut,
+    MessageEditRequest,
+)
 from chat_service.app.schemas.chat import PaginatedResponse, UserSuggestion
 from chat_service.app.services import ChatService
 
@@ -68,6 +74,27 @@ async def send_message(
     Commit выполняется автоматически через UnitOfWork.
     """
     return await chat_service.send_message(user_email, data, background_tasks)
+
+
+@router.patch(
+    "/messages/{message_id}",
+    response_model=MessageOut,
+    responses={
+        404: {"description": "Сообщение не найдено"},
+        403: {"description": "Нельзя редактировать чужое сообщение"},
+    },
+)
+async def edit_message(
+    message_id: uuid.UUID,
+    data: MessageEditRequest,
+    background_tasks: BackgroundTasks,
+    chat_service: Annotated[ChatService, Depends(get_chat_service)],
+    user_email: str = Depends(get_current_user_email),
+) -> MessageOut:
+    """Редактирует содержимое своего сообщения"""
+    return await chat_service.edit_message(
+        current_user_email=user_email, message_id=message_id, new_content=data.content
+    )
 
 
 @router.get(
