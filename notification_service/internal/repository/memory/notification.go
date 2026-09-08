@@ -2,7 +2,6 @@ package memory
 
 import (
 	"context"
-	"errors"
 	"notification_service/internal/domain"
 	"sync"
 )
@@ -31,7 +30,7 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*domai
 
 	notification, ok := r.data[id]
 	if !ok {
-		return nil, errors.New("notification not found")
+		return nil, domain.ErrNotificationNotFound
 	}
 	return notification, nil
 }

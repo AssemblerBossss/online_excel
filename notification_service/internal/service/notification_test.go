@@ -154,3 +154,14 @@ func TestNotificationService_GetByID(t *testing.T) {
 	require.Equal(t, created.Subject, found.Subject)
 	require.Equal(t, created.Body, found.Body)
 }
+
+func TestNotificationService_GetByID_NotFound(t *testing.T) {
+	repository := memory.NewNotificationRepository()
+	service := NewNotificationService(repository)
+
+	notification, err := service.GetByID(context.Background(), "999")
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, domain.ErrNotificationNotFound)
+	require.Nil(t, notification)
+}
