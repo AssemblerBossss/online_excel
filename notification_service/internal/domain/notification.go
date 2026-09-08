@@ -5,7 +5,11 @@ import (
 	"time"
 )
 
-var ErrNotificationNotFound = errors.New("notification not found")
+var (
+	ErrNotificationNotFound = errors.New("notification not found")
+	ErrInvalidStatus        = errors.New("invalid notification status")
+	ErrInvalidTransition    = errors.New("invalid notification transition")
+)
 
 type NotificationStatus string
 

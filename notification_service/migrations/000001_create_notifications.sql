@@ -8,7 +8,6 @@ CREATE TABLE notifications (
     recipient  TEXT        NOT NULL,
     subject    TEXT        NOT NULL,
     body       TEXT        NOT NULL,
-    body       TEXT        NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     sent_at    TIMESTAMPTZ,
