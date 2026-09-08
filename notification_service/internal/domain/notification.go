@@ -41,3 +41,17 @@ type Notification struct {
 	SentAt    *time.Time
 	Error     *string
 }
+
+// CanTransitionTo returns true if the current status can transition to the given status.
+func (s NotificationStatus) CanTransitionTo(next NotificationStatus) bool {
+	switch s {
+	case StatusPending:
+		return next == StatusProcessing
+	case StatusProcessing:
+		return next == StatusSent || next == StatusFailed
+	case StatusSent, StatusFailed:
+		return false
+	default:
+		return false
+	}
+}
