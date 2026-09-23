@@ -29,6 +29,10 @@ type CreateNotificationInput struct {
 	Body      string
 }
 
+type UpdateNotificationStatusInput struct {
+	Status domain.NotificationStatus
+	Error  string
+}
 type NotificationService struct {
 	repository repository.NotificationRepository
 }
@@ -85,6 +89,49 @@ func (s *NotificationService) GetByID(
 	return notification, nil
 }
 
+func (s *NotificationService) Update(
+	ctx context.Context,
+	id string,
+	input UpdateNotificationStatusInput,
+) (*domain.Notification, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("notification ID is required")
+	}
+
+	notification, err := s.repository.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get notification for update: %w", err)
+	}
+
+	if !isValidNotificationStatus(notification.Status) {
+		return nil, domain.ErrInvalidStatus
+	}
+	if !notification.Status.CanTransitionTo(input.Status) {
+		return nil, domain.ErrInvalidTransition
+	}
+	now := time.Now().UTC()
+
+	notification.Status = input.Status
+	notification.UpdatedAt = now
+
+	switch input.Status {
+	case domain.StatusSent:
+		notification.SentAt = &now
+		notification.Error = nil
+
+	case domain.StatusFailed:
+		if strings.TrimSpace(input.Error) != "" {
+			notification.Error = &input.Error
+		}
+	}
+
+	if err := s.repository.Update(ctx, notification); err != nil {
+		return nil, fmt.Errorf("update notification: %w", err)
+	}
+	return notification, nil
+}
+
 func (s *NotificationService) List(ctx context.Context) ([]*domain.Notification, error) {
 	notifications, err := s.repository.List(ctx)
 	if err != nil {
@@ -115,4 +162,17 @@ func validateCreateInput(input CreateNotificationInput) error {
 	}
 
 	return nil
+}
+
+func isValidNotificationStatus(status domain.NotificationStatus) bool {
+	switch status {
+	case domain.StatusPending,
+		domain.StatusProcessing,
+		domain.StatusSent,
+		domain.StatusFailed:
+		return true
+	default:
+		return false
+
+	}
 }

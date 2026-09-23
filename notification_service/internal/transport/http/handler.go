@@ -78,6 +78,50 @@ func (h *Handler) GetNotification(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toNotificationResponse(notification))
 }
 
+func (h *Handler) UpdateNotificationStatus(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{
+			Error: "invalid request body",
+		})
+		return
+	}
+
+	var req UpdateNotificationStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	notification, err := h.service.Update(r.Context(), id,
+		service.UpdateNotificationStatusInput{
+			Status: domain.NotificationStatus(req.Status),
+			Error:  req.Error,
+		})
+
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrNotificationNotFound):
+			writeJSON(w, http.StatusNotFound, ErrorResponse{
+				Error: err.Error(),
+			})
+		case errors.Is(err, domain.ErrInvalidStatus),
+			errors.Is(err, domain.ErrInvalidTransition):
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{
+				Error: err.Error(),
+			})
+		default:
+			writeJSON(w, http.StatusInternalServerError, ErrorResponse{
+				Error: "failed to update notification",
+			})
+		}
+	}
+
+	writeJSON(w, http.StatusOK, toNotificationResponse(notification))
+
+}
+
 func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 	notifications, err := h.service.List(r.Context())
 	if err != nil {

@@ -11,6 +11,12 @@ type CreateNotificationRequest struct {
 	Subject   string `json:"subject" validate:"required" `
 	Body      string `json:"body" validate:"required"`
 }
+
+type UpdateNotificationStatusRequest struct {
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+}
+
 type NotificationResponse struct {
 	ID        string     `json:"id"`
 	UserID    string     `json:"user_id"`
