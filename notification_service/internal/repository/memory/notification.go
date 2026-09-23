@@ -35,6 +35,17 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*domai
 	return notification, nil
 }
 
+func (r *NotificationRepository) Update(ctx context.Context, notification *domain.Notification) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.data[notification.ID]; !ok {
+		return domain.ErrNotificationNotFound
+	}
+	r.data[notification.ID] = notification
+	return nil
+}
+
 func (r *NotificationRepository) List(ctx context.Context) ([]*domain.Notification, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

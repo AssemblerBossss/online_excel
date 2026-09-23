@@ -116,6 +116,36 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*domai
 	return &notification, nil
 }
 
+func (r *NotificationRepository) Update(ctx context.Context, notification *domain.Notification) error {
+	const query = `
+		UPDATE notifications
+		SET
+		    status = $2,
+		    updated_at = $3,
+		    sent_at = $4,
+		    error = $5
+		WHERE id = $1
+		`
+
+	commandTag, err := r.db.Exec(
+		ctx,
+		query,
+		notification.ID,
+		notification.UpdatedAt,
+		notification.Status,
+		notification.SentAt,
+		notification.Error,
+	)
+
+	if err != nil {
+		return fmt.Errorf("update notification: %w", err)
+	}
+	if commandTag.RowsAffected() == 0 {
+		return domain.ErrNotificationNotFound
+	}
+	return nil
+}
+
 func (r *NotificationRepository) List(ctx context.Context) ([]*domain.Notification, error) {
 	const query = `
 		SELECT 
