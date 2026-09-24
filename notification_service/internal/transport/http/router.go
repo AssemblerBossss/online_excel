@@ -21,7 +21,9 @@ func NewRouter(handler *Handler) http.Handler {
 	r.Route("/api/v1/notifications", func(r chi.Router) {
 		r.Post("/", handler.CreateNotification)
 		r.Get("/", handler.ListNotifications)
-		//r.Get("/{id}", handler.GetNotification)
+		r.Get("/{id}", handler.GetNotification)
+		r.Patch("/{id}/status", handler.UpdateNotificationStatus)
+
 	})
 
 	return r

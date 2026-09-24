@@ -116,10 +116,10 @@ func (h *Handler) UpdateNotificationStatus(w http.ResponseWriter, r *http.Reques
 				Error: "failed to update notification",
 			})
 		}
+		return
 	}
 
 	writeJSON(w, http.StatusOK, toNotificationResponse(notification))
-
 }
 
 func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
@@ -166,6 +166,7 @@ func toNotificationResponse(notification *domain.Notification) *NotificationResp
 		Recipient: notification.Recipient,
 		Subject:   notification.Subject,
 		Body:      notification.Body,
+		Status:    string(notification.Status),
 		CreatedAt: notification.CreatedAt,
 		SentAt:    notification.SentAt,
 	}
