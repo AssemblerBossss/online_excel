@@ -83,7 +83,7 @@ class UserService:
             UserUpdateEvent(
                 user_id=user_id,
                 email=user.email,
-                role=str(user.role),
+                role=str(user.role.value),
                 timestamp=datetime.now(UTC),
             )
         )
@@ -145,7 +145,7 @@ class UserService:
                 UserUpdateEvent(
                     user_id=user.id,
                     email=user.email,
-                    role=str(user.role),
+                    role=str(user.role.value),
                     timestamp=datetime.now(UTC),
                 )
             )

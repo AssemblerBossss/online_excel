@@ -1,12 +1,13 @@
 from datetime import datetime
 from typing import Literal
-
-from pydantic import BaseModel, EmailStr
+from uuid import UUID, uuid4
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserEvent(BaseModel):
     """Базовое событие пользователя"""
 
+    event_id: UUID = Field(default_factory=uuid4)
     event_type: str
     user_id: int
     email: EmailStr
@@ -18,6 +19,7 @@ class UserRegisterEvent(UserEvent):
     """Событие регистрации пользователя"""
 
     event_type: Literal["user.registered"] = "user.registered"
+    first_name: str | None = None
 
 
 class UserUpdateEvent(UserEvent):
