@@ -27,11 +27,6 @@ func (h *Handler) CreateNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := validateCreateNotificationRequest(req); err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-		return
-	}
-
 	notification, err := h.service.Create(
 		r.Context(),
 		service.CreateNotificationInput{
@@ -44,9 +39,18 @@ func (h *Handler) CreateNotification(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
-			Error: "failed to create notification",
-		})
+		switch {
+		case errors.Is(err, service.ErrInvalidUserID),
+			errors.Is(err, service.ErrInvalidChannel),
+			errors.Is(err, service.ErrInvalidRecipient),
+			errors.Is(err, service.ErrInvalidSubject),
+			errors.Is(err, service.ErrInvalidBody):
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		default:
+			writeJSON(w, http.StatusInternalServerError, ErrorResponse{
+				Error: "failed to create notification",
+			})
+		}
 		return
 	}
 	writeJSON(w, http.StatusCreated, toNotificationResponse(notification))
@@ -138,26 +142,6 @@ func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ListNotificationsResponse{Items: items})
 }
 
-func validateCreateNotificationRequest(req CreateNotificationRequest) error {
-	if req.UserID <= 0 {
-		return errors.New("missing user ID")
-	}
-	if req.Recipient == "" {
-		return errors.New("recipient is required")
-	}
-	if req.Subject == "" {
-		return errors.New("subject is required")
-	}
-	if req.Body == "" {
-		return errors.New("body is required")
-	}
-	if req.Channel != string(domain.ChannelEmail) &&
-		req.Channel != string(domain.ChannelPush) {
-		return errors.New("invalid channel")
-	}
-	return nil
-}
-
 func toNotificationResponse(notification *domain.Notification) *NotificationResponse {
 	return &NotificationResponse{
 		ID:        notification.ID,
@@ -168,7 +152,9 @@ func toNotificationResponse(notification *domain.Notification) *NotificationResp
 		Body:      notification.Body,
 		Status:    string(notification.Status),
 		CreatedAt: notification.CreatedAt,
+		UpdatedAt: notification.UpdatedAt,
 		SentAt:    notification.SentAt,
+		Error:     notification.Error,
 	}
 }
 

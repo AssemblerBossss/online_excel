@@ -27,6 +27,8 @@ type NotificationResponse struct {
 	Status    string     `json:"status"`
 	CreatedAt time.Time  `json:"created_at"`
 	SentAt    *time.Time `json:"sent_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	Error     *string    `json:"error"`
 }
 
 type ErrorResponse struct {
