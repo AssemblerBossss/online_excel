@@ -11,6 +11,8 @@ type Config struct {
 
 	Postgres PostgresConfig `yaml:"postgres"`
 	RabbitMQ RabbitMQConfig `yaml:"rabbitmq"`
+
+	SMTP SMTPConfig `yaml:"smtp"`
 }
 
 type ServerConfig struct {
@@ -36,15 +38,27 @@ type PostgresConfig struct {
 }
 
 type RabbitMQConfig struct {
-	Host       string `yaml:"host" env:"RABBITMQ_HOST" env-default:"localhost"`
-	Port       int    `yaml:"port" env:"RABBITMQ_PORT" env-default:"5672"`
-	Username   string `yaml:"username" env:"RABBITMQ_USER" env-default:"guest"`
-	Password   string `yaml:"password" env:"RABBITMQ_PASSWORD" env-default:"guest"`
-	Exchange   string `yaml:"exchange" env-default:"user.events"`
-	Queue      string `yaml:"queue" env-default:"notification.events"`
-	RoutingKey string `yaml:"routing_key" env-default:"user.*"`
+	Host        string   `yaml:"host" env:"RABBITMQ_HOST" env-default:"localhost"`
+	Port        int      `yaml:"port" env:"RABBITMQ_PORT" env-default:"5672"`
+	Username    string   `yaml:"username" env:"RABBITMQ_USER" env-default:"guest"`
+	Password    string   `yaml:"password" env:"RABBITMQ_PASSWORD" env-default:"guest"`
+	Exchange    string   `yaml:"exchange" env:"RABBITMQ_EXCHANGE" env-default:"user.events"`
+	Queue       string   `yaml:"queue" env:"RABBITMQ_QUEUE" env-default:"notification.events"`
+	RoutingKeys []string `yaml:"routing_keys" env:"RABBITMQ_ROUTING_KEYS" env-separator:"," env-default:"user.registered"`
+}
+
+type SMTPConfig struct {
+	Host     string `yaml:"host" env:"SMTP_HOST" env-default:"localhost"`
+	Port     int    `yaml:"port" env:"SMTP_PORT" env-default:"1025"`
+	Username string `yaml:"username" env:"SMTP_USER"`
+	Password string `yaml:"password" env:"SMTP_PASSWORD"`
+	From     string `yaml:"from" env:"SMTP_FROM" env-default:"no-reply@online-excel.local"`
 }
 
 func (s ServerConfig) Address() string {
 	return fmt.Sprintf("%s:%d", s.Host, s.Port)
+}
+
+func (r RabbitMQConfig) URL() string {
+	return fmt.Sprintf("amqp://%s:%s@%s:%d", r.Username, r.Password, r.Host, r.Port)
 }

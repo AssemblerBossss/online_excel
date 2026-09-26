@@ -23,4 +23,9 @@ rabbitmq:
   password: guest
   exchange: user.events
   queue: notification.events
-  routing_key: user.*
+  routing_keys: [ user.registered ]
+
+smtp:
+  host: mailpit
+  port: 1025
+  from: no-reply@online-excel.local
