@@ -12,7 +12,7 @@ postgres:
   database: notification_db
   username: postgres
   password: postgres
-  sslmode: disable
+  ssl_mode: disable
   max_connections: 20
   min_connections: 1
 

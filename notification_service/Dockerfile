@@ -20,7 +20,8 @@ FROM gcr.io/distroless/static-debian12
 WORKDIR /
 
 COPY --from=builder /app/notification-service .
-
-EXPOSE 8083
+COPY --from=builder /app/configs /configs
+COPY --from=builder /app/migrations /migrations
+EXPOSE 8003
 
 ENTRYPOINT ["/notification-service"]

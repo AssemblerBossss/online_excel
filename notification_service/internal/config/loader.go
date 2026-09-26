@@ -7,7 +7,6 @@ import (
 )
 
 // Load reads and parses the config file at path into a Config struct.
-// Supports environment variables with NOTIFICATION_ prefix.
 func Load(path string) (Config, error) {
 	var cfg Config
 
