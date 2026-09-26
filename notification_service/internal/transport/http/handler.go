@@ -139,7 +139,7 @@ func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 }
 
 func validateCreateNotificationRequest(req CreateNotificationRequest) error {
-	if req.UserID == "" {
+	if req.UserID <= 0 {
 		return errors.New("missing user ID")
 	}
 	if req.Recipient == "" {

@@ -131,8 +131,8 @@ func (r *NotificationRepository) Update(ctx context.Context, notification *domai
 		ctx,
 		query,
 		notification.ID,
-		notification.UpdatedAt,
 		notification.Status,
+		notification.UpdatedAt,
 		notification.SentAt,
 		notification.Error,
 	)
@@ -195,6 +195,59 @@ func (r *NotificationRepository) List(ctx context.Context) ([]*domain.Notificati
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate notifications: %w", err)
+	}
+	return notifications, nil
+}
+
+func (r *NotificationRepository) ListByUserID(ctx context.Context, userID int64) ([]*domain.Notification, error) {
+	const query = `
+		SELECT 
+		    id,
+		    user_id,
+			channel,    
+			status,   
+			recipient,  
+			subject ,  
+			body,            
+			created_at,
+			updated_at, 
+			sent_at,
+			error   
+		FROM notifications
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.db.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list notifications by user_id: %w", err)
+	}
+	defer rows.Close()
+
+	notifications := make([]*domain.Notification, 0)
+
+	for rows.Next() {
+		var notification domain.Notification
+
+		if err := rows.Scan(
+			&notification.ID,
+			&notification.UserID,
+			&notification.Channel,
+			&notification.Status,
+			&notification.Recipient,
+			&notification.Subject,
+			&notification.Body,
+			&notification.CreatedAt,
+			&notification.UpdatedAt,
+			&notification.SentAt,
+			&notification.Error,
+		); err != nil {
+			return nil, fmt.Errorf("scan notifications by user_id: %w", err)
+		}
+		notifications = append(notifications, &notification)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate notifications by user_id: %w", err)
 	}
 	return notifications, nil
 }

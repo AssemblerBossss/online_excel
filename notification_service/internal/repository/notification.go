@@ -11,4 +11,5 @@ type NotificationRepository interface {
 	Update(ctx context.Context, notification *domain.Notification) error
 	GetByID(ctx context.Context, id string) (*domain.Notification, error)
 	List(ctx context.Context) ([]*domain.Notification, error)
+	ListByUserID(ctx context.Context, userID int64) ([]*domain.Notification, error)
 }

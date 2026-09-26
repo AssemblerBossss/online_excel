@@ -5,7 +5,7 @@ import (
 )
 
 type CreateNotificationRequest struct {
-	UserID    string `json:"user_id" validate:"required"`
+	UserID    int64  `json:"user_id" validate:"required"`
 	Channel   string `json:"channel" validate:"required,oneof=email push"`
 	Recipient string `json:"recipient" validate:"required"`
 	Subject   string `json:"subject" validate:"required" `
@@ -19,7 +19,7 @@ type UpdateNotificationStatusRequest struct {
 
 type NotificationResponse struct {
 	ID        string     `json:"id"`
-	UserID    string     `json:"user_id"`
+	UserID    int64      `json:"user_id"`
 	Channel   string     `json:"channel"`
 	Recipient string     `json:"recipient"`
 	Subject   string     `json:"subject"`

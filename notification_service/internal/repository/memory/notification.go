@@ -57,3 +57,17 @@ func (r *NotificationRepository) List(ctx context.Context) ([]*domain.Notificati
 	}
 	return result, nil
 }
+
+func (r *NotificationRepository) ListByUserID(ctx context.Context, userID int64) ([]*domain.Notification, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make([]*domain.Notification, 0, len(r.data))
+
+	for _, notification := range r.data {
+		if notification.UserID == userID {
+			result = append(result, notification)
+		}
+	}
+	return result, nil
+}

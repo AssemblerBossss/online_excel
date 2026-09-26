@@ -29,7 +29,7 @@ const (
 
 type Notification struct {
 	ID        string
-	UserID    string
+	UserID    int64
 	Channel   NotificationChannel
 	Status    NotificationStatus
 	Recipient string

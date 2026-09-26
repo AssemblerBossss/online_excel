@@ -22,7 +22,7 @@ var (
 )
 
 type CreateNotificationInput struct {
-	UserID    string
+	UserID    int64
 	Channel   domain.NotificationChannel
 	Recipient string
 	Subject   string
@@ -141,7 +141,7 @@ func (s *NotificationService) List(ctx context.Context) ([]*domain.Notification,
 }
 
 func validateCreateInput(input CreateNotificationInput) error {
-	if strings.TrimSpace(input.UserID) == "" {
+	if input.UserID <= 0 {
 		return ErrInvalidUserID
 	}
 

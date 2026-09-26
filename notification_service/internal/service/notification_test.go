@@ -14,7 +14,7 @@ func TestNotificationService_Create(t *testing.T) {
 	service := NewNotificationService(repository)
 
 	input := CreateNotificationInput{
-		UserID:    "42",
+		UserID:    42,
 		Channel:   domain.ChannelEmail,
 		Recipient: "user@example.com",
 		Subject:   "Welcome",
@@ -28,7 +28,7 @@ func TestNotificationService_Create(t *testing.T) {
 
 	require.NotEmpty(t, notification.ID)
 
-	require.Equal(t, "42", notification.UserID)
+	require.Equal(t, int64(42), notification.UserID)
 	require.Equal(t, domain.ChannelEmail, notification.Channel)
 	require.Equal(t, domain.StatusPending, notification.Status)
 	require.Equal(t, "user@example.com", notification.Recipient)
@@ -48,7 +48,7 @@ func TestNotificationService_Create_InvalidInput(t *testing.T) {
 		{
 			name: "empty user id",
 			input: CreateNotificationInput{
-				UserID:    "",
+				UserID:    0,
 				Channel:   domain.ChannelEmail,
 				Recipient: "user@example.com",
 				Subject:   "Welcome",
@@ -59,7 +59,7 @@ func TestNotificationService_Create_InvalidInput(t *testing.T) {
 		{
 			name: "invalid channel",
 			input: CreateNotificationInput{
-				UserID:    "42",
+				UserID:    42,
 				Channel:   "sms",
 				Recipient: "user@example.com",
 				Subject:   "Welcome",
@@ -70,7 +70,7 @@ func TestNotificationService_Create_InvalidInput(t *testing.T) {
 		{
 			name: "empty recipient",
 			input: CreateNotificationInput{
-				UserID:    "42",
+				UserID:    42,
 				Channel:   domain.ChannelEmail,
 				Recipient: "",
 				Subject:   "Welcome",
@@ -81,7 +81,7 @@ func TestNotificationService_Create_InvalidInput(t *testing.T) {
 		{
 			name: "empty subject",
 			input: CreateNotificationInput{
-				UserID:    "42",
+				UserID:    42,
 				Channel:   domain.ChannelEmail,
 				Recipient: "user@example.com",
 				Subject:   "",
@@ -92,7 +92,7 @@ func TestNotificationService_Create_InvalidInput(t *testing.T) {
 		{
 			name: "empty body",
 			input: CreateNotificationInput{
-				UserID:    "42",
+				UserID:    42,
 				Channel:   domain.ChannelEmail,
 				Recipient: "user@example.com",
 				Subject:   "Welcome",
@@ -124,7 +124,7 @@ func TestNotificationService_GetByID(t *testing.T) {
 	service := NewNotificationService(repository)
 
 	input := CreateNotificationInput{
-		UserID:    "42",
+		UserID:    42,
 		Channel:   domain.ChannelEmail,
 		Recipient: "user@example.com",
 		Subject:   "Welcome",
