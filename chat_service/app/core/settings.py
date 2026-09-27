@@ -7,22 +7,7 @@ LOG_FORMAT_DEFAULT = (
 )
 
 
-class UvicornConfig(BaseSettings):
-    APP_PORT: int = 8080
-    APP_HOST: str = "0.0.0.0"
-
-
-class GunicornConfig(BaseSettings):
-    APP_PORT: int = 8080
-    APP_HOST: str = "0.0.0.0"
-    WORKERS: int = 4
-    TIMEOUT: int = 900
-
-
 class Settings(BaseSettings):
-    gunicorn: GunicornConfig = GunicornConfig()
-    uvicorn: UvicornConfig = UvicornConfig()
-
     DB_HOST: str = "chat_db"
     DB_PORT: int = 5432
     DB_USER: str = "postgres"
