@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"notification_service/internal/config"
+	"notification_service/internal/service"
 
 	"github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
@@ -56,7 +57,7 @@ func (c *Consumer) consume(ctx context.Context) error {
 		return err
 	}
 
-	q, err := ch.QueueDeclare(c.cfg.Queue, true, false, false, false, amqp091.Table{"x-dead-letter-exchange": dlx}))
+	q, err := ch.QueueDeclare(c.cfg.Queue, true, false, false, false, amqp091.Table{"x-dead-letter-exchange": dlx})
 
 	if err != nil {
 		return err
@@ -98,4 +99,26 @@ func (c *Consumer) consume(ctx context.Context) error {
 
 		}
 	}
+}
+
+func (c *Consumer) process(ctx context.Context, msg amqp091.Delivery) {
+	eventType := msg.Type
+	if eventType == "" {
+		eventType = msg.RoutingKey
+	}
+
+	err := c.handler.Handle(ctx, eventType, msg.Body)
+	switch {
+	case err == nil, errors.Is(err, service.ErrUnsupportedEventType):
+		msg.Ack(false)
+
+		c.log.Error("malformed event -> DLQ", zap.String("type", eventType), zap.Error(err))
+		_ = msg.Nack(false, false)
+
+	default:
+		// временная ошибка (БД недоступна и т.п.)
+		c.log.Error("event handling failed, requeue", zap.String("type", eventType), zap.Error(err))
+		_ = msg.Nack(false, true)
+	}
+
 }
