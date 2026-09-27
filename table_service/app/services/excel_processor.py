@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class ExcelProcessorService:
     """Преобразование DataFrame в схему колонок и строки таблицы. Без доступа к БД."""
 
-    DTYPE_MAP = frozenset(
+    DTYPE_MAP = dict(
         {
             "int64": "number",
             "int32": "number",
