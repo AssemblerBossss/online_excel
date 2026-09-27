@@ -52,6 +52,14 @@ const ChatConversationView: React.FC<ChatConversationViewProps> = ({
     }, [messages]);
 
     useEffect(() => {
+        if (!incomingEvent || incomingEvent.type !== "message_edited") return;
+        if (incomingEvent.message.sender_email !== interlocutorEmail) return;
+
+        const edited = incomingEvent.message;
+        setMessages((prev) => prev.map((m) => (m.id === edited.id ? {...m, ...edited} : m)));
+    }, [incomingEvent, interlocutorEmail]);
+
+    useEffect(() => {
         if (!incomingEvent || incomingEvent.type !== "new_message") return;
         if (incomingEvent.message.sender_email !== interlocutorEmail) return;
 

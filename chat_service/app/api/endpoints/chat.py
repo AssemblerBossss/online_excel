@@ -93,7 +93,10 @@ async def edit_message(
 ) -> MessageOut:
     """Редактирует содержимое своего сообщения"""
     return await chat_service.edit_message(
-        current_user_email=user_email, message_id=message_id, new_content=data.content
+        current_user_email=user_email,
+        message_id=message_id,
+        new_content=data.content,
+        background_tasks=background_tasks,
     )
 
 

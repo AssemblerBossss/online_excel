@@ -5,7 +5,7 @@ import uuid
 from fastapi import BackgroundTasks
 
 from chat_service.app.core import UnitOfWork
-from chat_service.app.core.realtime import publish_new_message
+from chat_service.app.core.realtime import publish_message_edited, publish_new_message
 from chat_service.app.exceptions import (
     MessageEditTimeExpiredException,
     MessageNotFoundExcepion,
@@ -194,7 +194,11 @@ class ChatService:
         return [UserSuggestion(email=u.email) for u in users]
 
     async def edit_message(
-        self, current_user_email: str, message_id: uuid.UUID, new_content: str
+        self,
+        current_user_email: str,
+        message_id: uuid.UUID,
+        new_content: str,
+        background_tasks: BackgroundTasks,
     ) -> MessageOut:
         """Редактирование сообщения"""
         message = await self.repo.get_message_by_id(message_id=message_id)
@@ -213,11 +217,10 @@ class ChatService:
 
         message_out = MessageOut.model_validate(message)
 
-        # # уведомить собеседника через WS, аналогично publish_new_message
-        # background_tasks.add_task(
-        #     publish_message_edited,
-        #     target_email=message.receiver_email,
-        #     chat_id=message.chat_id,
-        #     message=message_out,
-        # )
+        background_tasks.add_task(
+            publish_message_edited,
+            target_email=message.receiver_email,
+            chat_id=message.chat_id,
+            message=message_out,
+        )
         return message_out
