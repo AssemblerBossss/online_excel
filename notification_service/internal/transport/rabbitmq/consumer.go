@@ -56,4 +56,23 @@ func (c *Consumer) consume(ctx context.Context) error {
 	}
 
 	q, err := ch.QueueDeclare(c.cfg.Queue, true, false, false, false, amqp091.Table{"x-dead-letter-exchange": dlx}))
+
+	if err != nil {
+		return err
+	}
+
+	for _, key := range c.cfg.RoutingKeys {
+		if err := ch.QueueBind(q.Name, key, q.Name, false, nil); err != nil {
+			return err
+		}
+	}
+
+	if err := ch.Qos(
+		10,    // prefetchCount: макс. неподтверждённых (unacked) сообщений на консьюмера одновременно
+		0,     // prefetchSize: лимит по байтам, 0 = без ограничения (RabbitMQ игнорирует ненулевой)
+		false, // global: false = лимит на каждого консьюмера отдельно, true = на весь канал суммарно
+	); err != nil {
+		return err
+	}
+
 }
