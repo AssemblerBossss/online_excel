@@ -2,6 +2,7 @@ package rabbitmq
 
 import (
 	"context"
+	"errors"
 	"notification_service/internal/config"
 
 	"github.com/rabbitmq/amqp091-go"
@@ -68,11 +69,33 @@ func (c *Consumer) consume(ctx context.Context) error {
 	}
 
 	if err := ch.Qos(
-		10,    // prefetchCount: макс. неподтверждённых (unacked) сообщений на консьюмера одновременно
+		10,    // prefetchCount: макс. неподтверждённых сообщений на консьюмера одновременно
 		0,     // prefetchSize: лимит по байтам, 0 = без ограничения (RabbitMQ игнорирует ненулевой)
 		false, // global: false = лимит на каждого консьюмера отдельно, true = на весь канал суммарно
 	); err != nil {
 		return err
 	}
 
+	msgs, err := ch.Consume(q.Name, "notification-service", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+	closed := conn.NotifyClose(make(chan *amqp091.Error, 1))
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case e, ok := <-closed:
+			if !ok || e == nil {
+				return errors.New("connection closed")
+			}
+		case m, ok := <-msgs:
+			if !ok {
+				return errors.New("delivery channel closed")
+			}
+			c.process(ctx, m)
+
+		}
+	}
 }
