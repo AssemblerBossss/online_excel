@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"notification_service/internal/sender"
 	"strings"
 	"time"
 
@@ -27,6 +28,7 @@ type CreateNotificationInput struct {
 	Recipient string
 	Subject   string
 	Body      string
+	DedupKey  string
 }
 
 type UpdateNotificationStatusInput struct {
@@ -138,6 +140,21 @@ func (s *NotificationService) List(ctx context.Context) ([]*domain.Notification,
 		return nil, fmt.Errorf("get notification: %w", err)
 	}
 	return notifications, nil
+}
+
+func (s *NotificationService) Dispatch(ctx context.Context, notificationID string, snd sender.Sender) error {
+	notification, err := s.Update(ctx, notificationID, UpdateNotificationStatusInput{Status: domain.StatusProcessing})
+	if err != nil {
+		return err
+	}
+
+	if err := snd.Send(ctx, notification); err != nil {
+		_, uerr := s.Update(ctx, notificationID, UpdateNotificationStatusInput{Status: domain.StatusFailed, Error: err.Error()})
+		return errors.Join(uerr)
+	}
+
+	_, serr := s.Update(ctx, notificationID, UpdateNotificationStatusInput{Status: domain.StatusSent})
+	return serr
 }
 
 func validateCreateInput(input CreateNotificationInput) error {

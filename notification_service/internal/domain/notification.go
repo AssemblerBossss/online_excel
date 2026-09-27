@@ -6,9 +6,10 @@ import (
 )
 
 var (
-	ErrNotificationNotFound = errors.New("notification not found")
-	ErrInvalidStatus        = errors.New("invalid notification status")
-	ErrInvalidTransition    = errors.New("invalid notification transition")
+	ErrNotificationNotFound  = errors.New("notification not found")
+	ErrInvalidStatus         = errors.New("invalid notification status")
+	ErrInvalidTransition     = errors.New("invalid notification transition")
+	ErrDuplicateNotification = errors.New("duplicate notification")
 )
 
 type NotificationStatus string
