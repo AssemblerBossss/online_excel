@@ -16,11 +16,6 @@ AsyncSessionFactory = async_sessionmaker(
 )
 
 
-async def get_db_session() -> AsyncSession:
-    async with AsyncSessionFactory() as async_session:
-        yield async_session
-
-
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models"""
 
