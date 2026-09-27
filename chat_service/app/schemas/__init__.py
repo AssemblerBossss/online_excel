@@ -1,6 +1,7 @@
 from .chat import (
     DialogOut,
     MessageCreateRequest,
+    MessageEditRequest,
     MessageOut,
     PaginatedResponse,
     UserSuggestion,
@@ -9,6 +10,7 @@ from .chat import (
 __all__ = [
     "DialogOut",
     "MessageCreateRequest",
+    "MessageEditRequest",
     "MessageOut",
     "PaginatedResponse",
     "UserSuggestion",

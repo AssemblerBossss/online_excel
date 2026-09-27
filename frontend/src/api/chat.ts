@@ -13,6 +13,7 @@ export interface MessageOut {
     content: string;
     created_at: string;
     is_read: boolean;
+    edited_at: string | null;
 }
 
 export interface PaginatedMessages {
@@ -69,6 +70,17 @@ export const sendMessage = async (
         receiver_email: receiverEmail,
         content,
     });
+    return response.data;
+};
+
+/**
+ * Редактирует сообщение
+ */
+export const editMessage = async (
+    messageId: string,
+    content: string,
+): Promise<MessageOut> => {
+    const response = await api.patch(`/chat/messages/${messageId}`, {content});
     return response.data;
 };
 

@@ -51,6 +51,8 @@ services:
       - DB_PASSWORD=${CHAT_DB_PASSWORD:-postgres}
       - DB_NAME=${CHAT_DB_NAME:-chat_db}
       - DB_DRIVER=${CHAT_DB_DRIVER:-postgresql+asyncpg}
+    volumes:
+      - ./chat_service:/app/chat_service
     restart: "no"
 
   frontend:

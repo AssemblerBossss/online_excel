@@ -25,8 +25,20 @@ class MessageOut(BaseModel):
     content: str
     created_at: datetime
     is_read: bool
+    edited_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class MessageEditRequest(BaseModel):
+    content: str
+
+    @field_validator("content")
+    @classmethod
+    def content_must_not_be_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Сообщение не может быть пустым")
+        return v.strip()
 
 
 # Список диалогов (GET /chat/users)
