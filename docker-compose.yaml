@@ -369,6 +369,26 @@ services:
       - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
     command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
 
+  notification_db:
+    container_name: online_excel_notification_db
+    image: postgres:16-alpine
+    shm_size: 128mb
+    environment:
+      POSTGRES_PASSWORD: ${NOTIFICATON_DB_PASSWORD:-postgres}
+      POSTGRES_USER: ${NOTIFICATON_DB_USER:-postgres}
+      POSTGRES_DB: ${NOTIFICATON_DB_NAME:-notifications}
+    ports:
+      - "7779:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - notification_pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
+
   rabbitmq:
     image: rabbitmq:4.2.4-alpine
     container_name: online_excel_rabbitmq
@@ -579,6 +599,7 @@ volumes:
   pgdata:
   auth_pgdata:
   chat_pgdata:
+  notification_pgdata:
   rabbitmq_data:
   es_data:
   minio_data:
