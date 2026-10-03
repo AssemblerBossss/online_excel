@@ -1,10 +1,15 @@
 import datetime
+import logging
+import uuid
 
 from fastapi import BackgroundTasks
 
 from chat_service.app.core import UnitOfWork
-from chat_service.app.core.realtime import publish_new_message
+from chat_service.app.core.realtime import publish_message_edited, publish_new_message
 from chat_service.app.exceptions import (
+    MessageEditTimeExpiredException,
+    MessageNotFoundExcepion,
+    NotMessageOwnerException,
     SelfMessageException,
     UserBlockedException,
     UserNotFoundException,
@@ -14,13 +19,17 @@ from chat_service.app.schemas import (
     MessageCreateRequest,
     MessageOut,
     PaginatedResponse,
+    UserSuggestion,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ChatService:
     def __init__(self, uow: UnitOfWork):
         self._uow = uow
         self.repo = uow.chat_repo
+        self.es_users = uow.es_users
 
     async def send_message(
         self,
@@ -158,3 +167,60 @@ class ChatService:
                 chat.unread_count_user2 = 0
 
         return updated_count
+
+    async def search_users(
+        self, current_user_email: str, prefix: str, limit: int = 5
+    ) -> list[UserSuggestion]:
+        prefix = (prefix or "").strip()
+        if len(prefix) < 2:
+            return []
+        limit = max(1, min(limit, 20))
+
+        try:
+            emails = await self.es_users.search_by_email_prefix(
+                prefix=prefix,
+                exclude_email=current_user_email,
+                limit=limit,
+            )
+            return [UserSuggestion(email=e) for e in emails]
+        except Exception as exc:
+            logger.exception("ES поиск не удался, fallback на PG: %s", exc)
+
+        users = await self.repo.search_by_email_prefix(
+            prefix=prefix,
+            exclude_email=current_user_email,
+            limit=limit,
+        )
+        return [UserSuggestion(email=u.email) for u in users]
+
+    async def edit_message(
+        self,
+        current_user_email: str,
+        message_id: uuid.UUID,
+        new_content: str,
+        background_tasks: BackgroundTasks,
+    ) -> MessageOut:
+        """Редактирование сообщения"""
+        message = await self.repo.get_message_by_id(message_id=message_id)
+        if not message:
+            raise MessageNotFoundExcepion()
+        if message.sender_email != current_user_email:
+            raise NotMessageOwnerException()
+
+        if datetime.datetime.now(
+            datetime.UTC
+        ) - message.created_at > datetime.timedelta(minutes=10):
+            raise MessageEditTimeExpiredException()
+
+        message.content = new_content
+        message.edited_at = datetime.datetime.now(datetime.UTC)
+
+        message_out = MessageOut.model_validate(message)
+
+        background_tasks.add_task(
+            publish_message_edited,
+            target_email=message.receiver_email,
+            chat_id=message.chat_id,
+            message=message_out,
+        )
+        return message_out
