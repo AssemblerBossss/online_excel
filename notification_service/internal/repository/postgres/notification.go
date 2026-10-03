@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"notification_service/internal/domain"
@@ -13,6 +14,11 @@ import (
 )
 
 var _ repository.NotificationRepository = (*NotificationRepository)(nil)
+
+const (
+	uniqueViolationCode = "23505"
+	dedupKeyConstraint  = "uq_notifications_dedup_key"
+)
 
 type NotificationRepository struct {
 	db *pgxpool.Pool
@@ -27,31 +33,10 @@ func NewNotificationRepository(db *pgxpool.Pool) *NotificationRepository {
 func (r *NotificationRepository) Create(ctx context.Context, notification *domain.Notification) error {
 	const query = `
 		INSERT INTO notifications (
-			id,
-			user_id,
-			channel,
-			status,
-			recipient,
-			subject,
-			body,
-			created_at,
-			updated_at,
-			sent_at,
-			error
-		)
-		VALUES (
-			$1,
-			$2,
-			$3,
-			$4,
-			$5,
-			$6,
-			$7,
-			$8,
-			$9,
-			$10,
-			$11
-		)
+            id, user_id, channel, status, recipient, subject, body,
+            created_at, updated_at, sent_at, error, dedup_key
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		`
 	_, err := r.db.Exec(ctx,
 		query,
@@ -66,9 +51,15 @@ func (r *NotificationRepository) Create(ctx context.Context, notification *domai
 		notification.UpdatedAt,
 		notification.SentAt,
 		notification.Error,
+		notification.DedupKey,
 	)
 
 	if err != nil {
+		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok &&
+			pgErr.Code == uniqueViolationCode &&
+			pgErr.ConstraintName == dedupKeyConstraint {
+			return domain.ErrDuplicateNotification
+		}
 		return fmt.Errorf("insert notification: %w", err)
 	}
 	return nil

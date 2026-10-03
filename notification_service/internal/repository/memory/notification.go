@@ -20,6 +20,14 @@ func NewNotificationRepository() *NotificationRepository {
 func (r *NotificationRepository) Create(ctx context.Context, notification *domain.Notification) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	if notification.DedupKey != nil {
+		for _, existing := range r.data {
+			if existing.DedupKey != nil && *existing.DedupKey == *notification.DedupKey {
+				return domain.ErrDuplicateNotification
+			}
+		}
+	}
 	r.data[notification.ID] = notification
 	return nil
 }

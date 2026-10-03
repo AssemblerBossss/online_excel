@@ -35,8 +35,13 @@ func (h *EventHandler) Handle(ctx context.Context, eventType string, body []byte
 
 func (h *EventHandler) handlerUserRegistered(ctx context.Context, body []byte) error {
 	var event events.UserRegistered
+
 	if err := json.Unmarshal(body, &event); err != nil {
 		return fmt.Errorf("%w: %v", ErrMalformedEvent, err)
+	}
+
+	if event.EventID == "" {
+		return fmt.Errorf("%w: event_id is required", ErrMalformedEvent)
 	}
 	n, err := h.notifications.Create(ctx, CreateNotificationInput{
 		UserID:    event.UserID,
@@ -44,7 +49,7 @@ func (h *EventHandler) handlerUserRegistered(ctx context.Context, body []byte) e
 		Recipient: event.Email,
 		Subject:   "Добро пожаловать в Online Excel",
 		Body:      welcomeBody(event.FirstName),
-		DedupKey:  "user.registered" + event.EventID,
+		DedupKey:  "user.registered:" + event.EventID,
 	})
 	if errors.Is(err, domain.ErrDuplicateNotification) {
 		return nil

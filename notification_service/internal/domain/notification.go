@@ -36,7 +36,7 @@ type Notification struct {
 	Recipient string
 	Subject   string
 	Body      string
-
+	DedupKey  *string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	SentAt    *time.Time

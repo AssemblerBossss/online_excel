@@ -62,6 +62,7 @@ func (s *NotificationService) Create(
 		Recipient: req.Recipient,
 		Subject:   req.Subject,
 		Body:      req.Body,
+		DedupKey:  dedupKeyPtr(req.DedupKey),
 		Status:    domain.StatusPending,
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -204,4 +205,12 @@ func isValidNotificationStatus(status domain.NotificationStatus) bool {
 		return false
 
 	}
+}
+
+func dedupKeyPtr(key string) *string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return nil
+	}
+	return &key
 }
