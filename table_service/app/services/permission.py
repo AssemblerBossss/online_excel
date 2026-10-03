@@ -1,4 +1,5 @@
 import logging
+from typing import Callable, Awaitable
 
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.exceptions import (
@@ -36,46 +37,94 @@ class PermissionService:
             created_at=permission.created_at,
         )
 
+    async def _get_table_with_access(
+        self,
+        uow_session: UnitOfWork,
+        table_id: int,
+        user_id: int,
+        user_role: str,
+        check_access_func: Callable[..., Awaitable[bool]],
+        access_type: str,
+        is_deleted: bool = False,
+    ) -> DataTable:
+        """Внутренний метод для получения таблицы и проверки прав доступа."""
+        # 1. Получение таблицы в зависимости от флага is_deleted
+        if is_deleted:
+            table = await uow_session.tables.get_deleted_table_by_id(table_id=table_id)
+            not_found_msg = "Таблица не найдена в корзине"
+        else:
+            table = await uow_session.tables.get_table_by_id(table_id=table_id)
+            not_found_msg = "Таблица не найдена"
+
+        if not table:
+            raise NotFoundException(not_found_msg)
+
+        # 2. Проверка доступа переданной функцией
+        has_access = await check_access_func(
+            uow_session=uow_session, table=table, user_id=user_id, user_role=user_role
+        )
+
+        # 3. Логирование и вызов ошибки, если доступа нет
+        if not has_access:
+            logger.warning(
+                "User %s denied %s access to table %s", user_id, access_type, table_id
+            )
+            raise AccessDeniedException()
+
+        return table
+
     async def get_table_with_read_access(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> DataTable:
         """Найти таблицу по ID и проверить право на чтение."""
-        table = await uow_session.tables.get_table_by_id(table_id=table_id)
-        if not table:
-            raise NotFoundException("Таблица не найдена")
-        if not await self.check_read_access(
-            uow_session=uow_session, table=table, user_id=user_id, user_role=user_role
-        ):
-            raise AccessDeniedException()
-        return table
+        return await self._get_table_with_access(
+            uow_session=uow_session,
+            table_id=table_id,
+            user_id=user_id,
+            user_role=user_role,
+            check_access_func=self.check_read_access,
+            access_type="read",
+        )
 
     async def get_table_with_write_access(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> DataTable:
-        """Найти таблицу по ID и проверить право на запись."""
-        table = await uow_session.tables.get_table_by_id(table_id=table_id)
-        if not table:
-            raise NotFoundException("Таблица не найдена")
-        if not await self.check_write_access(
-            uow_session=uow_session, table=table, user_id=user_id, user_role=user_role
-        ):
-            logger.warning("User %s denied write access to table %s", user_id, table_id)
-            raise AccessDeniedException()
-        return table
+        """Получить таблицу по ID и проверить доступ на запись."""
+        return await self._get_table_with_access(
+            uow_session=uow_session,
+            table_id=table_id,
+            user_id=user_id,
+            user_role=user_role,
+            check_access_func=self.check_write_access,
+            access_type="write",
+        )
 
     async def get_table_with_manage_access(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> DataTable:
-        """Найти таблицу по ID и проверить право на управление."""
-        table = await uow_session.tables.get_table_by_id(table_id=table_id)
-        if not table:
-            raise NotFoundException("Таблица не найдена")
-        if not await self.check_manage_access(
-            uow_session=uow_session, table=table, user_id=user_id, user_role=user_role
-        ):
-            logger.warning("User %s denied write access to table %s", user_id, table_id)
-            raise AccessDeniedException()
-        return table
+        """Получить таблицу по ID и проверить доступ на управление."""
+        return await self._get_table_with_access(
+            uow_session=uow_session,
+            table_id=table_id,
+            user_id=user_id,
+            user_role=user_role,
+            check_access_func=self.check_manage_access,
+            access_type="manage",
+        )
+
+    async def get_deleted_table_with_manage_access(
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
+    ) -> DataTable:
+        """Получить удаленную таблицу по ID и проверить доступ на управление."""
+        return await self._get_table_with_access(
+            uow_session=uow_session,
+            table_id=table_id,
+            user_id=user_id,
+            user_role=user_role,
+            check_access_func=self.check_manage_access,
+            access_type="manage",
+            is_deleted=True,
+        )
 
     async def check_read_access(
         self, uow_session: UnitOfWork, table: DataTable, user_id: int, user_role: str

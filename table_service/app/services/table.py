@@ -385,7 +385,7 @@ class TableService:
     ) -> None:
         """Удалить таблицу."""
         async with uow_session.start():
-            table = await self.permission_service.get_table_with_manage_access(
+            table = await self.permission_service.get_deleted_table_with_manage_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
@@ -412,16 +412,16 @@ class TableService:
                     )
                     raise
 
-                logger.info(
-                    "User %s deleted table %s (name: %s)", user_id, table_id, table.name
-                )
+            logger.info(
+                "User %s deleted table %s (name: %s)", user_id, table_id, table.name
+            )
 
     async def restore_table(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> None:
         """Восстановить таблицу из корзины."""
         async with uow_session.start():
-            await self.permission_service.get_table_with_manage_access(
+            await self.permission_service.get_deleted_table_with_manage_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
