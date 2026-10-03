@@ -251,3 +251,5 @@ class UserService:
                 current_user.id,
                 values={"hashed_password": get_password_hash(data.new_password)},
             )
+            # Отозвать сессию после смены пароля
+            await uow_session.token.revoke_all_user_tokens(user_id=current_user.id)
