@@ -38,15 +38,13 @@ class ChatService:
         background_tasks: BackgroundTasks,
     ) -> MessageOut:
         if sender_email == data.receiver_email:
-            raise SelfMessageException("Нельзя отправить сообщение самому себе")
+            raise SelfMessageException()
 
         receiver = await self.repo.get_user_by_email(data.receiver_email)
         if not receiver:
-            raise UserNotFoundException(f"Пользователь {data.receiver_email} не найден")
+            raise UserNotFoundException(data.receiver_email)
         if not receiver.is_active:
-            raise UserBlockedException(
-                f"Пользователь {data.receiver_email} заблокирован"
-            )
+            raise UserBlockedException(data.receiver_email)
 
         user1, user2 = sorted([sender_email, data.receiver_email])
         chat = await self.repo.get_chat_by_users(user1, user2)

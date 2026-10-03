@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from chat_service.app.models import Chat, ChatUser, Message
@@ -76,7 +76,6 @@ class ChatRepository:
 
     async def count_messages(self, chat_id: uuid.UUID) -> int:
         """Подсчитывает общее количество сообщений в чате"""
-        from sqlalchemy import func
 
         stmt = (
             select(func.count()).select_from(Message).where(Message.chat_id == chat_id)
@@ -96,7 +95,7 @@ class ChatRepository:
                 and_(
                     Message.chat_id == chat_id,
                     Message.receiver_email == reader_email,
-                    Message.is_read == False,
+                    Message.is_read.is_(False),
                 )
             )
             .values(is_read=True)

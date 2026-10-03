@@ -1,0 +1,1418 @@
+=====================================================================
+РЕВЬЮ: auth_service, table_service, chat_service
+Баги, логические ошибки, безопасность, мёртвый код + код исправлений
+=====================================================================
+Исходники НЕ менялись. Старый 1.txt (план notification_service)
+переименован в 1.notification_plan.txt.
+
+Пометки важности:
+  [КРИТ]  — функционал сломан / 500 / утечка данных. Чинить первым.
+  [ВЫС]   — логическая ошибка, проявится в реальной работе.
+  [СРЕД]  — гонки, неконсистентность, риски.
+  [НИЗК]  — косметика, стиль, мелочи.
+  [МЁРТВ] — мёртвый код, можно удалять.
+
+Пути даны относительно корня репозитория, номер строки — после ":".
+
+---------------------------------------------------------------------
+КРАТКО: TOP-10, ЧТО ЧИНИТЬ СРАЗУ
+---------------------------------------------------------------------
+ 1. table_service  excel_processor.DTYPE_MAP — frozenset вместо dict:
+    импорт любого Excel с числовой колонкой падает 500.           (T1)
+ 2. table_service  DataRepository._to_number не существует: любой
+    фильтр по числовой колонке падает 500.                        (T2)
+ 3. table_service  корзина: restore и permanent delete всегда 404 —
+    проверка прав ищет только НЕудалённые таблицы.                (T3)
+ 4. table_service  кэш строк отдаётся ДО проверки прав — любой
+    пользователь читает чужую приватную таблицу.                  (T4)
+ 5. table_service  /search отдаёт приватные таблицы всех юзеров.  (T5)
+ 6. table_service  formulas никогда не сохраняются в БД.          (T6)
+ 7. auth_service   GET /users/all_users/ всегда 500 (filter_by(**None)),
+    GET /users/{id} всегда 500 (нет await).                    (A1, A2)
+ 8. auth_service   DELETE /users/{id} всегда 500 (нет uow.start()),
+    user.deleted никогда не публикуется.                          (A3)
+ 9. auth_service   /users/{id}/activate недоступен — опечатка "}" в
+    пути.                                                         (A4)
+10. chat_service   UserNotFound/UserBlocked: текст ошибки
+    "Пользователь Пользователь x@y не найден не найден".          (C1)
+    + consumer'ы всех сервисов молча теряют события (A/T/C-общий). (X1)
+
+
+=====================================================================
+ЧАСТЬ 1. AUTH_SERVICE
+=====================================================================
+
+---------------------------------------------------------------------
+A1 [КРИТ] find_all(filters=None) -> TypeError, GET /users/all_users/ = 500
+---------------------------------------------------------------------
+auth_service/app/repository/user.py:37-41
+auth_service/app/services/user.py:41  — вызывает find_all() без аргументов.
+
+    query = select(User).filter_by(**filters)   # filters is None -> TypeError
+
+Та же проблема в exists(filter_dict=None): repository/user.py:121-125.
+
+Исправление:
+    async def find_all(self, filters: dict | None = None) -> Sequence[User]:
+        query = select(User)
+        if filters:
+            query = query.filter_by(**filters)
+        return (await self._session.execute(query)).scalars().all()
+
+    async def exists(self, filter_dict: dict | None = None) -> bool:
+        query = select(User.id)
+        if filter_dict:
+            query = query.filter_by(**filter_dict)
+        result = await self._session.execute(query.limit(1))
+        return result.scalar() is not None
+
+Плюс: список ВСЕХ пользователей (email, роль) доступен любому
+залогиненному. Если это не задумано — ограничить админом:
+    async def get_all_users(self, uow_session, current_user):
+        self._check_is_admin(current_user)
+        ...
+
+---------------------------------------------------------------------
+A2 [КРИТ] get_user_by_id без await, GET /users/{id} = 500
+---------------------------------------------------------------------
+auth_service/app/services/user.py:49
+
+    user = uow_session.user.find_one_or_none_by_id(user_id)   # корутина!
+
+`user` всегда truthy (объект корутины), `SUserInfo.model_validate(coroutine)`
+падает ValidationError -> 500. Плюс warning "coroutine was never awaited".
+
+Исправление:
+    user = await uow_session.user.find_one_or_none_by_id(user_id)
+
+---------------------------------------------------------------------
+A3 [КРИТ] delete_user: нет транзакции, нет события, аватар не удаляется
+---------------------------------------------------------------------
+auth_service/app/services/user.py:172-177
+
+    self._check_permissions(current_user, user_id)
+    return await uow_session.user.delete_by_id(user_id)
+
+1) Нет `async with uow_session.start()` -> uow._session is None ->
+   UserRepository(None).delete_by_id -> AttributeError -> 500.
+   Удаление пользователя не работает вообще.
+2) Не публикуется UserDeletedEvent (класс есть, но нигде не используется) ->
+   проекции в table_service/chat_service никогда не узнают об удалении.
+3) Аватар в MinIO остаётся сиротой.
+
+Исправление:
+    async def delete_user(
+        self, uow_session: UnitOfWork, current_user: SUserInfo, user_id: int
+    ) -> bool:
+        self._check_permissions(current_user, user_id)
+        async with uow_session.start():
+            user = await uow_session.user.find_one_or_none_by_id(user_id)
+            if not user:
+                return False
+            avatar = user.avatar_url
+            await uow_session.user.delete_by_id(user_id)
+
+        await avatar_storage.delete(avatar)
+        await self.event_publisher.publish(
+            UserDeletedEvent(user_id=user_id, timestamp=datetime.now(UTC))
+        )
+        return True
+
+(импортировать UserDeletedEvent из auth_service.app.schemas)
+
+
+---------------------------------------------------------------------
+A5 [ВЫС] Обработчик RateLimitExceeded регистрируется в lifespan — не работает
+---------------------------------------------------------------------
+auth_service/app/main.py:33-34
+
+    app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
+
+Starlette собирает middleware-стек (и копирует dict exception_handlers в
+ExceptionMiddleware) при ПЕРВОМ вызове __call__ — а lifespan как раз и
+приходит через __call__. Хендлер, добавленный внутри lifespan, в стек уже
+не попадает -> при превышении лимита клиент получает 500 вместо 429.
+
+Исправление — регистрировать при создании app, до старта:
+    app = FastAPI(...)
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+custom_rate_limit_handler — пустая обёртка над _rate_limit_exceeded_handler,
+удалить (см. мёртвый код).
+
+---------------------------------------------------------------------
+A6 [ВЫС] Обработчик AppException теряет кастомный текст ошибки
+---------------------------------------------------------------------
+auth_service/app/main.py:78-81
+
+    content={"detail": exc.detail}     # detail — атрибут КЛАССА
+
+AppException.__init__ кладёт переданный текст в exc.message, а наружу
+отдаётся всегда дефолтный exc.detail класса. Например
+UnsupportedContentTypeException(f"...: {content_type}") в minio_client.py:45
+показывает клиенту только "Неподдерживаемый формат файла".
+
+Исправление:
+    content={"detail": exc.message}
+
+---------------------------------------------------------------------
+A7 [ВЫС] find_not_revoked_by_user_id не фильтрует revoked
+---------------------------------------------------------------------
+auth_service/app/repository/token.py:50-59
+
+Имя обещает "не отозванные", а в WHERE только expires_at > now.
+revoke_all_user_tokens и count_active_user_tokens считают/перебирают
+уже отозванные токены.
+
+Исправление:
+    query = select(RefreshToken).where(
+        RefreshToken.user_id == user_id,
+        RefreshToken.revoked.is_(False),
+        RefreshToken.expires_at > datetime.now(UTC),
+    )
+
+А revoke_all_user_tokens лучше одним UPDATE (без загрузки объектов):
+    async def revoke_all_user_tokens(self, user_id: int) -> int:
+        query = (
+            update(RefreshToken)
+            .where(RefreshToken.user_id == user_id, RefreshToken.revoked.is_(False))
+            .values(revoked=True)
+        )
+        result = await self._session.execute(query)
+        return result.rowcount
+
+---------------------------------------------------------------------
+A8 [ВЫС][БЕЗОП] Гонка в refresh: один refresh-токен можно обменять дважды
+---------------------------------------------------------------------
+auth_service/app/services/auth.py:143-174
+
+SELECT токена -> проверка revoked -> UPDATE revoked=True. Два параллельных
+запроса с одним токеном оба проходят проверку и оба получают новую пару
+(классическая атака на ротацию refresh-токенов).
+
+Исправление — атомарно "погасить" токен и получить его одной командой.
+Репозиторий (только доступ к данным):
+    async def revoke_active(self, refresh_token: str) -> RefreshToken | None:
+        query = (
+            update(RefreshToken)
+            .where(
+                RefreshToken.refresh_token == refresh_token,
+                RefreshToken.revoked.is_(False),
+                RefreshToken.expires_at > datetime.now(UTC),
+            )
+            .values(revoked=True)
+            .returning(RefreshToken)
+        )
+        return (await self._session.execute(query)).scalar_one_or_none()
+
+Сервис:
+    async with uow_session.start():
+        token_record = await uow_session.token.revoke_active(refresh_token)
+        if not token_record:
+            raise InvalidRefreshTokenException()
+        user = await uow_session.user.find_one_or_none_by_id(token_record.user_id)
+        if not user or not user.is_active:
+            raise UserInactiveException()
+        ... создать новый токен ...
+
+(второй update(... revoked=True) в сервисе тогда не нужен)
+
+---------------------------------------------------------------------
+A10 [ВЫС] activate/deactivate не публикуют событий; проекции не знают об is_active
+---------------------------------------------------------------------
+auth_service/app/services/user.py:179-215
+table_service/app/api/dependencies.py:153 проверяет user.is_active в проекции,
+но проекция меняет is_active только на user.deleted. Деактивированный
+пользователь продолжает работать в table_service/chat_service, пока жив
+access-токен, а при активации обратно — проекция не восстанавливается,
+если была помечена удалённой.
+
+Исправление: добавить is_active в UserEvent и публиковать UserUpdateEvent
+после activate/deactivate:
+    # schemas/events.py
+    class UserEvent(BaseModel):
+        ...
+        is_active: bool = True
+
+    # services/user.py, в конце deactivate_user/activate_user
+        await self.event_publisher.publish(
+            UserUpdateEvent(
+                user_id=user.id,
+                email=user.email,
+                role=str(user.role.value),
+                is_active=user.is_active,
+                timestamp=datetime.now(UTC),
+            )
+        )
+
+И в upsert проекций (table/chat) писать is_active из события:
+    user.is_active = data.get("is_active", True)
+
+---------------------------------------------------------------------
+A11 [СРЕД] UserUpdateEvent.old_email / old_role никогда не заполняются
+---------------------------------------------------------------------
+auth_service/app/services/user.py:82-89, 143-151
+Поля объявлены (schemas/events.py:29-30), но в событие не передаются.
+notification_service (план в 1.notification_plan.txt) хочет письма о смене
+роли/email — без old_* ему не из чего собрать текст.
+
+Исправление (change_role):
+        async with uow_session.start():
+            user = await uow_session.user.find_one_or_none_by_id(user_id)
+            if not user:
+                return None
+            old_role = user.role.value
+            await uow_session.user.change_user_role(user_id=user_id, new_role=role)
+            user = await uow_session.user.find_one_or_none_by_id(user_id)
+        await self.event_publisher.publish(
+            UserUpdateEvent(..., old_role=old_role)
+        )
+Аналогично old_email в update_user.
+
+Также: UserDeletedEvent (schemas/events.py:33) не наследует UserEvent и не
+имеет event_id -> консьюмеры не смогут делать идемпотентность по event_id.
+    class UserDeletedEvent(BaseModel):
+        event_id: UUID = Field(default_factory=uuid4)
+        ...
+
+---------------------------------------------------------------------
+A12 [СРЕД] Событие публикуется вне транзакции (нет outbox)
+---------------------------------------------------------------------
+auth_service/app/services/auth.py:63-86 (и все publish в services/user.py)
+Коммит прошёл -> RabbitMQ недоступен -> 500 клиенту, пользователь создан,
+но событие потеряно навсегда: table_service/chat_service никогда не создадут
+проекцию, пользователь получает 401 "User not found" в table_service.
+Повторная регистрация -> 409 "уже существует". Тупик.
+
+Минимум: ловить ошибку publish, логировать и не отдавать 500
+(пользователь-то создан). Правильно: transactional outbox — писать событие
+в таблицу outbox в той же транзакции, отдельный воркер публикует.
+    class OutboxEvent(Base):
+        __tablename__ = "outbox_events"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        routing_key: Mapped[str] = mapped_column(String, nullable=False)
+        payload: Mapped[str] = mapped_column(Text, nullable=False)
+        published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+---------------------------------------------------------------------
+A13 [СРЕД][БЕЗОП] Rate limit обходится подделкой X-Forwarded-For
+---------------------------------------------------------------------
+auth_service/app/сore/rate_limiter.py:9-11
+
+    return forwarded.split(",")[0]
+
+Берётся ПЕРВОЕ значение — его пишет клиент. Меняя заголовок на каждый
+запрос, брутфорс /auth/login не ограничивается. Traefik дописывает
+реальный IP в КОНЕЦ цепочки.
+
+Исправление:
+    def get_client_ip(request: Request) -> str:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[-1].strip()
+        return request.client.host if request.client else "unknown"
+(или X-Real-IP, если traefik его ставит; и настроить trustedIPs в traefik)
+
+---------------------------------------------------------------------
+A14 [СРЕД] Лимиты захардкожены, настройки RATE_LIMIT_* не используются
+---------------------------------------------------------------------
+auth_service/app/routers/auth.py:15,33,53,67 vs config.py:32-35
+Строки "3/minute" и т.п. продублированы; для /refresh в коде "20/minute",
+а в конфиге RATE_LIMIT_REFRESH="10/minute" — рассинхрон.
+
+Исправление:
+    @limiter.limit(auth_service_settings.RATE_LIMIT_REGISTER)
+    @limiter.limit(auth_service_settings.RATE_LIMIT_LOGIN)
+    @limiter.limit(auth_service_settings.RATE_LIMIT_LOGOUT)
+    @limiter.limit(auth_service_settings.RATE_LIMIT_REFRESH)
+
+---------------------------------------------------------------------
+A15 [СРЕД] Старый аватар не удаляется при замене
+---------------------------------------------------------------------
+auth_service/app/services/user.py:92-118
+При загрузке нового аватара старый объект в MinIO остаётся навсегда.
+Также если коммит упадёт после put_object — объект-сирота (удаляется
+только при `not updated`).
+
+Исправление:
+        object_name = await avatar_storage.upload_avatar(...)
+        try:
+            async with uow_session.start():
+                user = await uow_session.user.find_one_or_none_by_id(user_id)
+                if not user:
+                    await avatar_storage.delete(object_name)
+                    return None
+                old_object = user.avatar_url
+                await uow_session.user.set_avatar(user_id=user_id, object_name=object_name)
+                user = await uow_session.user.find_one_or_none_by_id(user_id)
+        except Exception:
+            await avatar_storage.delete(object_name)
+            raise
+        await avatar_storage.delete(old_object)
+        return SUserInfo.model_validate(user)
+
+Плюс: content_type берётся из заголовка клиента — магические байты файла не
+проверяются, и файл читается целиком в память ДО проверки размера
+(routers/user.py:206). Лучше ограничить размер тела на traefik (body-limit
+уже есть) и проверить сигнатуру (b"\x89PNG", b"\xff\xd8\xff", b"RIFF"...WEBP).
+
+---------------------------------------------------------------------
+A16 [СРЕД] publisher читает RABBITMQ_URL мимо Settings
+---------------------------------------------------------------------
+auth_service/app/events/publisher.py:7
+
+    RABBITMQ_URL = os.getenv("RABBITMQ_URL")
+
+При этом Settings.RABBITMQ_URL (config.py:56) собран из RABBITMQ_* и нигде
+не используется. Если env RABBITMQ_URL не задан (k8s-манифест, локальный
+запуск) -> connect_robust(None) -> падение старта.
+
+Исправление:
+    from auth_service.app.config import auth_service_settings
+    ...
+    self.connection = await aio_pika.connect_robust(auth_service_settings.RABBITMQ_URL)
+
+Замечание: в RABBITMQ_URL vhost "/" подставляется как ".../" + "/" = "//" —
+aio_pika воспримет vhost как "/" только если путь пустой. Надёжнее:
+    from urllib.parse import quote
+    f"amqp://...:{self.RABBITMQ_PORT}/{quote(self.RABBITMQ_VHOST, safe='')}"
+
+
+---------------------------------------------------------------------
+A18 [НИЗК] Прочее auth_service
+---------------------------------------------------------------------
+- utils/minio_client.py:50 — upload_avatar пишет в settings.MINIO_BUCKET, а
+  delete/ensure — в self._bucket_name. Использовать self._bucket_name везде.
+- dependency.py:21 — int(user_id) без try: заголовок "abc" -> 500 вместо 401.
+      try:
+          uid = int(user_id)
+      except ValueError:
+          raise HTTPException(status_code=401, detail="Not authenticated")
+- routers/user.py:184 — "/all_users/" объявлен ПОСЛЕ "/{user_id}". Запрос
+  без слеша "/users/all_users" матчится в /{user_id} -> 422. Переименовать в
+  GET "/users/" или объявить выше /{user_id}.
+- сore/logging_config.py:16 — "service": "auth_service" захардкожен,
+  параметр service_name игнорируется: "service": self.service_name.
+  Докстринг "для API Gateway" — копипаст. timestamp берётся now(), а не
+  record.created (время форматирования, не события):
+      datetime.fromtimestamp(record.created, UTC)
+- main.py:56-62 — allow_origins=["*"] + allow_credentials=True: браузер
+  такую комбинацию отвергает для credentialed-запросов; CORS всё равно
+  на traefik (cors@file) — middleware в сервисе можно убрать.
+- routers/health.py:12-17 — /ready ничего не проверяет. Минимум SELECT 1:
+      async with async_session_maker() as s:
+          await s.execute(text("SELECT 1"))
+- services/auth.py:78 — `first_name = user.first_name` (пробелы вокруг =,
+  ruff format поправит); services/auth.py:128 докстринг "хранит локальную
+  таблицу пользователей" — не отсюда.
+- services/auth.py:65, 102 — raise UserAlreadyExistsException (класс без ())
+  работает, но по стилю лучше единообразно с () как в остальных местах.
+- register_user: гонка двух регистраций с одним email -> IntegrityError
+  -> 500. Ловить IntegrityError и кидать UserAlreadyExistsException.
+- change_role: админ может понизить сам себя / последнего админа.
+- models/user.py и schemas/user.py — два одинаковых enum UserRole.
+  Оставить один (models) и импортировать в схемы.
+- repository/token.py:98 — нет cron/воркера на delete_expired -> таблица
+  refresh_tokens растёт бесконечно (каждый refresh = новая строка).
+
+---------------------------------------------------------------------
+A19 [МЁРТВ] Мёртвый код auth_service
+---------------------------------------------------------------------
+- utils/security.py:19-28           authenticate_user — не вызывается.
+- utils/jwt_utils.py:58-65, 16-18   verify_access_token, _public_key — JWT
+                                    проверяет traefik-плагин.
+- utils/minio_client.py:64-67       AvatarStorage.public_url — URL строит
+                                    SUserInfo.to_public_url.
+- сore/database.py:13-15            get_db (+ экспорт в сore/__init__.py).
+- сore/__init__.py:3,9              экспорт get_client_ip — наружу не нужен.
+- services/auth.py:190-199          logout_all_devices — нет роута.
+- repository/token.py:72-78         delete_expired — не вызывается.
+- repository/token.py:89-92         count_active_user_tokens — не вызывается.
+- repository/token.py:44-48         find_all_by_user_id — не вызывается.
+- repository/user.py:25-29          find_one_or_none
+- repository/user.py:49-53          add_many
+- repository/user.py:55-68          update
+- repository/user.py:93-101         delete
+- repository/user.py:112-119        count
+- repository/user.py:121-125        exists
+- repository/user.py:127-135        get_active_users, get_users_by_role
+- repository/user.py:137-140        закомментированный deactivate_user
+- schemas/user.py:79-82             SUserAddDB
+- schemas/user.py:97-104            SUserUpdate
+- exceptions.py:27-30, 45-48        UserIdNotFoundException, NotFoundException
+- config.py:18                      JWT_SECRET_KEY ("не используется при RS256")
+- config.py:32-35                   RATE_LIMIT_* (см. A14 — либо использовать,
+                                    либо удалить)
+- main.py:22-26                     custom_rate_limit_handler (обёртка без логики)
+- main.py:52                        закомментированный redirect_slashes
+- utils/security.py:3               закомментированный argon2-контекст
+
+
+=====================================================================
+ЧАСТЬ 2. TABLE_SERVICE
+=====================================================================
+
+---------------------------------------------------------------------
+T2 [КРИТ] DataRepository._to_number не существует
+---------------------------------------------------------------------
+table_service/app/repository/data.py:73, 81
+
+    val = cls._to_number(f.value) if numeric else f.value
+
+Метода _to_number нет ни в классе, ни в проекте (grep пустой). Любой фильтр
+eq/ne/gt/gte/lt/lte по колонке типа "number" -> AttributeError -> 500.
+
+Исправление — добавить в DataRepository:
+    @staticmethod
+    def _to_number(value: str) -> Decimal:
+        return Decimal(value)
+(from decimal import Decimal; сервис уже гарантирует, что значение число —
+services/data.py:136-142 — но только для COMPARISON_OPERATORS, для eq/ne
+проверки нет -> см. ниже)
+
+И в services/data.py:136 проверять число для ВСЕХ операторов кроме contains:
+            if f.field in numeric_fields and f.op is not FilterOperator.contains:
+                try:
+                    Decimal(f.value)
+                except InvalidOperation:
+                    raise ValidationException(...)
+
+---------------------------------------------------------------------
+T3 [КРИТ] Корзина: restore и permanent delete всегда 404
+---------------------------------------------------------------------
+table_service/app/services/table.py:383-396, 419-433
+table_service/app/services/permission.py:66-78
+table_service/app/repository/table.py:34-42
+
+permanent_delete_table и restore_table первым делом вызывают
+get_table_with_manage_access -> tables.get_table_by_id(), а он фильтрует
+`DataTable.is_deleted.is_(False)`. Таблица в корзине is_deleted=True ->
+NotFoundException("Таблица не найдена"). Восстановить или окончательно
+удалить таблицу из корзины НЕВОЗМОЖНО.
+
+При этом repository/table.py:44 get_deleted_table_by_id написан ровно для
+этого, но нигде не вызывается.
+
+Исправление — отдельная проверка для корзины в PermissionService:
+    async def get_deleted_table_with_manage_access(
+        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
+    ) -> DataTable:
+        """Найти таблицу в корзине и проверить право на управление."""
+        table = await uow_session.tables.get_deleted_table_by_id(table_id=table_id)
+        if not table:
+            raise NotFoundException("Таблица не найдена в корзине")
+        if not await self.check_manage_access(
+            uow_session=uow_session, table=table, user_id=user_id, user_role=user_role
+        ):
+            raise AccessDeniedException()
+        return table
+
+и в TableService.permanent_delete_table / restore_table вызывать её вместо
+get_table_with_manage_access.
+
+Также в permanent_delete_table (services/table.py:415-417) logger.info
+случайно вложен в `if self.search_service:` — вынести на уровень выше.
+
+---------------------------------------------------------------------
+T4 [КРИТ][БЕЗОП] Кэш строк отдаётся без проверки прав
+---------------------------------------------------------------------
+table_service/app/api/endpoints/data.py:81-93
+
+    cache_key = _rows_cache_key(table_id)       # "rows:table:{id}" — общий
+    if use_cache:
+        cached = await redis.get(cache_key)
+        if cached:
+            return json.loads(cached)           # <- до data_service, т.е. до прав
+
+Кэш общий на таблицу. Как только владелец открыл свою приватную таблицу,
+ЛЮБОЙ залогиненный пользователь в течение 60 с получает её строки через
+GET /data/{id}/rows — проверка доступа внутри get_table_rows не вызывается.
+
+Плюс кэш не сбрасывается при импорте Excel, удалении/восстановлении
+таблицы, изменении прав, дублировании с with_rows.
+
+Исправление: проверять доступ всегда, кэшировать только данные. И убрать
+кэш из роутера в сервис (роутер не должен знать про Redis):
+    # endpoints/data.py
+    result = await data_service.get_table_rows(...)   # всегда
+    return result
+
+    # services/data.py, get_table_rows
+    async with uow_session.start():
+        table = await self.permission_service.get_table_with_read_access(...)
+        if self._is_default_query(skip, limit, sort_by, sort_order, filters):
+            cached = await self.cache.get(rows_cache_key(table_id))
+            if cached:
+                return PaginatedRows.model_validate_json(cached)
+        ...
+
+---------------------------------------------------------------------
+T5 [КРИТ][БЕЗОП] /search показывает приватные таблицы всех пользователей
+---------------------------------------------------------------------
+table_service/app/api/endpoints/search.py:12-21
+table_service/app/services/search.py:15-46
+
+Запрос в ES без какого-либо фильтра по владельцу/is_public/правам ->
+любой пользователь видит name/description чужих приватных таблиц.
+Кроме того эндпоинт зависит от get_current_user (только заголовки), а не
+get_current_active_user — деактивированный в проекции юзер тоже ищет.
+
+Исправление: фильтровать в ES по видимости + дочищать по БД.
+    # SearchService
+    async def search_tables(
+        self, query: str, visible_ids: set[int] | None, limit: int = 20
+    ) -> list[dict]:
+        bool_query = {
+            "must": [{"multi_match": {...}}],
+        }
+        if visible_ids is not None:        # None = админ, видит всё
+            bool_query["filter"] = [{"terms": {"id": list(visible_ids)}}]
+        body = {"size": limit, "query": {"bool": bool_query}}
+
+    # endpoint
+    current_user: Annotated[SCurrentUser, Depends(get_current_active_user)]
+    ...
+    visible = await table_service.get_visible_table_ids(uow, user_id, role)
+    return await search_service.search_tables(q, visible, limit)
+
+Для большого числа таблиц лучше индексировать в документ список
+reader_ids и фильтровать term-запросом, обновляя его при изменении прав.
+
+---------------------------------------------------------------------
+T6 [КРИТ] formulas никогда не сохраняются
+---------------------------------------------------------------------
+table_service/app/repository/data.py:165-185, 187-209, 211-218, 220-247
+
+TableRowCreate/TableRowUpdate содержат formulas (schemas/data.py:14),
+модель имеет колонку formulas (models/data.py:29), миграция c2c4dc200571
+её добавила — но create_table_row, bulk_create_table_row, copy_rows и
+update_table_row пишут ТОЛЬКО row_data. Формулы теряются при создании,
+редактировании, дублировании строки и копировании таблицы.
+
+Исправление:
+    async def create_table_row(self, table_id: int, row_data: TableRowCreate) -> TableRow:
+        new_row = TableRow(
+            table_id=table_id,
+            row_data=row_data.row_data,
+            formulas=row_data.formulas,
+        )
+        self._session.add(new_row)
+        await self._session.flush()
+        await self._session.refresh(new_row)
+        return new_row
+
+    # bulk_create_table_row — то же: formulas=row.formulas
+
+    async def copy_rows(self, source_table_id: int, target_table_id: int) -> int:
+        select_stmt = select(
+            literal(target_table_id), TableRow.row_data, TableRow.formulas
+        ).where(TableRow.table_id == source_table_id)
+        stmt = insert(TableRow).from_select(
+            ["table_id", "row_data", "formulas"], select_stmt
+        )
+        ...
+
+    # update_table_row
+            .values(row_data=row_data.row_data, formulas=row_data.formulas)
+
+Заодно убрать хак `row_data.row_data if hasattr(row_data, "row_data") else
+row_data.model_dump()` — тип параметра и так TableRowCreate/Update, ветка
+else никогда не выполняется.
+
+---------------------------------------------------------------------
+T7 [ВЫС] Двойная регистрация @app.exception_handler(AppException)
+---------------------------------------------------------------------
+table_service/app/main.py:115-119 и 131-133
+
+    @app.exception_handler(AppException)            # опечатка, должно быть
+    async def invalid_ws_ticket_handler(...):       # InvalidWSTicketException
+        return JSONResponse(status_code=401, ...)
+    ...
+    @app.exception_handler(AppException)            # перезаписывает первый
+    async def app_exception_handler(...): -> 500
+
+Первый хендлер мёртв (перезаписан в dict), InvalidWSTicketException
+отдаёт 500 вместо 401. CanNotDeleteTableException и
+TokenInvalidFormatException хендлеров не имеют -> 500.
+CanNotUpdateTableException -> 404 (странно, логичнее 404 "не найдена"
+отдавать NotFound'ом, а этот — 409/500).
+ExportJobNotFoundException не имеет detail -> клиенту уходит
+"Internal server error" со статусом 404.
+
+Исправление — статус как атрибут исключения, один хендлер:
+    # exceptions.py
+    class AppException(Exception):
+        status_code: int = 500
+        detail: str = "Internal server error"
+
+        def __init__(self, detail: str | None = None):
+            self.detail = detail or self.__class__.detail
+            super().__init__(self.detail)
+
+    class AccessDeniedException(AppException):
+        status_code = 403
+        detail = "Нет доступа к данной таблице"
+
+    class ValidationException(AppException):
+        status_code = 422
+        ...
+    class NotFoundException(AppException):
+        status_code = 404
+    class InvalidWSTicketException(AppException):
+        status_code = 401
+    class ExportJobNotFoundException(AppException):
+        status_code = 404
+        detail = "Задача экспорта не найдена"
+    ... и т.д.
+
+    # main.py
+    def register_exception_handlers(app: FastAPI) -> None:
+        @app.exception_handler(AppException)
+        async def app_exception_handler(request: Request, exc: AppException):
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+Минус ~80 строк однотипных хендлеров, и новые исключения не надо
+регистрировать вручную.
+
+---------------------------------------------------------------------
+T8 [ВЫС] TableWsManager.broadcast меняет set во время итерации
+---------------------------------------------------------------------
+table_service/app/core/ws_manager.py:32-38
+
+    for websocket in self._connections.get(table_id, ()):
+        try: ...
+        except Exception:
+            self.disconnect(table_id, websocket)   # discard из того же set
+
+При первом же упавшем клиенте -> RuntimeError: Set changed size during
+iteration. Исключение вылетает из run_listener (ловится только
+CancelledError) -> фоновая задача умирает молча, WS-события перестают
+доходить ВСЕМ до рестарта пода. (В chat_service это сделано правильно.)
+
+Исправление:
+    async def broadcast(self, table_id: int, message: str) -> None:
+        dead: list[WebSocket] = []
+        for websocket in list(self._connections.get(table_id, ())):
+            try:
+                await websocket.send_text(message)
+            except Exception:
+                dead.append(websocket)
+        for websocket in dead:
+            self.disconnect(table_id, websocket)
+
+    async def run_listener(self, redis: Redis) -> None:
+        pubsub = redis.pubsub()
+        await pubsub.psubscribe(EVENTS_PATTERN)
+        try:
+            async for message in pubsub.listen():
+                if message["type"] != "pmessage":
+                    continue
+                try:
+                    table_id = int(message["channel"].rsplit(":", 1)[-1])
+                    await self.broadcast(table_id, message["data"])
+                except Exception:
+                    logger.exception("Ошибка рассылки WS-события")
+        except asyncio.CancelledError:
+            await pubsub.punsubscribe(EVENTS_PATTERN)
+            raise
+
+Для обрыва соединения с Redis — обернуть в цикл переподключения с паузой.
+Плюс рассылка последовательная: один медленный клиент тормозит всех —
+в перспективе asyncio.gather(..., return_exceptions=True).
+
+---------------------------------------------------------------------
+T9 [ВЫС][БЕЗОП] Право write позволяет сделать таблицу публичной
+---------------------------------------------------------------------
+table_service/app/services/table.py:144-169
+
+update_table требует только write, а DataTableUpdate содержит is_public.
+Пользователь с can_write на чужую приватную таблицу делает её публичной
+для всех. Смена видимости — это управление доступом (manage).
+
+Исправление:
+        payload = update_data.model_dump(exclude_unset=True)
+        if "is_public" in payload:
+            await self.permission_service.get_table_with_manage_access(...)
+        else:
+            await self.permission_service.get_table_with_write_access(...)
+
+---------------------------------------------------------------------
+T10 [ВЫС] POST /tables/create с пустым телом -> 500
+---------------------------------------------------------------------
+table_service/app/schemas/table.py:7-23
+Все поля DataTableCreate опциональны (name, columns_schema = None), а в
+модели name и columns_schema NOT NULL (models/table.py:19,22), is_public
+передаётся None явно (repository/table.py:80) — default=False модели при
+явном None не срабатывает.
+-> IntegrityError -> 500 вместо 422.
+
+Исправление:
+    class DataTableCreate(BaseModel):
+        name: str = Field(min_length=1, max_length=255)
+        description: str | None = None
+        is_public: bool = False
+        columns_schema: list[dict[str, Any]] = Field(default_factory=list)
+
+---------------------------------------------------------------------
+T11 [ВЫС] pin_table требует manage вместо read
+---------------------------------------------------------------------
+table_service/app/services/table.py:446-472
+Докстринг: "Достаточно прав на чтение", код: get_table_with_manage_access.
+Читатель публичной/расшаренной таблицы не может её закрепить (403).
+Исправление: get_table_with_read_access в pin_table и unpin_table
+(откреплять можно вообще без проверки прав — удаляется своя запись).
+
+---------------------------------------------------------------------
+T13 [ВЫС] Импорт Excel превращает числа-строки в даты; блокирует event loop
+---------------------------------------------------------------------
+table_service/app/services/excel_processor.py:105-107, 140-153
+table_service/app/services/table.py:274, 315
+
+1) _convert_value для любой object-колонки пробует распарсить КАЖДОЕ
+   значение как дату, игнорируя тип колонки из схемы. Проверено:
+   pd.to_datetime("2024") -> 2024-01-01 00:00:00. В текстовой колонке
+   ("год", "номер дома", артикул "2024") значение молча превращается в
+   "2024-01-01T00:00:00" — порча данных.
+   Исправление: конвертировать по типу колонки из схемы, а не по dtype:
+       def build_rows(self, df, columns_schema) -> tuple[list[TableRowCreate], int]:
+           types = {c["name"]: c["type"] for c in columns_schema}
+           ...
+               row_data = {
+                   str(col): self._convert_value(row[col], types.get(str(col), "string"))
+                   for col in df.columns
+               }
+       и в _convert_value: парсить дату только если col_type == "datetime".
+
+2) pd.read_excel и build_rows (iterrows) — синхронные CPU-операции прямо в
+   async-хендлере: пока парсится 10-мегабайтный файл, весь сервис (и WS)
+   стоит. Исправление:
+       df = await asyncio.to_thread(pd.read_excel, excel_file.file)
+       rows, failed = await asyncio.to_thread(self.excel_processor.build_rows, df, schema)
+
+3) Размер файла не проверяется — MAX_FILE_SIZE_BYTES в settings.py:46
+   объявлен и не используется.
+       if excel_file.size and excel_file.size > app_settings.MAX_FILE_SIZE_BYTES:
+           raise InvalidFileFormatException("Файл слишком большой")
+
+4) iterrows на 100k строк — очень медленно. Быстрее:
+       for record in df.to_dict(orient="records"): ...
+
+5) Колонки с пустым/NaN заголовком пропускаются в схеме (строка 52), но
+   попадают в row_data под ключом "nan" (строка 77) — мусор в JSON.
+
+---------------------------------------------------------------------
+T14 [ВЫС] Индексация в ES до коммита -> "призраки" в поиске
+---------------------------------------------------------------------
+table_service/app/services/table.py:131-138, 214-221, 306-313, 435-442
+
+index_table вызывается внутри транзакции. Если дальше что-то падает
+(bulk insert строк при импорте, коммит) — транзакция откатывается, а
+документ в ES уже есть: поиск показывает несуществующую таблицу.
+Аналогично update_table (ES обновлён, БД откатилась).
+
+Исправление: индексировать после выхода из `async with uow_session.start()`:
+        async with uow_session.start():
+            table = await uow_session.tables.create_table(...)
+            response = self._to_response(table)
+        if self.search_service:
+            await self.search_service.index_table(...)
+        return response
+
+Также create_table/update_table НЕ ловят ошибки ES (в отличие от delete):
+ES лежит -> создать таблицу нельзя (500), хотя поиск — вторичная функция.
+Обернуть index_table/update_table в try/except + logger.exception.
+
+---------------------------------------------------------------------
+T15 [ВЫС] Консьюмер событий пользователей молча теряет события
+---------------------------------------------------------------------
+table_service/app/core/user_event_consumer.py:39-56
+(то же в chat_service — см. X1, общее решение там)
+
+---------------------------------------------------------------------
+T16 [СРЕД] UserProjection.email UNIQUE + mark_deleted не удаляет строку
+---------------------------------------------------------------------
+table_service/app/models/user_projection.py:11
+table_service/app/repository/user_projection.py:40-44
+
+auth_service удаляет пользователя физически -> email освобождается.
+В проекции строка остаётся (is_active=False) с тем же email. Новая
+регистрация на этот email -> upsert INSERT -> UniqueViolation -> событие
+проглочено (T15) -> новый пользователь навсегда получает 401
+"User not found" в table_service.
+
+Исправление (вариант): при удалении освобождать email
+    async def mark_deleted(self, user_id: int) -> None:
+        stmt = (
+            update(UserProjection)
+            .where(UserProjection.id == user_id)
+            .values(is_active=False, email=f"deleted+{user_id}@invalid")
+        )
+        await self.session.execute(stmt)
+либо физически удалять строку проекции (права и пины и так завязаны на id).
+
+Там же: repository/user_projection.py:38, 44 — commit() внутри репозитория.
+Репозиторий не должен управлять транзакцией (правило проекта). Коммит —
+в консьюмере/UoW:
+    async with AsyncSessionFactory() as session, session.begin():
+        await self._dispatch(event_type, body, UserRepository(session))
+
+И upsert не учитывает порядок событий: старый user.updated, пришедший
+после нового (редоставка), затирает свежие данные. Сравнивать timestamp:
+        if user and user.updated_at and data["timestamp"] <= user.updated_at:
+            return
+Лучше — атомарный INSERT ... ON CONFLICT (id) DO UPDATE ... WHERE
+users.updated_at < excluded.updated_at.
+
+---------------------------------------------------------------------
+T17 [СРЕД] Экспортный бакет публичный — presigned URL бессмысленны
+---------------------------------------------------------------------
+table_service/app/core/export_storage.py:23-39
+
+ensure_file_bucket вешает политику s3:GetObject для "*". Любой, кто знает
+путь tables/{id}/{job_id}.xlsx, качает выгрузку без подписи и без срока.
+Подписанные ссылки (presigned_download_url) придуманы как раз чтобы бакет
+был приватным. Докстринг скопирован с аватаров.
+
+Исправление:
+    async def ensure_file_bucket(self) -> None:
+        """Создаёт приватный бакет для выгрузок (доступ только по presigned URL)."""
+        if not await self._client.bucket_exists(self._bucket_name):
+            await self._client.make_bucket(bucket_name=self._bucket_name)
+
+(и снять уже установленную политику: mc anonymous set none local/exports)
+
+Там же export_storage.py:44-46 — докстринг "Загружает аватар...", и
+bucket_name=app_settings.MINIO_EXPORT_BUCKET вместо self._bucket_name.
+Файлы экспорта никогда не удаляются — нужна lifecycle-политика MinIO
+(expire через 1 день).
+
+---------------------------------------------------------------------
+T18 [СРЕД] Экспорт: порядок строк не определён, чанк на 1 больше
+---------------------------------------------------------------------
+table_service/app/repository/data.py:98-102 — stream_rows_by_table_id без
+ORDER BY: Postgres вернёт строки в произвольном порядке.
+    .order_by(TableRow.id)
+
+table_service/app/services/export_job.py:146 — `len(chunk) > CHUNK_SIZE`
+даёт чанки по 4001. Должно быть `>=`.
+
+export_job.run выполняется в BackgroundTasks того же процесса: рестарт пода
+во время экспорта -> задача навсегда "running" до истечения JOB_TTL. Для
+надёжности — очередь (arq/celery/RabbitMQ) либо хотя бы статус error по
+таймауту на фронте.
+
+---------------------------------------------------------------------
+T19 [СРЕД] Роли и бизнес-правила в репозитории
+---------------------------------------------------------------------
+table_service/app/repository/table.py:17, 57
+    if not (user_role and user_role.upper() == "ADMIN"):
+Правило "админ видит всё" — бизнес-логика, её место в сервисе. Репозиторий
+должен принимать готовый параметр:
+    async def get_all_tables(self, user_id: int | None) -> Sequence[DataTable]:
+        """user_id=None — без фильтра по видимости."""
+    # сервис
+        user_filter = None if self.permission_service.is_admin(user_role) else user_id
+
+Также get_all_tables без ORDER BY — порядок таблиц в списке "прыгает".
+
+---------------------------------------------------------------------
+T20 [СРЕД] TablePermission: нет UNIQUE(table_id, user_id)
+---------------------------------------------------------------------
+table_service/app/models/table.py:48-65
+create_permission проверяет существование SELECT'ом, затем INSERT — два
+параллельных запроса создадут дубль, после чего get_permissions
+(scalar_one_or_none) падает MultipleResultsFound -> 500 на всех операциях
+с таблицей для этого юзера.
+
+Исправление (модель + миграция):
+    __table_args__ = (
+        UniqueConstraint("table_id", "user_id", name="uq_table_permissions_table_user"),
+    )
+и в сервисе ловить IntegrityError -> PermissionAlreadyExistsException.
+
+---------------------------------------------------------------------
+T21 [СРЕД] Валидация строк: дыры
+---------------------------------------------------------------------
+table_service/app/services/data_validation.py
+- :75 required проверяет только наличие ключа: {"name": ""} и
+  {"name": None} проходят как заполненные.
+      value = row_data.get(col_name)
+      if col_schema.get("required") and (value is None or value == ""):
+- :126 число-строка "1e5" или " 5" -> ошибка (int("1e5") падает).
+      float(value)   # хватит одной проверки
+- :231 min_value/max_value проверяются только для int/float, а числа из
+  формы часто приходят строкой "5" -> ограничения обходятся.
+  Приводить: num = float(value) if isinstance(value, str) else value.
+- :231 isinstance(True, int) is True -> bool в не-числовой колонке
+  сравнивается с min_value.
+- Не проверяются лишние ключи row_data, отсутствующие в схеме — в JSON
+  можно записать что угодно, любого размера.
+
+---------------------------------------------------------------------
+T22 [СРЕД] contains-фильтр: % и _ не экранируются
+---------------------------------------------------------------------
+table_service/app/repository/data.py:64
+    ilike(f"%{f.value}%")
+Поиск "50%" или "a_b" ведёт себя как шаблон. Не SQL-инъекция (значение
+параметризуется), но результат неверный.
+    escaped = f.value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    cls._text_expr(f.field).ilike(f"%{escaped}%", escape="\\")
+
+---------------------------------------------------------------------
+T23 [СРЕД] Инвалидация кэша списков через SCAN всех ключей
+---------------------------------------------------------------------
+table_service/app/api/cache.py:17-24
+Любое изменение (создание таблицы одним юзером) сносит кэш списков ВСЕХ
+пользователей, SCAN по всему keyspace на каждый запрос + delete по одному
+ключу. Кэш при этом почти не живёт.
+Минимум: удалять пачкой
+    keys = [k async for k in redis.scan_iter(match=..., count=500)]
+    if keys:
+        await redis.delete(*keys)
+Правильнее — инвалидировать только затронутых пользователей (владелец +
+пользователи из table_permissions), либо версионировать ключ
+(tables:list:{user_id}:v{global_version}) и INCR версии.
+
+Плюс: кэш-логика в роутерах (tables.py:98-110, trash.py:40-52, data.py) —
+это не слой API. Вынести в сервис/отдельный CacheService.
+
+---------------------------------------------------------------------
+T24 [СРЕД] Прочее table_service
+---------------------------------------------------------------------
+- api/dependencies.py:137 — int(user_id) без try -> 500 на мусорном
+  заголовке (аналогично A18).
+- api/dependencies.py:127-128 — докстринг "из request.state (JWT middleware)",
+  а читаются заголовки X-User-* от traefik.
+- api/dependencies.py:34-36 + 45,52 — две зависимости на одно и то же
+  (get_redis и get_redis_client). Оставить одну.
+- services/data.py:74-92 ensure_read_access дублирует
+  permission_service.get_table_with_read_access — заменить вызовом:
+      async with uow_session.start():
+          await self.permission_service.get_table_with_read_access(...)
+- services/data.py:288-292 delete_table_row: SELECT + DELETE, хотя
+  repository.delete_table_row уже возвращает bool:
+      if not await uow_session.data.delete_table_row(table_id=..., row_id=...):
+          raise NotFoundException()
+- services/table.py:160 update_table с exclude_none — нельзя очистить
+  description (null). Использовать exclude_unset=True.
+- services/permission.py:159-160 — выдача прав самому себе отвечает
+  "Права уже существуют" (409). Нужно отдельное исключение/сообщение.
+- services/permission.py:76 — лог "denied write access" в
+  get_table_with_manage_access (копипаст) -> "denied manage access".
+- api/endpoints/ws.py — после отзыва прав WS-подписка продолжает получать
+  события таблицы до переподключения.
+- api/endpoints/data.py:75 — параметр `filter` затеняет builtin.
+- schemas/export.py:32 — комментарий "status=done", а в enum "completed".
+- repository/data.py:6 — `Sequence` импортирован из sqlalchemy (это
+  SQL-объект Sequence для автоинкремента, не typing). Аннотации работают
+  случайно. Нужен `from collections.abc import Sequence`.
+  То же repository/table.py:3.
+- repository/user_projection.py:9 — self.session (публичный), в остальных
+  репозиториях self._session через Base. Унаследовать от Base.
+- main.py:144-151 — отдельный Redis-клиент для FastAPICache, при том что
+  есть get_redis_client (см. мёртвый код — fastapi-cache не используется).
+- core/user_event_consumer.py:10 — `from table_service.app.core import
+  app_settings` внутри самого пакета core — риск циклического импорта;
+  брать из .settings.
+
+
+---------------------------------------------------------------------
+T25 [МЁРТВ] Мёртвый код table_service
+---------------------------------------------------------------------
+- core/rabbitmq.py (весь файл)          RabbitMQUserValidator + get_user_validator,
+                                        помечены @deprecated, нигде не вызываются.
+- infrastructure/rabbitmq.py (весь файл) RpcClient — используется только
+                                        мёртвым валидатором. К тому же
+                                        asyncio.get_running_loop() в __init__
+                                        упадёт при создании вне event loop.
+- core/__init__.py:5, 21                экспорт get_user_validator
+- infrastructure/__init__.py:2, 4       экспорт RpcClient
+- core/database.py:19-21                get_db_session (+ экспорт в core/__init__)
+- core/settings.py:5-7                  LOG_FORMAT_DEFAULT
+- core/settings.py:10-24                UvicornConfig, GunicornConfig и поля
+                                        gunicorn/uvicorn в Settings
+- core/settings.py:45                   MAX_FILE_SIZE_MB (дубль BYTES; BYTES
+                                        использовать — см. T13)
+- core/user_event_consumer.py:19        RABBITMQ_URL
+- main.py:9-10, 144-151, 169            FastAPICache + отдельный Redis:
+                                        ни одного @cache в коде, кэш сделан
+                                        руками. Удалить и зависимость
+                                        fastapi-cache2 из requirements.
+- repository/table.py:44-52             get_deleted_table_by_id — НЕ удалять,
+                                        а начать использовать (см. T3).
+- repository/data.py:267-275            get_all_rows_by_table_id (экспорт
+                                        идёт через stream_rows_by_table_id).
+- services/data_validation.py:260-289   validate_batch — не вызывается (и
+                                        объявлен async без единого await).
+- services/data_validation.py:14-15     пустой __init__.
+- exceptions.py:35-36                   TokenInvalidFormatException
+- schemas/data.py:38-51                 TableRowInDB используется только как
+                                        база пустого TableRowResponse — слить
+                                        в один класс.
+- schemas/table.py:15-17                пустой DataTableUpdate (можно, но
+                                        если поля у Update и Create разные —
+                                        см. T10 — он станет не пустым).
+- services/table.py:87                  закомментированный return
+- api/endpoints/health.py               дубль root-эндпоинта из main.py:209
+- utils/__init__.py                     пустой пакет utils
+- models/table_pin.py:15, 28;
+  models/table.py:54                    комментарии "← Добавлен FK",
+                                        "← Добавить ondelete" — мусор после правок.
+
+
+=====================================================================
+ЧАСТЬ 3. CHAT_SERVICE
+=====================================================================
+
+---------------------------------------------------------------------
+C1 [КРИТ] Двойной текст в ошибках UserNotFound / UserBlocked
+---------------------------------------------------------------------
+chat_service/app/services/chat.py:36, 38-40
+chat_service/app/exceptions.py:21-25, 31-37
+
+    raise UserNotFoundException(f"Пользователь {data.receiver_email} не найден")
+    # а конструктор ожидает email и сам оборачивает:
+    detail = f"Пользователь {email} не найден"
+-> "Пользователь Пользователь x@y.ru не найден не найден"
+
+Исправление:
+    raise UserNotFoundException(data.receiver_email)
+    raise UserBlockedException(data.receiver_email)
+    raise SelfMessageException()
+
+Архитектурно: исключения наследуют HTTPException — доменный слой знает
+про HTTP (против правила проекта). Сделать как в table_service (после T7):
+AppException(status_code, detail) + один хендлер в main.py.
+
+---------------------------------------------------------------------
+C2 [КРИТ] Смена email ломает чат навсегда (FK на email) + poison message
+---------------------------------------------------------------------
+chat_service/app/models/chat.py:31-36, 69-74
+chat_service/app/repository/user_projection.py:24
+
+chats.user1_email/user2_email и messages.sender_email/receiver_email —
+FOREIGN KEY на chat_users.email без ON UPDATE CASCADE. Когда приходит
+user.updated с новым email, upsert делает UPDATE chat_users SET email=...
+-> ForeignKeyViolation (есть сообщения со старым email) -> событие
+проглочено (X1) -> проекция навсегда со старым email, а JWT уже с новым:
+пользователь не видит свои диалоги и не может писать (sender FK).
+
+Правильно: ключевать всё по user_id (он неизменен), email — только для
+отображения:
+    class Chat(Base):
+        user1_id: Mapped[int] = mapped_column(ForeignKey("chat_users.id"))
+        user2_id: Mapped[int] = mapped_column(ForeignKey("chat_users.id"))
+    class Message(Base):
+        sender_id: Mapped[int] = mapped_column(ForeignKey("chat_users.id"))
+        receiver_id: Mapped[int] = mapped_column(ForeignKey("chat_users.id"))
+Текущего пользователя брать по X-User-ID, а не X-User-Email.
+
+Быстрая заплатка без смены схемы (миграция):
+    ALTER TABLE chats DROP CONSTRAINT ..., ADD CONSTRAINT ... FOREIGN KEY
+      (user1_email) REFERENCES chat_users(email) ON UPDATE CASCADE;
+    (для всех четырёх FK)
+
+---------------------------------------------------------------------
+C3 [ВЫС] Отправитель не проверяется -> 500 на FK
+---------------------------------------------------------------------
+chat_service/app/services/chat.py:25-52
+Проверяется только получатель. Если отправителя ещё нет в проекции
+(только зарегистрировался — событие не доехало) или он удалён ->
+INSERT messages нарушает FK sender_email -> IntegrityError -> 500.
+Неактивный (удалённый) отправитель может писать.
+
+Исправление:
+        sender = await self.repo.get_user_by_email(sender_email)
+        if not sender or not sender.is_active:
+            raise UserNotFoundException(sender_email)
+
+---------------------------------------------------------------------
+C4 [ВЫС] Гонка при создании чата и lost update счётчиков
+---------------------------------------------------------------------
+chat_service/app/services/chat.py:42-59
+
+1) Два первых сообщения одновременно (или A и B пишут друг другу разом):
+   оба не находят чат, оба create_chat -> второй падает на
+   uq_chat_users_pair -> 500.
+   Репозиторий:
+       async def get_or_create_chat(self, user1_email: str, user2_email: str) -> Chat:
+           stmt = (
+               insert(Chat)                      # sqlalchemy.dialects.postgresql
+               .values(id=uuid.uuid4(), user1_email=user1_email, user2_email=user2_email)
+               .on_conflict_do_nothing(constraint="uq_chat_users_pair")
+           )
+           await self._session.execute(stmt)
+           return await self.get_chat_by_users(user1_email, user2_email)
+
+2) chat.unread_count_user1 += 1 — read-modify-write в Python. Два
+   параллельных сообщения -> счётчик +1 вместо +2.
+   Атомарно в БД:
+       async def increment_unread(self, chat_id: uuid.UUID, for_user1: bool) -> None:
+           col = Chat.unread_count_user1 if for_user1 else Chat.unread_count_user2
+           stmt = update(Chat).where(Chat.id == chat_id).values({col: col + 1})
+           await self._session.execute(stmt)
+
+3) mark_chat_as_read (chat.py:154) обнуляет счётчик только если
+   updated_count > 0. Если счётчик разъехался (п.2), он не обнулится
+   никогда. Обнулять безусловно.
+
+---------------------------------------------------------------------
+C5 [ВЫС] WS-событие может уйти до коммита / при откате
+---------------------------------------------------------------------
+chat_service/app/services/chat.py:63-68
+chat_service/app/api/dependencies.py:17-20
+
+Коммит делается в teardown зависимости get_async_uow_session, публикация
+в Redis — в BackgroundTasks. Порядок teardown зависимостей относительно
+background tasks менялся между версиями FastAPI (0.106 / 0.118), и в любом
+случае если коммит упадёт — получатель уже увидит сообщение, которого нет
+в БД, а отправитель мог получить 201.
+
+Исправление: явная граница транзакции в сервисе, публикация после неё:
+    async def send_message(...) -> MessageOut:
+        async with self._uow.start():
+            ... вся запись ...
+            message_out = MessageOut.model_validate(message)
+        await publish_new_message(target_email=..., chat_id=..., message=message_out)
+        return message_out
+(а get_async_uow_session отдаёт UoW без start(), как в table_service)
+
+---------------------------------------------------------------------
+C6 [ВЫС] Redis-listener умирает молча
+---------------------------------------------------------------------
+chat_service/app/infrastructure/redis_pubsub.py:60-81
+chat_service/main.py:15, 19
+
+try/except стоит только вокруг обработки одного сообщения. Обрыв
+соединения с Redis -> исключение из `async for self._pubsub.listen()` ->
+задача listener_task завершается, никто это не логирует и не
+перезапускает: realtime-доставка в этой реплике мертва до рестарта.
+main.py:19 — cancel() без await (в table_service сделано правильно).
+
+Исправление:
+    async def listen(self, handler) -> None:
+        while True:
+            try:
+                async for message in self._pubsub.listen():
+                    ...
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("Redis PubSub оборвался, переподключаюсь")
+                await asyncio.sleep(1)
+                await self._pubsub.subscribe(self.CHANNEL)
+
+    # main.py
+    listener_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await listener_task
+
+---------------------------------------------------------------------
+C7 [СРЕД] WS: утечка соединения при любой ошибке кроме WebSocketDisconnect
+---------------------------------------------------------------------
+chat_service/app/api/endpoints/ws.py:30-35
+    except WebSocketDisconnect:
+        connection_manager.disconnect(user_email, websocket)
+Любое другое исключение (RuntimeError при закрытии, ConnectionClosed)
+оставляет мёртвый сокет в _connections. Использовать finally (как в
+table_service/app/api/endpoints/ws.py:57):
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        connection_manager.disconnect(user_email, websocket)
+
+Тикет живёт 300 с (ws.py:14) против 30 с в table_service — для
+одноразового тикета достаточно 30.
+
+---------------------------------------------------------------------
+C8 [СРЕД] Проекция chat_users: те же проблемы, что T16
+---------------------------------------------------------------------
+chat_service/app/repository/user_projection.py:21-50
+- email UNIQUE + мягкое удаление -> повторная регистрация email ломается.
+- commit() внутри репозитория.
+- нет проверки порядка событий (timestamp).
+- is_active никогда не возвращается в True (upsert его не трогает).
+Исправления — как в T16 / A10.
+
+---------------------------------------------------------------------
+C9 [СРЕД] Миграции chat_service игнорируют env
+---------------------------------------------------------------------
+chat_service/alembic.ini:63
+    sqlalchemy.url = postgresql+asyncpg://postgres:postgres@chat_db:5432/chat_db
+alembic/env.py URL из настроек не подставляет. В compose передаются
+DB_HOST/DB_USER/... (docker-compose.yaml:46-52), но миграции их не видят:
+в k8s / с другим паролем миграция пойдёт не туда или упадёт.
+Плюс default DB_NAME в settings.py:30 = "chat", а в compose/ini = "chat_db".
+
+Исправление в env.py:
+    from chat_service.app.core.settings import app_settings
+    config.set_main_option("sqlalchemy.url", app_settings.DATABASE_URL)
+и в settings.py DB_NAME: str = "chat_db".
+
+---------------------------------------------------------------------
+C10 [СРЕД] Прочее chat_service
+---------------------------------------------------------------------
+- schemas/chat.py:48-52 — PaginatedResponse.items: list[MessageOut | DialogOut],
+  page и cursor всегда None (chat.py:119-135). Типизировать
+  items: list[MessageOut], убрать page/cursor или реализовать курсор.
+  Offset-пагинация по сообщениям при добавлении новых "съезжает" —
+  лучше курсор по (created_at, id).
+- api/endpoints/chat.py:14 — GET /chat/users возвращает диалоги, а не
+  пользователей. Лучше /chat/dialogs.
+- api/dependencies.py:26 — докстринг "сервиса разрешений пользователей"
+  (копипаст из table_service).
+- repository/chat_repository.py:79 — локальный импорт func внутри метода,
+  перенести наверх.
+- repository/chat_repository.py:99 — `Message.is_read == False` ->
+  `Message.is_read.is_(False)` (ruff E712).
+- repository/chat_repository.py:38, 69 — перевёрнутые сравнения
+  `user1_email == Chat.user1_email` работают, но читаются странно.
+- models/chat.py:27-29 — index=True на primary key избыточен.
+- exceptions.py:21, 31 — `email: str = None` -> `email: str | None = None`.
+- infrastructure/event_consumer.py:37 — `for routing_key in routing_key` —
+  переменная цикла затеняет параметр. Переименовать параметр в
+  routing_keys (как в table_service).
+- infrastructure/event_consumer.py и table_service/.../event_consumer.py —
+  один и тот же класс скопирован в два сервиса. Кандидат в общий пакет.
+- main.py — нет setup логирования (JSON-формат для Fluent Bit), нет
+  Prometheus Instrumentator, как у остальных сервисов. Логи chat_service
+  в ES придут без парсинга (json_try их пропустит как plain text).
+- main.py:13-14 — если redis_pubsub.connect() упадёт, consumer RabbitMQ
+  остаётся открытым (нет try/finally в lifespan).
+
+---------------------------------------------------------------------
+C11 [МЁРТВ] Мёртвый код chat_service
+---------------------------------------------------------------------
+- core/settings.py:50             комментарий "# app/core/settings.py"
+- core/settings.py:59             закомментированный env_prefix
+- exceptions.py:4-8               ChatException — лишняя прослойка над
+                                  HTTPException (после C1 уйдёт)
+- schemas/chat.py:44              DialogOut.model_config from_attributes —
+                                  DialogOut собирается руками.
+- schemas/chat.py:51-52           PaginatedResponse.page / cursor — всегда None.
+- tests/test_connection_manager.py, tests/test_ws.py — это не pytest-тесты,
+  а скрипты: asyncio.run() на уровне модуля, test_ws.py вызывает input().
+  Если pytest когда-нибудь соберёт chat_service/tests — зависнет на input().
+  Переписать test_connection_manager в нормальный pytest (async def test_...)
+  и перенести в tests/unit/chat_service/; test_ws.py — в scripts/ или удалить.
+
+
+=====================================================================
+ЧАСТЬ 4. ОБЩЕЕ ДЛЯ ВСЕХ СЕРВИСОВ
+=====================================================================
+
+---------------------------------------------------------------------
+X1 [ВЫС] Консьюмеры RabbitMQ молча теряют события (table + chat)
+---------------------------------------------------------------------
+table_service/app/core/user_event_consumer.py:39-56
+chat_service/app/core/user_event_consumer.py:74-95
+
+    async with message.process():
+        try:
+            ...
+        except Exception as e:
+            logger.error(...)
+            # "Сообщение будет nack'нуто и requeue'нуто" — НЕПРАВДА
+
+Исключение поймано ВНУТРИ process() -> контекст выходит нормально ->
+сообщение ACK'ается и удаляется. Любая ошибка (упавшая БД, UniqueViolation
+из T16/C8, FK из C2) = событие потеряно навсегда, проекция рассинхронизирована.
+Даже без try: process() по умолчанию requeue=False -> тоже потеря.
+
+Исправление: разделить "битые данные" (выкинуть в DLQ) и "временные
+ошибки" (вернуть в очередь), и объявить DLX.
+    # EventConsumerBase.connect
+        await self.channel.declare_exchange("user.events.dlx", ExchangeType.FANOUT, durable=True)
+        dlq = await self.channel.declare_queue(f"{queue_name}.dlq", durable=True)
+        await dlq.bind("user.events.dlx")
+        queue = await self.channel.declare_queue(
+            queue_name,
+            durable=True,
+            arguments={"x-dead-letter-exchange": "user.events.dlx"},
+        )
+
+    # _handle_message
+    async def _handle_message(self, message: aio_pika.IncomingMessage) -> None:
+        try:
+            body = json.loads(message.body)
+            async with AsyncSessionFactory() as session, session.begin():
+                await self._dispatch(message.type, body, UserRepository(session))
+        except (json.JSONDecodeError, KeyError, ValueError):
+            logger.exception("Битое событие %s, в DLQ", message.type)
+            await message.reject(requeue=False)
+        except Exception:
+            logger.exception("Временная ошибка обработки %s", message.type)
+            await message.nack(requeue=True)   # лучше — retry-очередь с TTL
+        else:
+            await message.ack()
+
+ВНИМАНИЕ: arguments у существующей очереди поменять нельзя — RabbitMQ
+вернёт PRECONDITION_FAILED. Очередь придётся удалить и пересоздать (или
+задать DLX через policy: rabbitmqctl set_policy DLX "^.*user_events$"
+'{"dead-letter-exchange":"user.events.dlx"}' --apply-to queues).
+
+Также полезно: идемпотентность по event_id (A11) — хранить обработанные
+event_id и пропускать повторы.
+
+---------------------------------------------------------------------
+X2 [СРЕД] Нормализация роли "split('.')[-1].lower()" — костыль
+---------------------------------------------------------------------
+table_service/app/core/user_event_consumer.py:64
+chat_service/app/core/user_event_consumer.py:53
+auth_service публикует role=str(user.role.value) — уже "admin". Костыль
+остался от времён, когда слался str(UserRole.ADMIN) = "UserRole.ADMIN".
+Можно оставить как защиту, но лучше валидировать событие pydantic-схемой
+(общей с auth_service) — сейчас body["..."] без схемы, KeyError на
+любом изменении формата.
+    class UserEventIn(BaseModel):
+        event_id: UUID | None = None
+        user_id: int
+        email: EmailStr | None = None
+        role: str | None = None
+        is_active: bool = True
+        timestamp: datetime
+    event = UserEventIn.model_validate_json(message.body)
+
+---------------------------------------------------------------------
+X3 [НИЗК] Копипаст между сервисами
+---------------------------------------------------------------------
+- ServiceJsonFormatter / setup_service_logging — две почти одинаковые
+  копии (auth, table), в chat — отсутствует.
+- EventConsumerBase — две копии (table, chat).
+- UnitOfWork — три копии с разным поведением: в auth НЕ поддерживается
+  вложенный start() и не сбрасывается _session после close (повторный
+  start на том же объекте работает, но с закрытой сессией между вызовами).
+- Settings с UvicornConfig/GunicornConfig — копия table -> chat.
+- get_current_user по X-User-* — копии в auth и table с разными схемами
+  (SUserFilter с id vs user_id).
+Кандидат в общий пакет (libs/common) — но это рефакторинг, не баг.
+
+---------------------------------------------------------------------
+X4 [НИЗК] CLAUDE.md устарел
+---------------------------------------------------------------------
+Описывает api_gateway, которого больше нет (заменён traefik +
+traefik-jwt-plugin), не упоминает chat_service и notification_service.
+Стоит обновить, иначе следующий разбор кода начнётся с неверной картины.
+
+
+=====================================================================
+ПОРЯДОК РАБОТ (предложение)
+=====================================================================
+1. Однострочники, которые чинят 500:
+   T1 (dict), T2 (_to_number), A2 (await), A4 ("}"), A1 (find_all),
+   C1 (текст ошибок), T12 (row_id), A17 (__all__), T7 (хендлеры).
+2. Сломанный функционал: T3 (корзина), A3 (удаление юзера + событие),
+   T6 (formulas), T10 (валидация create), T11 (pin).
+3. Безопасность: T4 (кэш строк), T5 (поиск), T9 (is_public), T17 (бакет),
+   A8 (refresh race), A9 (сессии после смены пароля), A13 (XFF).
+4. Надёжность событий: X1 (DLQ/ack), T16/C8 (проекции), A10/A11 (события),
+   C2 (FK по email), A12 (outbox).
+5. Остальное [СРЕД]/[НИЗК] и удаление мёртвого кода (A19, T25, C11).
+
+Для пунктов 1-3 стоит сразу написать регрессионные тесты — большая часть
+этих багов (T1, T2, T3, A1-A4) ловится первым же вызовом эндпоинта, т.е.
+соответствующие ветки сейчас вообще не покрыты тестами.

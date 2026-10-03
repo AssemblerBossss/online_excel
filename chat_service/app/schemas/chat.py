@@ -1,7 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_validator,
+)
 
 
 # Отправка сообщений (POST /chat/messages)
@@ -22,7 +28,7 @@ class MessageCreateRequest(BaseModel):
 class MessageOut(BaseModel):
     id: UUID
     sender_email: EmailStr
-    content: str
+    content: str = Field(min_length=1, max_length=4000)
     created_at: datetime
     is_read: bool
     edited_at: datetime | None

@@ -165,7 +165,7 @@ async def deactivate_user(
     return user
 
 
-@router.post("/{user_id}/activate}", response_model=SUserInfo)
+@router.post("/{user_id}/activate", response_model=SUserInfo)
 async def activate_user(
     user_id: int,
     current_user: Annotated[SUserInfo, Depends(get_current_active_user)],

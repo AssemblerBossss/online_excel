@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime
 
 from auth_service.app.config import auth_service_settings
@@ -13,11 +14,14 @@ from auth_service.app.schemas import (
     SUserChangePassword,
     SUserInfo,
     SUserProfileUpdate,
+    UserDeletedEvent,
     UserRole,
     UserUpdateEvent,
 )
 from auth_service.app.utils import avatar_storage, get_password_hash, verify_password
 from auth_service.app.сore import UnitOfWork
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -46,7 +50,7 @@ class UserService:
     ) -> SUserInfo | None:
         """Возвращает пользователя по ID или None, если не найден"""
         async with uow_session.start():
-            user = uow_session.user.find_one_or_none_by_id(user_id)
+            user = await uow_session.user.find_one_or_none_by_id(user_id)
             if not user:
                 return None
 
@@ -174,7 +178,22 @@ class UserService:
     ) -> bool:
         """Удалить пользователя. Админ - любого, обычный пользователь - только себя."""
         self._check_permissions(current_user, user_id)
-        return await uow_session.user.delete_by_id(user_id)
+        async with uow_session.start():
+            user = await uow_session.user.find_one_or_none_by_id(user_id)
+            if not user:
+                return False
+            avatar = user.avatar_url
+            await uow_session.user.delete_by_id(user_id)
+
+        await self.event_publisher.publish(
+            UserDeletedEvent(user_id=user_id, timestamp=datetime.now(UTC))
+        )
+        try:
+            await avatar_storage.delete(avatar)
+        except Exception:
+            logger.exception("Не удалось удалить аватар %s", avatar)
+
+        return True
 
     async def deactivate_user(
         self,
@@ -232,3 +251,5 @@ class UserService:
                 current_user.id,
                 values={"hashed_password": get_password_hash(data.new_password)},
             )
+            # Отозвать сессию после смены пароля
+            await uow_session.token.revoke_all_user_tokens(user_id=current_user.id)
