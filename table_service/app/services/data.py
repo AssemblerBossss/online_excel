@@ -349,7 +349,7 @@ class DataService:
         await self._publish_row_event(
             event=RowEventType.row_created,
             table_id=table_id,
-            row_id=row_id,
+            row_id=response.id,
             actor_id=user_id,
             row=response,
         )
