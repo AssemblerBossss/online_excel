@@ -7,22 +7,7 @@ LOG_FORMAT_DEFAULT = (
 )
 
 
-class UvicornConfig(BaseSettings):
-    APP_PORT: int = 8080
-    APP_HOST: str = "0.0.0.0"
-
-
-class GunicornConfig(BaseSettings):
-    APP_PORT: int = 8080
-    APP_HOST: str = "0.0.0.0"
-    WORKERS: int = 4
-    TIMEOUT: int = 900
-
-
 class Settings(BaseSettings):
-    gunicorn: GunicornConfig = GunicornConfig()
-    uvicorn: UvicornConfig = UvicornConfig()
-
     DB_HOST: str = "chat_db"
     DB_PORT: int = 5432
     DB_USER: str = "postgres"
@@ -39,6 +24,12 @@ class Settings(BaseSettings):
     RABBITMQ_USER: str = "guest"
     RABBITMQ_PASSWORD: str = "guest"
 
+    ES_HOST: str = "elasticsearch"
+    ES_PORT: int = 9200
+    ES_USER: str | None = None
+    ES_PASSWORD: str | None = None
+    ES_INDEX_USERS: str = "chat_users"
+
     @cached_property
     def DATABASE_URL(self) -> str:
         return f"{self.DB_DRIVER}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
@@ -51,6 +42,10 @@ class Settings(BaseSettings):
     @cached_property
     def REDIS_URL(self) -> str:
         return f"redis://{self.CACHE_HOST}:{self.CACHE_PORT}/{self.CACHE_DB}"
+
+    @cached_property
+    def ES_URL(self) -> str:
+        return f"http://{self.ES_HOST}:{self.ES_PORT}"
 
     model_config = SettingsConfigDict(
         env_file=[".env.development", "local.env"],

@@ -13,6 +13,7 @@ export interface MessageOut {
     content: string;
     created_at: string;
     is_read: boolean;
+    edited_at: string | null;
 }
 
 export interface PaginatedMessages {
@@ -25,6 +26,10 @@ export interface PaginatedMessages {
 export interface WsTicket {
     ticket: string;
     expires_in: number;
+}
+
+export interface UserSuggestion {
+    email: string;
 }
 
 /**
@@ -69,6 +74,17 @@ export const sendMessage = async (
 };
 
 /**
+ * Редактирует сообщение
+ */
+export const editMessage = async (
+    messageId: string,
+    content: string,
+): Promise<MessageOut> => {
+    const response = await api.patch(`/chat/messages/${messageId}`, {content});
+    return response.data;
+};
+
+/**
  * Сбрасывает счётчик непрочитанных и помечает входящие сообщения
  * в этом диалоге как прочитанные.
  */
@@ -86,3 +102,18 @@ export const getWsTicket = async (): Promise<WsTicket> => {
     const response = await api.post("/chat/ws-ticket");
     return response.data;
 };
+
+
+/**
+ * Поиск пользователей по префиксу email для автодополнения.
+ * Backend: ES (основной) → PG (fallback).
+ */
+export const searchUsers = async (
+    query: string,
+    limit: number = 5,
+): Promise<UserSuggestion[]> => {
+    const  response = await api.get("/chat/users/search", {params: {q: query, limit}});
+
+    return response.data;
+}
+

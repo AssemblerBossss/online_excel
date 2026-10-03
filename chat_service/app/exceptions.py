@@ -15,6 +15,27 @@ class SelfMessageException(ChatException):
         super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
 
+class NotMessageOwnerException(ChatException):
+    "Редактировать можно только свое сообщение"
+
+    def __init__(self, detail: str = "Нельзя редактировать чужое сообщение"):
+        super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+
+
+class MessageEditTimeExpiredException(ChatException):
+    "Истекло время, отведенное на редактирование"
+
+    def __init__(self, detail: str = "Время редактирования истекло"):
+        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+
+
+class MessageNotFoundExcepion(ChatException):
+    "Сообщение не найдено"
+
+    def __init__(self, detail: str = "Сообщение не найдено"):
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+
 class UserNotFoundException(ChatException):
     """Пользователь не найден"""
 

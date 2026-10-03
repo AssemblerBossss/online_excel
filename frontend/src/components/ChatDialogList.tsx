@@ -1,6 +1,6 @@
-import React, {useState} from "react";
-import {DialogOut} from "../api/chat";
-import {colors, rounded, spacing, typography} from "../styles/theme";
+import React, { useEffect, useRef, useState } from "react";
+import { DialogOut, searchUsers, UserSuggestion } from "../api/chat";
+import { colors, rounded, shadowLevel5, spacing, typography } from "../styles/theme";
 
 interface ChatDialogListProps {
     dialogs: DialogOut[];
@@ -14,17 +14,73 @@ function formatTime(iso: string | null): string {
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
     return isToday
-        ? date.toLocaleTimeString("ru-RU", {hour: "2-digit", minute: "2-digit"})
-        : date.toLocaleDateString("ru-RU", {day: "2-digit", month: "2-digit"});
+        ? date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
+        : date.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
 }
 
 function isValidEmail(value: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-const ChatDialogList: React.FC<ChatDialogListProps> = ({dialogs, onSelect, onClose}) => {
+const MIN_QUERY_LENGTH = 2;
+const DEBOUNCE_MS = 300;
+const MAX_SUGGESTIONS = 5;
+
+const ChatDialogList: React.FC<ChatDialogListProps> = ({ dialogs, onSelect, onClose }) => {
     const [newChatEmail, setNewChatEmail] = useState("");
     const [formError, setFormError] = useState("");
+
+    // Состояния для автодополнения
+    const [suggestions, setSuggestions] = useState<UserSuggestion[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+
+    // Клиентский кэш: query → results
+    const cacheRef = useRef<Map<string, UserSuggestion[]>>(new Map());
+
+    // Debounce-поиск с кэшем
+    useEffect(() => {
+        const query = newChatEmail.trim();
+
+        if (query.length < MIN_QUERY_LENGTH) {
+            setSuggestions([]);
+            setShowSuggestions(false);
+            return;
+        }
+
+        const cacheKey = query.toLowerCase();
+        if (cacheRef.current.has(cacheKey)) {
+            const cached = cacheRef.current.get(cacheKey)!;
+            setSuggestions(cached);
+            setShowSuggestions(cached.length > 0);
+            return;
+        }
+
+        let cancelled = false;
+        const timer = setTimeout(async () => {
+            setIsSearching(true);
+            try {
+                const results = await searchUsers(query, MAX_SUGGESTIONS);
+                if (cancelled) return;
+                cacheRef.current.set(cacheKey, results);
+                setSuggestions(results);
+                setShowSuggestions(results.length > 0);
+            } catch (err) {
+                console.error("Ошибка поиска пользователей:", err);
+                if (!cancelled) {
+                    setSuggestions([]);
+                    setShowSuggestions(false);
+                }
+            } finally {
+                if (!cancelled) setIsSearching(false);
+            }
+        }, DEBOUNCE_MS);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [newChatEmail]);
 
     const handleStartChat = (e: React.FormEvent) => {
         e.preventDefault();
@@ -40,6 +96,17 @@ const ChatDialogList: React.FC<ChatDialogListProps> = ({dialogs, onSelect, onClo
         setFormError("");
         onSelect(email);
         setNewChatEmail("");
+        setSuggestions([]);
+        setShowSuggestions(false);
+    };
+
+    const handleSelectSuggestion = (email: string) => {
+        setNewChatEmail(email);
+        setSuggestions([]);
+        setShowSuggestions(false);
+        setFormError("");
+        // Сразу открываем чат с выбранным пользователем
+        onSelect(email);
     };
 
     return (
@@ -53,16 +120,52 @@ const ChatDialogList: React.FC<ChatDialogListProps> = ({dialogs, onSelect, onClo
 
             <form onSubmit={handleStartChat} style={styles.newChatForm}>
                 <div style={styles.newChatInputWrapper}>
-                    <input
-                        style={styles.newChatInput}
-                        type="email"
-                        placeholder="Email собеседника"
-                        value={newChatEmail}
-                        onChange={(e) => {
-                            setNewChatEmail(e.target.value);
-                            if (formError) setFormError("");
-                        }}
-                    />
+                    <div style={styles.inputWithSuggestions}>
+                        <input
+                            style={styles.newChatInput}
+                            type="email"
+                            placeholder="Email собеседника"
+                            value={newChatEmail}
+                            onChange={(e) => {
+                                setNewChatEmail(e.target.value);
+                                if (formError) setFormError("");
+                            }}
+                            onFocus={() => {
+                                if (suggestions.length > 0) setShowSuggestions(true);
+                            }}
+                            onBlur={() => {
+                                // Задержка, чтобы успел сработать onMouseDown на подсказке
+                                setTimeout(() => setShowSuggestions(false), 150);
+                            }}
+                            autoComplete="off"
+                        />
+                        {isSearching && <div style={styles.inputSpinner} />}
+                        {showSuggestions && suggestions.length > 0 && (
+                            <div style={styles.suggestionsDropdown}>
+                                {suggestions.map((s) => (
+                                    <div
+                                        key={s.email}
+                                        style={styles.suggestionItem}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault(); // Предотвращаем blur
+                                            handleSelectSuggestion(s.email);
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.backgroundColor = colors.canvasSoft2;
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.backgroundColor = "transparent";
+                                        }}
+                                    >
+                                        <div style={styles.suggestionAvatar}>
+                                            {s.email.charAt(0).toUpperCase()}
+                                        </div>
+                                        <span style={styles.suggestionEmail}>{s.email}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                     {formError && <span style={styles.formError}>{formError}</span>}
                 </div>
                 <button style={styles.newChatButton} type="submit" aria-label="Начать чат">
@@ -156,6 +259,9 @@ const styles: Record<string, React.CSSProperties> = {
         flexDirection: "column",
         gap: spacing.xxs,
     },
+    inputWithSuggestions: {
+        position: "relative",
+    },
     newChatInput: {
         ...typography.bodySm,
         width: "100%",
@@ -166,6 +272,59 @@ const styles: Record<string, React.CSSProperties> = {
         background: colors.canvas,
         color: colors.ink,
         boxSizing: "border-box",
+    },
+    inputSpinner: {
+        position: "absolute",
+        right: spacing.sm,
+        top: "50%",
+        transform: "translateY(-50%)",
+        width: 14,
+        height: 14,
+        border: `2px solid ${colors.hairline}`,
+        borderTop: `2px solid ${colors.primary}`,
+        borderRadius: rounded.full,
+        animation: "spin 1s linear infinite",
+    },
+    suggestionsDropdown: {
+        position: "absolute",
+        top: "calc(100% + 4px)",
+        left: 0,
+        right: 0,
+        background: colors.canvas,
+        borderRadius: rounded.sm,
+        boxShadow: shadowLevel5,
+        zIndex: 20,
+        overflow: "hidden",
+        border: `1px solid ${colors.hairline}`,
+    },
+    suggestionItem: {
+        display: "flex",
+        alignItems: "center",
+        gap: spacing.xs,
+        padding: `${spacing.xs}px ${spacing.sm}px`,
+        cursor: "pointer",
+        borderBottom: `1px solid ${colors.hairline}`,
+        transition: "background-color 0.1s ease",
+    },
+    suggestionAvatar: {
+        ...typography.caption,
+        width: 24,
+        height: 24,
+        borderRadius: rounded.full,
+        background: colors.primary,
+        color: colors.onPrimary,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        fontWeight: 600,
+    },
+    suggestionEmail: {
+        ...typography.bodySm,
+        color: colors.ink,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
     },
     formError: {
         ...typography.caption,
