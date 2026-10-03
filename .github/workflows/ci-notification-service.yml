@@ -1,0 +1,58 @@
+name: CI - Notification
+
+on:
+  pull_request:
+    paths:
+      - 'notification_service/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/ci-notification-service.yml'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'notification_service/**'
+
+env:
+  GO_VERSION: '1.26'
+  SERVICE_NAME: notification_service
+
+jobs:
+  lint-and-type-check:
+    runs-on: ubuntu-latest
+    container: python:3.13-slim
+
+    defaults:
+      run:
+        working-directory: ./${{ env.SERVICE_NAME }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Verify go.mod / go.sum
+        run: go mod verify
+
+      - name: Run gofmt check
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Files not formatted:"
+            gofmt -l .
+            exit 1
+          fi
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Show coverage
+        run: go tool cover -func=coverage.out
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./${{ env.SERVICE_NAME }}/coverage.out
+          flags: notification-service
