@@ -1,15 +1,12 @@
 services:
-  # ==================== Table migration ====================
-
+  # ==================== Migrations ====================
   table_migrate:
     build:
       context: .
       dockerfile: table_service/Dockerfile
     command: alembic -c table_service/alembic.ini upgrade head
-
     depends_on:
-      db:
-        condition: service_healthy
+      db: { condition: service_healthy }
     environment:
       - EXCEL_APP__DB_HOST=${TABLE_DB_HOST:-db}
       - EXCEL_APP__DB_PORT=${TABLE_DB_PORT:-5432}
@@ -25,8 +22,7 @@ services:
       dockerfile: auth_service/Dockerfile
     command: alembic -c auth_service/alembic.ini upgrade head
     depends_on:
-      auth_db:
-        condition: service_healthy
+      auth_db: { condition: service_healthy }
     environment:
       - DB_HOST=${AUTH_DB_HOST:-auth_db}
       - DB_PORT=${AUTH_DB_PORT:-5432}
@@ -42,8 +38,7 @@ services:
       dockerfile: chat_service/Dockerfile
     command: alembic -c chat_service/alembic.ini upgrade head
     depends_on:
-      chat_db:
-        condition: service_healthy
+      chat_db: { condition: service_healthy }
     environment:
       - DB_HOST=${CHAT_DB_HOST:-chat_db}
       - DB_PORT=${CHAT_DB_PORT:-5432}
@@ -53,15 +48,14 @@ services:
       - DB_DRIVER=${CHAT_DB_DRIVER:-postgresql+asyncpg}
     restart: "no"
 
+  # ==================== Frontend ====================
   frontend:
     build: ./frontend
     container_name: online_excel_frontend
-    depends_on:
-      - traefik
+    depends_on: [ traefik ]
     environment:
       VITE_API_URL: http://localhost:11000/api
-    ports:
-      - "11000:80"
+    ports: [ "11000:80" ]
     logging:
       driver: fluentd
       options:
@@ -69,31 +63,18 @@ services:
         fluentd-async: "true"
         tag: "{{.Name}}"
 
+  # ==================== Auth Service ====================
   auth_service:
     build:
       context: .
       dockerfile: auth_service/Dockerfile
-    labels:
-      - "traefik.enable=true"
-      # публичные: login/register/refresh/logout — БЕЗ jwt
-      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
-      - "traefik.http.routers.auth.entrypoints=web"
-      - "traefik.http.routers.auth.service=auth_service"
-      - "traefik.http.routers.auth.middlewares=ratelimit@file,body-limit@file,cors@file"
-      # защищённые: /users/* — С jwt
-      - "traefik.http.routers.users.rule=PathPrefix(`/users`)"
-      - "traefik.http.routers.users.entrypoints=web"
-      - "traefik.http.routers.users.service=auth_service"
-      - "traefik.http.routers.users.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
-      - "traefik.http.services.auth_service.loadbalancer.server.port=8001"
-
-      - "prometheus.scrape=true"
-      - "prometheus.port=8001"
-    ports:
-      - "8001:8001"
-    env_file:
-      - path: ./auth_service/.env
-        required: false
+    depends_on:
+      auth_db:      { condition: service_healthy }
+      redis:        { condition: service_healthy }
+      rabbitmq:     { condition: service_healthy }
+      minio:        { condition: service_healthy }
+      fluent-bit:   { condition: service_started }
+      auth_migrate: { condition: service_completed_successfully }
     environment:
       # Database (чувствительные данные — через секреты)
       - DB_HOST=${AUTH_DB_HOST:-auth_db}
@@ -129,30 +110,37 @@ services:
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MINIO_BUCKET=${MINIO_BUCKET:-avatars}
       - MINIO_SECURE=${MINIO_SECURE:-false}
-    restart: on-failure
-    depends_on:
-      auth_db:
-        condition: service_healthy
-      auth_migrate:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      fluent-bit:
-        condition: service_started
+    env_file:
+      - path: ./auth_service/.env
+        required: false
+    ports: [ "8001:8001" ]
     volumes:
       - ./auth_service:/app/auth_service
       - ./keys/jwt_private.pem:/run/secrets/jwt_private.pem:ro
       - ./keys/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+    labels:
+      - "traefik.enable=true"
+      # публичные: login/register/refresh/logout — БЕЗ jwt
+      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
+      - "traefik.http.routers.auth.entrypoints=web"
+      - "traefik.http.routers.auth.service=auth_service"
+      - "traefik.http.routers.auth.middlewares=ratelimit@file,body-limit@file,cors@file"
+      # защищённые: /users/* — С jwt
+      - "traefik.http.routers.users.rule=PathPrefix(`/users`)"
+      - "traefik.http.routers.users.entrypoints=web"
+      - "traefik.http.routers.users.service=auth_service"
+      - "traefik.http.routers.users.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
+      - "traefik.http.services.auth_service.loadbalancer.server.port=8001"
+      # Prometheus
+      - "prometheus.scrape=true"
+      - "prometheus.port=8001"
     healthcheck:
       test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/health/\")' || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 40s
+    restart: on-failure
     logging:
       driver: fluentd
       options:
@@ -165,24 +153,13 @@ services:
     build:
       context: .
       dockerfile: table_service/Dockerfile
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.table.rule=PathPrefix(`/tables`) || PathPrefix(`/data`) || PathPrefix(`/search`)"
-      - "traefik.http.services.table_service.loadbalancer.server.port=8000"
-      - "traefik.http.routers.table.entrypoints=web"
-      - "traefik.http.routers.table.service=table_service"
-      - "traefik.http.routers.table.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
-
-      - "traefik.http.routers.table_ws.rule=PathPrefix(`/ws/tables`)"
-      - "traefik.http.routers.table_ws.entrypoints=web"
-      - "traefik.http.routers.table_ws.service=table_service"
-      - "traefik.http.routers.table_ws.middlewares=ratelimit@file,strip-user-headers@file"
-
-      - "prometheus.scrape=true"
-      - "prometheus.port=8000"
-    env_file:
-      - path: ./table_service/.env
-        required: false
+    depends_on:
+      db:            { condition: service_healthy }
+      rabbitmq:      { condition: service_healthy }
+      redis:         { condition: service_healthy }
+      elasticsearch: { condition: service_healthy }
+      fluent-bit:    { condition: service_started }
+      table_migrate: { condition: service_completed_successfully }
     environment:
       # Database (pydantic-settings: префикс EXCEL_APP__)
       - EXCEL_APP__DB_HOST=${TABLE_DB_HOST:-db}
@@ -206,24 +183,28 @@ services:
       - EXCEL_APP__RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
       # Meta
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - ENVIRONMENT=${ENVIRONMENT:-local}
-    depends_on:
-      db:
-        condition: service_healthy
-      table_migrate:
-        condition: service_completed_successfully
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      fluent-bit:
-        condition: service_started
-    ports:
-      - "8000:8000"
+    env_file:
+      - path: ./table_service/.env
+        required: false
+    ports: [ "8000:8000" ]
     volumes:
       - ./table_service:/app/table_service
+    labels:
+      - "traefik.enable=true"
+      # REST: /tables, /data, /search — С jwt
+      - "traefik.http.routers.table.rule=PathPrefix(`/tables`) || PathPrefix(`/data`) || PathPrefix(`/search`)"
+      - "traefik.http.services.table_service.loadbalancer.server.port=8000"
+      - "traefik.http.routers.table.entrypoints=web"
+      - "traefik.http.routers.table.service=table_service"
+      - "traefik.http.routers.table.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
+      # WS: /ws/tables — БЕЗ jwt (аутентификация через одноразовый тикет)
+      - "traefik.http.routers.table_ws.rule=PathPrefix(`/ws/tables`)"
+      - "traefik.http.routers.table_ws.entrypoints=web"
+      - "traefik.http.routers.table_ws.service=table_service"
+      - "traefik.http.routers.table_ws.middlewares=ratelimit@file,strip-user-headers@file"
+      # Prometheus
+      - "prometheus.scrape=true"
+      - "prometheus.port=8000"
     healthcheck:
       test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health/\")' || exit 1" ]
       interval: 10s
@@ -237,34 +218,15 @@ services:
         fluentd-async: "true"
         tag: "{{.Name}}"
 
+  # ==================== Chat Service ====================
   chat_service:
     build:
       context: .
       dockerfile: chat_service/Dockerfile
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.chat.rule=PathPrefix(`/chat`) && !PathPrefix(`/chat/ws`)"
-      - "traefik.http.services.chat_service.loadbalancer.server.port=8002"
-      - "traefik.http.routers.chat.entrypoints=web"
-      - "traefik.http.routers.chat.service=chat_service"
-      - "traefik.http.routers.chat.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
-
-      # /chat/ws-ticket — обычный REST-эндпоинт, нужен jwt-auth как везде
-      - "traefik.http.routers.chat-ws-ticket.rule=PathPrefix(`/chat/ws-ticket`)"
-      - "traefik.http.routers.chat-ws-ticket.entrypoints=web"
-      - "traefik.http.routers.chat-ws-ticket.service=chat_service"
-      - "traefik.http.routers.chat-ws-ticket.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
-
-      # /chat/ws — сам WS-хендшейк, БЕЗ jwt-auth (аутентификация через одноразовый тикет)
-      - "traefik.http.routers.chat-ws.rule=PathPrefix(`/chat/ws`) && !PathPrefix(`/chat/ws-ticket`)"
-      - "traefik.http.routers.chat-ws.entrypoints=web"
-      - "traefik.http.routers.chat-ws.service=chat_service"
-      - "traefik.http.routers.chat-ws.middlewares=ratelimit@file"
-    ports:
-      - "8002:8002"
-    env_file:
-      - path: ./chat_service/.env
-        required: false
+    depends_on:
+      chat_db:      { condition: service_healthy }
+      chat_migrate: { condition: service_completed_successfully }
+      rabbitmq:     { condition: service_healthy }
     environment:
       # Database (чувствительные данные — через секреты)
       - DB_HOST=${CHAT_DB_HOST:-chat_db}
@@ -285,125 +247,162 @@ services:
       - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public.pem
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-30}
-
-    restart: on-failure
-    depends_on:
-      chat_db:
-        condition: service_healthy
-      chat_migrate:
-        condition: service_completed_successfully
-      rabbitmq:
-        condition: service_healthy
+    env_file:
+      - path: ./chat_service/.env
+        required: false
+    ports: [ "8002:8002" ]
     volumes:
       - ./chat_service:/app/chat_service
       - ./keys/jwt_private.pem:/run/secrets/jwt_private.pem:ro
       - ./keys/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+    labels:
+      - "traefik.enable=true"
+      # REST: /chat — С jwt
+      - "traefik.http.routers.chat.rule=PathPrefix(`/chat`) && !PathPrefix(`/chat/ws`)"
+      - "traefik.http.services.chat_service.loadbalancer.server.port=8002"
+      - "traefik.http.routers.chat.entrypoints=web"
+      - "traefik.http.routers.chat.service=chat_service"
+      - "traefik.http.routers.chat.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
+      # /chat/ws-ticket — обычный REST-эндпоинт, нужен jwt-auth как везде
+      - "traefik.http.routers.chat-ws-ticket.rule=PathPrefix(`/chat/ws-ticket`)"
+      - "traefik.http.routers.chat-ws-ticket.entrypoints=web"
+      - "traefik.http.routers.chat-ws-ticket.service=chat_service"
+      - "traefik.http.routers.chat-ws-ticket.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
+      # /chat/ws — сам WS-хендшейк, БЕЗ jwt-auth (аутентификация через одноразовый тикет)
+      - "traefik.http.routers.chat-ws.rule=PathPrefix(`/chat/ws`) && !PathPrefix(`/chat/ws-ticket`)"
+      - "traefik.http.routers.chat-ws.entrypoints=web"
+      - "traefik.http.routers.chat-ws.service=chat_service"
+      - "traefik.http.routers.chat-ws.middlewares=ratelimit@file"
     healthcheck:
       test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8002/health/\")' || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 40s
+    restart: on-failure
 
-  # ==================== Infrastructure ====================
+  # ==================== Notification Service ====================
+  notification_service:
+    build:
+      context: ./notification_service
+    depends_on:
+      mailpit:         { condition: service_started }
+      rabbitmq:        { condition: service_healthy }
+      notification_db: { condition: service_healthy }
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8003
+      - POSTGRES_HOST=notification_db
+      - POSTGRES_DB=${NOTIFICATION_DB_NAME:-notification_db}
+      - POSTGRES_USER=${NOTIFICATION_DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${NOTIFICATION_DB_PASSWORD:-postgres}
+      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.notifications.rule=PathPrefix(`/notifications`)"
+      - "traefik.http.services.notification_service.loadbalancer.server.port=8003"
+      - "traefik.http.routers.notifications.entrypoints=web"
+      - "traefik.http.routers.notifications.service=notification_service"
+      - "traefik.http.routers.notifications.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"
+    restart: on-failure
 
+  # ==================== Databases ====================
   auth_db:
-    container_name: online_excel_auth_db
     image: postgres:16-alpine
+    container_name: online_excel_auth_db
     shm_size: 128mb
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
     environment:
       POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-postgres}
       POSTGRES_USER: ${AUTH_DB_USER:-postgres}
       POSTGRES_DB: ${AUTH_DB_NAME:-auth_db}
+    ports: [ "8010:5432" ]
+    volumes:
+      - auth_pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
-    ports:
-      - "8010:5432"
-
-    volumes:
-      - auth_pgdata:/var/lib/postgresql/data
-      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
-    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
 
   db:
-    container_name: online_excel_db
     image: postgres:16-alpine
+    container_name: online_excel_db
     shm_size: 128mb
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
     environment:
       POSTGRES_PASSWORD: ${TABLE_DB_PASSWORD:-online_excel}
       POSTGRES_USER: ${TABLE_DB_USER:-postgres}
       POSTGRES_DB: ${TABLE_DB_NAME:-online_excel}
-    ports:
-      - "7777:5432"
+    ports: [ "7777:5432" ]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
 
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
-    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
-
   chat_db:
-    container_name: online_excel_chat_db
     image: postgres:16-alpine
+    container_name: online_excel_chat_db
     shm_size: 128mb
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
     environment:
       POSTGRES_PASSWORD: ${CHAT_DB_PASSWORD:-postgres}
       POSTGRES_USER: ${CHAT_DB_USER:-postgres}
       POSTGRES_DB: ${CHAT_DB_NAME:-chat_db}
-    ports:
-      - "7778:5432"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    ports: [ "7778:5432" ]
     volumes:
       - chat_pgdata:/var/lib/postgresql/data
       - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
-    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
-
-  notification_db:
-    container_name: online_excel_notification_db
-    image: postgres:16-alpine
-    shm_size: 128mb
-    environment:
-      POSTGRES_PASSWORD: ${NOTIFICATON_DB_PASSWORD:-postgres}
-      POSTGRES_USER: ${NOTIFICATON_DB_USER:-postgres}
-      POSTGRES_DB: ${NOTIFICATON_DB_NAME:-notifications}
-    ports:
-      - "7779:5432"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  notification_db:
+    image: postgres:16-alpine
+    container_name: online_excel_notification_db
+    shm_size: 128mb
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
+    environment:
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-postgres}
+      POSTGRES_USER: ${NOTIFICATION_DB_USER:-postgres}
+      POSTGRES_DB: ${NOTIFICATION_DB_NAME:-notifications}
+    ports: [ "7779:5432" ]
     volumes:
       - notification_pgdata:/var/lib/postgresql/data
       - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
-    command: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
+  # ==================== Infrastructure ====================
   rabbitmq:
     image: rabbitmq:4.2.4-alpine
     container_name: online_excel_rabbitmq
-    ports:
-      - "5672:5672"      # AMQP protocol
-      - "15672:15672"    # Management UI
-    labels:
-      - "prometheus.scrape=true"
-      - "prometheus.port=15692"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"      # AMQP protocol
+      - "15672:15672"    # Management UI
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    labels:
+      - "prometheus.scrape=true"
+      - "prometheus.port=15692"
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 10s
@@ -412,11 +411,16 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "1025:1025"                # SMTP
+      - "8025:8025"                # UI
+
   redis:
     image: redis:7-alpine
     container_name: online_excel_redis
-    ports:
-      - "6379:6379"
+    ports: [ "6379:6379" ]
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
@@ -430,17 +434,15 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    #    ports:
-    #      - "9200:9200"
+    # ports: [ "9200:9200" ]
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
     healthcheck:
       test: [ "CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'" ]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
-
-    volumes:
-      - es_data:/usr/share/elasticsearch/data
 
   minio:
     image: minio/minio:latest
@@ -450,16 +452,15 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_PROMETHEUS_AUTH_TYPE: "public"
-    labels:
-      - "prometheus.scrape=true"
-      - "prometheus.port=9000"
-      - "prometheus.path=/minio/v2/metrics/cluster"
     ports:
       - "9000:9000"   # S3 API
       - "9001:9001"   # Web-консоль
     volumes:
       - minio_data:/data
-
+    labels:
+      - "prometheus.scrape=true"
+      - "prometheus.port=9000"
+      - "prometheus.path=/minio/v2/metrics/cluster"
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1" ]
       interval: 10s
@@ -467,30 +468,28 @@ services:
       retries: 5
       start_period: 10s
 
+  # ==================== Observability ====================
   prometheus:
     image: prom/prometheus:v3.11.3
     container_name: online_excel_prometheus
     user: root
-    ports:
-      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports: [ "9090:9090" ]
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prom_data:/prometheus
       - /var/run/docker.sock:/var/run/docker.sock
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
 
   grafana:
     image: grafana/grafana:12.2.9
     container_name: online_excel_grafana
+    depends_on: [ prometheus ]
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
+    ports: [ "3000:3000" ]
     volumes:
       - grafana_data:/var/lib/grafana
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -499,13 +498,11 @@ services:
   kibana:
     image: kibana:9.3.0
     container_name: online_excel_kibana
+    depends_on:
+      elasticsearch: { condition: service_healthy }
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    ports:
-      - "5601:5601"
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
+    ports: [ "5601:5601" ]
     healthcheck:
       test: [ "CMD-SHELL", "curl -s http://localhost:5601/api/status | grep -q '\"level\":\"available\"'" ]
       interval: 15s
@@ -516,34 +513,18 @@ services:
   fluent-bit:
     image: fluent/fluent-bit:3.2
     container_name: online_excel_fluent_bit
+    depends_on:
+      elasticsearch: { condition: service_healthy }
+    ports: [ "24224:24224", "24224:24224/udp", "2020:2020" ]
     volumes:
       - ./infra/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
       - ./infra/fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf:ro
-    ports:
-      - "24224:24224"
-      - "24224:24224/udp"
-      - "2020:2020"
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
     restart: on-failure
 
+  # ==================== Gateway ====================
   traefik:
     image: traefik:v3.7
     container_name: online_excel_traefik
-    ports:
-      - "8081:80"
-      - "8090:8080"
-    volumes:
-      - ./keys/jwt_public.pem:/run/secrets/jwt_public.pem:ro
-      - ./infra/traefik/dynamic.yaml.tmpl:/etc/traefik/dynamic.yaml.tmpl:ro
-      - ./infra/traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-    labels:
-      - "prometheus.scrape=true"
-      - "prometheus.port=8080"
-    environment:
-      - JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public.pem
     entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
@@ -567,17 +548,6 @@ services:
 
         echo "Generating dynamic.yaml from template..."
 
-        # Вставляем ключ на место $${JWT_PUBLIC_KEY}, сохраняя отступ строки-плейсхолдера
-        awk -v keyfile="$$JWT_PUBLIC_KEY_FILE" '
-          /\$\{JWT_PUBLIC_KEY\}/ {
-            match($$0, /^[[:space:]]*/)
-            indent = substr($$0, 1, RLENGTH)
-            while ((getline line < keyfile) > 0) print indent line
-            next
-          }
-          { print }
-        ' /etc/traefik/dynamic.yaml.tmpl > /etc/traefik/dynamic.yaml
-
         if [ ! -s /etc/traefik/dynamic.yaml ]; then
           echo "ERROR: Failed to generate dynamic.yaml"
           exit 1
@@ -587,8 +557,18 @@ services:
 
         traefik --configfile=/etc/traefik/traefik.yaml
     depends_on:
-      auth_service:
-        condition: service_healthy
+      auth_service: { condition: service_healthy }
+    environment:
+      - JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public.pem
+    ports: [ "8081:80", "8090:8080" ]
+    volumes:
+      - ./keys/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+      - ./infra/traefik/dynamic.yaml.tmpl:/etc/traefik/dynamic.yaml.tmpl:ro
+      - ./infra/traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - "prometheus.scrape=true"
+      - "prometheus.port=8080"
 
 networks:
   default:
