@@ -18,12 +18,17 @@ func NewRouter(handler *Handler) http.Handler {
 
 	r.Get("/health", healthHandler)
 
+	// Публичное API: публикуется через Traefik (jwt-auth -> X-User-ID)
+	r.Route("/notifications", func(r chi.Router) {
+		r.Get("/me", handler.ListMyNotifications)
+	})
+
+	// Внутреннее API (сервис-сервис): в Traefik не публикуется
 	r.Route("/api/v1/notifications", func(r chi.Router) {
 		r.Post("/", handler.CreateNotification)
 		r.Get("/", handler.ListNotifications)
 		r.Get("/{id}", handler.GetNotification)
 		r.Patch("/{id}/status", handler.UpdateNotificationStatus)
-
 	})
 
 	return r

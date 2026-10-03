@@ -142,6 +142,18 @@ func (s *NotificationService) List(ctx context.Context) ([]*domain.Notification,
 	return notifications, nil
 }
 
+func (s *NotificationService) ListByUserID(ctx context.Context, userID int64) ([]*domain.Notification, error) {
+	if userID <= 0 {
+		return nil, ErrInvalidUserID
+	}
+
+	notifications, err := s.repository.ListByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list notifications by user: %w", err)
+	}
+	return notifications, nil
+}
+
 func (s *NotificationService) Dispatch(ctx context.Context, notificationID string, snd sender.Sender) error {
 	notification, err := s.Update(ctx, notificationID, UpdateNotificationStatusInput{Status: domain.StatusProcessing})
 	if err != nil {

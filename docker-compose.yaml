@@ -303,7 +303,7 @@ services:
       - SMTP_PORT=1025
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.notifications.rule=PathPrefix(`/notifications`)"
+      - "traefik.http.routers.notifications.rule=PathPrefix(`/notifications/me`)"
       - "traefik.http.services.notification_service.loadbalancer.server.port=8003"
       - "traefik.http.routers.notifications.entrypoints=web"
       - "traefik.http.routers.notifications.service=notification_service"

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"notification_service/internal/domain"
+	"strconv"
 
 	"notification_service/internal/service"
 
@@ -134,12 +135,33 @@ func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	writeJSON(w, http.StatusOK, toListResponse(notifications))
+}
 
+func (h *Handler) ListMyNotifications(w http.ResponseWriter, r *http.Request) {
+	user_id, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
+	if err != nil || user_id <= 0 {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
+			Error: "failed to list notifications",
+		})
+		return
+	}
+	notifications, err := h.service.ListByUserID(r.Context(), user_id)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
+			Error: "failed to list notifications",
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, toListResponse(notifications))
+}
+
+func toListResponse(notifications []*domain.Notification) ListNotificationsResponse {
 	items := make([]*NotificationResponse, 0, len(notifications))
 	for _, notification := range notifications {
 		items = append(items, toNotificationResponse(notification))
 	}
-	writeJSON(w, http.StatusOK, ListNotificationsResponse{Items: items})
+	return ListNotificationsResponse{Items: items}
 }
 
 func toNotificationResponse(notification *domain.Notification) *NotificationResponse {
