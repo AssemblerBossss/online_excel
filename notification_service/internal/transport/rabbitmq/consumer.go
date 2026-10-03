@@ -5,6 +5,7 @@ import (
 	"errors"
 	"notification_service/internal/config"
 	"notification_service/internal/service"
+	"time"
 
 	"github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
@@ -17,6 +18,10 @@ type Consumer struct {
 	cfg     config.RabbitMQConfig
 	handler Handler
 	log     *zap.Logger
+}
+
+func NewConsumer(cfg config.RabbitMQConfig, handler Handler, log *zap.Logger) *Consumer {
+	return &Consumer{cfg, handler, log}
 }
 
 func (c *Consumer) consume(ctx context.Context) error {
@@ -64,7 +69,7 @@ func (c *Consumer) consume(ctx context.Context) error {
 	}
 
 	for _, key := range c.cfg.RoutingKeys {
-		if err := ch.QueueBind(q.Name, key, q.Name, false, nil); err != nil {
+		if err := ch.QueueBind(q.Name, key, c.cfg.Exchange, false, nil); err != nil {
 			return err
 		}
 	}
@@ -110,8 +115,9 @@ func (c *Consumer) process(ctx context.Context, msg amqp091.Delivery) {
 	err := c.handler.Handle(ctx, eventType, msg.Body)
 	switch {
 	case err == nil, errors.Is(err, service.ErrUnsupportedEventType):
-		msg.Ack(false)
+		_ = msg.Ack(false)
 
+	case errors.Is(err, service.ErrMalformedEvent):
 		c.log.Error("malformed event -> DLQ", zap.String("type", eventType), zap.Error(err))
 		_ = msg.Nack(false, false)
 
@@ -120,5 +126,20 @@ func (c *Consumer) process(ctx context.Context, msg amqp091.Delivery) {
 		c.log.Error("event handling failed, requeue", zap.String("type", eventType), zap.Error(err))
 		_ = msg.Nack(false, true)
 	}
+}
 
+func (c *Consumer) Run(ctx context.Context) {
+	for {
+		err := c.consume(ctx)
+		if ctx.Err() != nil {
+			return
+		}
+		c.log.Error("rabbitmq consumer stopped, reconnecting", zap.Error(err))
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(5 * time.Second):
+		}
+	}
 }

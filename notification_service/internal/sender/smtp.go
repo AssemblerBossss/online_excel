@@ -11,6 +11,10 @@ import (
 
 type SMTPSender struct{ cfg config.SMTPConfig }
 
+func NewSMTPSender(cfg config.SMTPConfig) *SMTPSender {
+	return &SMTPSender{cfg: cfg}
+}
+
 func (s *SMTPSender) Send(ctx context.Context, notification *domain.Notification) error {
 	addr := fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.Port)
 	msg := []byte("From: " + s.cfg.From + "\r\n" +

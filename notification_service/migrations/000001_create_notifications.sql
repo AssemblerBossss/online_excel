@@ -2,7 +2,7 @@
 
 CREATE TABLE notifications
 (
-    id         UUID PRIMARY KEY DEFAULT,
+    id         UUID PRIMARY KEY,
     user_id    BIGINT      NOT NULL,
     channel    TEXT        NOT NULL,
     status     TEXT        NOT NULL,

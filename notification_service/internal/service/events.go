@@ -20,6 +20,10 @@ type EventHandler struct {
 	sender        sender.Sender
 }
 
+func NewEventHandler(notifications *NotificationService, sender sender.Sender) *EventHandler {
+	return &EventHandler{notifications: notifications, sender: sender}
+}
+
 func (h *EventHandler) Handle(ctx context.Context, eventType string, body []byte) error {
 	switch eventType {
 	case "user.registered":
@@ -49,5 +53,11 @@ func (h *EventHandler) handlerUserRegistered(ctx context.Context, body []byte) e
 		return err
 	}
 	return h.notifications.Dispatch(ctx, n.ID, h.sender)
+}
 
+func welcomeBody(firstName string) string {
+	if firstName == "" {
+		return "Здравствуйте!\n\nВы успешно зарегистрировались в Online Excel."
+	}
+	return fmt.Sprintf("Здравствуйте, %s!\n\nВы успешно зарегистрировались в Online Excel.", firstName)
 }
