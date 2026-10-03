@@ -52,6 +52,7 @@ class TokenRepository:
         query = select(RefreshToken).where(
             and_(
                 RefreshToken.user_id == user_id,
+                RefreshToken.revoked.is_(False),
                 RefreshToken.expires_at > datetime.now(UTC),
             )
         )
@@ -67,12 +68,18 @@ class TokenRepository:
             token.revoked = True
 
         await self._session.flush()
+        query = (
+            update(RefreshToken)
+            .where(
+                and_(RefreshToken.user_id == user_id, RefreshToken.revoked.is_(False))
+            )
+            .values(revoked=True)
+        )
+
         return count
 
     async def delete_expired(self) -> int:
-        query = delete(RefreshToken).where(
-            RefreshToken.expires_at < datetime.now(UTC)
-        )
+        query = delete(RefreshToken).where(RefreshToken.expires_at < datetime.now(UTC))
         result = await self._session.execute(query)
         await self._session.flush()
         return int(result.rowcount)
