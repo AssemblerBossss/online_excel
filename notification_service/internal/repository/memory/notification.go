@@ -1,0 +1,93 @@
+package memory
+
+import (
+	"context"
+	"notification_service/internal/domain"
+	"sync"
+)
+
+type NotificationRepository struct {
+	mu   sync.RWMutex
+	data map[string]*domain.Notification
+}
+
+func NewNotificationRepository() *NotificationRepository {
+	return &NotificationRepository{
+		data: make(map[string]*domain.Notification),
+	}
+}
+
+func (r *NotificationRepository) Create(ctx context.Context, notification *domain.Notification) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if notification.DedupKey != nil {
+		for _, existing := range r.data {
+			if existing.DedupKey != nil && *existing.DedupKey == *notification.DedupKey {
+				return domain.ErrDuplicateNotification
+			}
+		}
+	}
+	r.data[notification.ID] = notification
+	return nil
+}
+
+func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*domain.Notification, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	notification, ok := r.data[id]
+	if !ok {
+		return nil, domain.ErrNotificationNotFound
+	}
+	return notification, nil
+}
+
+func (r *NotificationRepository) GetByDedupKey(ctx context.Context, dedupKey string) (*domain.Notification, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, notification := range r.data {
+		if notification.DedupKey != nil && *notification.DedupKey == dedupKey {
+			return notification, nil
+		}
+	}
+	return nil, domain.ErrNotificationNotFound
+}
+
+func (r *NotificationRepository) Update(ctx context.Context, notification *domain.Notification) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.data[notification.ID]; !ok {
+		return domain.ErrNotificationNotFound
+	}
+	r.data[notification.ID] = notification
+	return nil
+}
+
+func (r *NotificationRepository) List(ctx context.Context) ([]*domain.Notification, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make([]*domain.Notification, 0, len(r.data))
+
+	for _, notification := range r.data {
+		result = append(result, notification)
+	}
+	return result, nil
+}
+
+func (r *NotificationRepository) ListByUserID(ctx context.Context, userID int64) ([]*domain.Notification, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make([]*domain.Notification, 0, len(r.data))
+
+	for _, notification := range r.data {
+		if notification.UserID == userID {
+			result = append(result, notification)
+		}
+	}
+	return result, nil
+}

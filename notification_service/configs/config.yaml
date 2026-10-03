@@ -1,0 +1,31 @@
+server:
+  host: 0.0.0.0
+  port: 8080
+
+logger:
+  level: info
+  development: false
+
+postgres:
+  host: postgres
+  port: 5432
+  database: notification_db
+  username: postgres
+  password: postgres
+  ssl_mode: disable
+  max_connections: 20
+  min_connections: 1
+
+rabbitmq:
+  host: rabbitmq
+  port: 5672
+  username: guest
+  password: guest
+  exchange: user.events
+  queue: notification.events
+  routing_keys: [ user.registered ]
+
+smtp:
+  host: mailpit
+  port: 1025
+  from: no-reply@online-excel.local

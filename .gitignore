@@ -9,6 +9,7 @@ k8s/base/jwt-keys.yaml
 keys/*
 node_modules
 dist
+*.xlsx
 
 # kustomize --enable-helm скачивает чарты сюда локально при рендере
 charts/
