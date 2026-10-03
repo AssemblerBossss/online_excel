@@ -291,9 +291,9 @@ services:
       notification_db: { condition: service_healthy }
     environment:
       - SERVER_HOST=0.0.0.0
-      - SERVER_PORT=8003
+      - SERVER_PORT=8000
       - POSTGRES_HOST=notification_db
-      - POSTGRES_DB=${NOTIFICATION_DB_NAME:-notification_db}
+      - POSTGRES_DB=${NOTIFICATION_DB_NAME:-notifications}
       - POSTGRES_USER=${NOTIFICATION_DB_USER:-postgres}
       - POSTGRES_PASSWORD=${NOTIFICATION_DB_PASSWORD:-postgres}
       - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
@@ -301,10 +301,11 @@ services:
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
       - SMTP_HOST=mailpit
       - SMTP_PORT=1025
+    ports: [ "8003:8000" ]
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.notifications.rule=PathPrefix(`/notifications/me`)"
-      - "traefik.http.services.notification_service.loadbalancer.server.port=8003"
+      - "traefik.http.services.notification_service.loadbalancer.server.port=8000"
       - "traefik.http.routers.notifications.entrypoints=web"
       - "traefik.http.routers.notifications.service=notification_service"
       - "traefik.http.routers.notifications.middlewares=ratelimit@file,body-limit@file,cors@file,strip-user-headers@file,jwt-auth@file"

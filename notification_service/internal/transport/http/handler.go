@@ -139,14 +139,14 @@ func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListMyNotifications(w http.ResponseWriter, r *http.Request) {
-	user_id, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
-	if err != nil || user_id <= 0 {
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
-			Error: "failed to list notifications",
+	userID, err := strconv.ParseInt(r.Header.Get("X-User-ID"), 10, 64)
+	if err != nil || userID <= 0 {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{
+			Error: "unauthorized",
 		})
 		return
 	}
-	notifications, err := h.service.ListByUserID(r.Context(), user_id)
+	notifications, err := h.service.ListByUserID(r.Context(), userID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
 			Error: "failed to list notifications",
