@@ -1,8 +1,7 @@
 import logging
+from typing import Callable, Awaitable, Any
 
 import pandas as pd
-from elasticsearch import ConnectionError as ESConnectionError
-from elasticsearch import NotFoundError
 from fastapi import UploadFile
 from pydantic import ValidationError
 
@@ -64,6 +63,44 @@ class TableService:
             deleted_at=table.deleted_at,
             is_pinned=is_pinned,
         )
+
+    async def _execute_table_deletion(
+        self,
+        uow_session: UnitOfWork,
+        table_id: int,
+        user_id: int,
+        user_role: str,
+        permission_checker: Callable[..., Awaitable[Any]],
+        is_soft_delete: bool,
+    ) -> None:
+        async with uow_session.start():
+            table = await permission_checker(
+                uow_session=uow_session,
+                table_id=table_id,
+                user_id=user_id,
+                user_role=user_role,
+            )
+
+            if is_soft_delete:
+                success = await uow_session.tables.soft_delete_table(table_id=table_id)
+                action_text = "soft deleted (moved to trash)"
+            else:
+                success = await uow_session.tables.delete_table(table_id=table_id)
+                action_text = "permanently deleted"
+
+            if not success:
+                raise CanNotDeleteTableException()
+
+            if self.search_service:
+                await self.search_service.delete_from_index(table_id=table_id)
+
+            logger.info(
+                "User %s %s table %s (name: %s)",
+                user_id,
+                action_text,
+                table_id,
+                table.name,
+            )
 
     async def get_all_tables(
         self, uow_session: UnitOfWork, user_id: int, user_role: str
@@ -347,81 +384,35 @@ class TableService:
     async def delete_table(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> None:
-        """Удалить таблицу."""
-        async with uow_session.start():
-            table = await self.permission_service.get_table_with_manage_access(
-                uow_session=uow_session,
-                table_id=table_id,
-                user_id=user_id,
-                user_role=user_role,
-            )
-
-            if not await uow_session.tables.soft_delete_table(table_id=table_id):
-                raise CanNotDeleteTableException()
-
-            if self.search_service:
-                try:
-                    await self.search_service.delete_from_index(table_id=table_id)
-                except NotFoundError:
-                    logger.debug("Table %s not found in search index", table_id)
-                except ESConnectionError as e:
-                    logger.warning(
-                        "Failed to delete table %s from search index: connection error: %s",
-                        table_id,
-                        e,
-                    )
-                except Exception:
-                    logger.exception(
-                        "Unexpected error deleting table %s from search index", table_id
-                    )
-                    raise
-
-            logger.info(
-                "User %s deleted table %s (name: %s)", user_id, table_id, table.name
-            )
+        """Мягкое удаление таблицы (перемещение в корзину)."""
+        await self._execute_table_deletion(
+            uow_session=uow_session,
+            table_id=table_id,
+            user_id=user_id,
+            user_role=user_role,
+            permission_checker=self.permission_service.get_table_with_manage_access,
+            is_soft_delete=True,
+        )
 
     async def permanent_delete_table(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> None:
-        """Удалить таблицу."""
-        async with uow_session.start():
-            table = await self.permission_service.get_table_with_manage_access(
-                uow_session=uow_session,
-                table_id=table_id,
-                user_id=user_id,
-                user_role=user_role,
-            )
-
-            if not await uow_session.tables.delete_table(table_id=table_id):
-                raise CanNotDeleteTableException()
-
-            if self.search_service:
-                try:
-                    await self.search_service.delete_from_index(table_id=table_id)
-                except NotFoundError:
-                    logger.debug("Table %s not found in search index", table_id)
-                except ESConnectionError as e:
-                    logger.warning(
-                        "Failed to delete table %s from search index: connection error: %s",
-                        table_id,
-                        e,
-                    )
-                except Exception:
-                    logger.exception(
-                        "Unexpected error deleting table %s from search index", table_id
-                    )
-                    raise
-
-                logger.info(
-                    "User %s deleted table %s (name: %s)", user_id, table_id, table.name
-                )
+        """Перманентное удаление таблицы."""
+        await self._execute_table_deletion(
+            uow_session=uow_session,
+            table_id=table_id,
+            user_id=user_id,
+            user_role=user_role,
+            permission_checker=self.permission_service.get_deleted_table_with_manage_access,
+            is_soft_delete=False,
+        )
 
     async def restore_table(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
     ) -> None:
         """Восстановить таблицу из корзины."""
         async with uow_session.start():
-            await self.permission_service.get_table_with_manage_access(
+            await self.permission_service.get_deleted_table_with_manage_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
