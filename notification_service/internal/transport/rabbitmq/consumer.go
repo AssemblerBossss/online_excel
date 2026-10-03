@@ -62,7 +62,17 @@ func (c *Consumer) consume(ctx context.Context) error {
 		return err
 	}
 
-	q, err := ch.QueueDeclare(c.cfg.Queue, true, false, false, false, amqp091.Table{"x-dead-letter-exchange": dlx})
+	q, err := ch.QueueDeclare(
+		c.cfg.Queue,
+		true,
+		false,
+		false,
+		false,
+		amqp091.Table{
+			"x-dead-letter-exchange": dlx,
+			"x-queue-type":           "quorum",
+			"x-delivery-limit":       5,
+		})
 
 	if err != nil {
 		return err

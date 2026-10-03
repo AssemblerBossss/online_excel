@@ -43,21 +43,45 @@ func (h *EventHandler) handlerUserRegistered(ctx context.Context, body []byte) e
 	if event.EventID == "" {
 		return fmt.Errorf("%w: event_id is required", ErrMalformedEvent)
 	}
+
+	dedupKey := "user.registered:" + event.EventID
+
 	n, err := h.notifications.Create(ctx, CreateNotificationInput{
 		UserID:    event.UserID,
 		Channel:   domain.ChannelEmail,
 		Recipient: event.Email,
 		Subject:   "Добро пожаловать в Online Excel",
 		Body:      welcomeBody(event.FirstName),
-		DedupKey:  "user.registered:" + event.EventID,
+		DedupKey:  dedupKey,
 	})
+
 	if errors.Is(err, domain.ErrDuplicateNotification) {
-		return nil
+		return h.redispatch(ctx, dedupKey)
 	}
 	if err != nil {
 		return err
 	}
 	return h.notifications.Dispatch(ctx, n.ID, h.sender)
+}
+
+// redispatch обрабатывает повторную доставку события: уведомление уже создано
+// прошлой попыткой. Досылаем, если письмо ещё не ушло.
+func (h *EventHandler) redispatch(ctx context.Context, dedupKey string) error {
+	existing, err := h.notifications.GetByDedupKey(ctx, dedupKey)
+	if err != nil {
+		return err
+	}
+
+	switch existing.Status {
+	case domain.StatusSent:
+		return nil
+	case domain.StatusProcessing:
+		// Прошлая попытка умерла посреди Send: ушло письмо или нет, неизвестно.
+		// Выбираем «не задублировать», а не «точно доставить».
+		return nil
+	default: // pending, failed
+		return h.notifications.Dispatch(ctx, existing.ID, h.sender)
+	}
 }
 
 func welcomeBody(firstName string) string {

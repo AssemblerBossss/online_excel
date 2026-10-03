@@ -43,6 +43,18 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*domai
 	return notification, nil
 }
 
+func (r *NotificationRepository) GetByDedupKey(ctx context.Context, dedupKey string) (*domain.Notification, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, notification := range r.data {
+		if notification.DedupKey != nil && *notification.DedupKey == dedupKey {
+			return notification, nil
+		}
+	}
+	return nil, domain.ErrNotificationNotFound
+}
+
 func (r *NotificationRepository) Update(ctx context.Context, notification *domain.Notification) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

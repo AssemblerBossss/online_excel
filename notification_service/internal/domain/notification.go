@@ -50,7 +50,9 @@ func (s NotificationStatus) CanTransitionTo(next NotificationStatus) bool {
 		return next == StatusProcessing
 	case StatusProcessing:
 		return next == StatusSent || next == StatusFailed
-	case StatusSent, StatusFailed:
+	case StatusFailed:
+		return next == StatusProcessing //повторная попытка отправки
+	case StatusSent:
 		return false
 	default:
 		return false

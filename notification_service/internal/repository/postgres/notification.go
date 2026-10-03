@@ -107,6 +107,48 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*domai
 	return &notification, nil
 }
 
+func (r NotificationRepository) GetByDedupKey(ctx context.Context, dedupKey string) (*domain.Notification, error) {
+	const query = `
+		SELECT 
+		    id,
+		    user_id,
+			channel,    
+			status,   
+			recipient,  
+			subject ,  
+			body,            
+			created_at,
+			updated_at, 
+			sent_at,
+			error   
+		FROM notifications
+		WHERE dedup_key = $1
+	`
+
+	var notification domain.Notification
+
+	err := r.db.QueryRow(ctx, query, dedupKey).Scan(
+		&notification.ID,
+		&notification.UserID,
+		&notification.Channel,
+		&notification.Status,
+		&notification.Recipient,
+		&notification.Subject,
+		&notification.Body,
+		&notification.CreatedAt,
+		&notification.UpdatedAt,
+		&notification.SentAt,
+		&notification.Error)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotificationNotFound
+		}
+		return nil, fmt.Errorf("get notification: %w", err)
+	}
+	return &notification, nil
+}
+
 func (r *NotificationRepository) Update(ctx context.Context, notification *domain.Notification) error {
 	const query = `
 		UPDATE notifications

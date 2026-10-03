@@ -92,6 +92,23 @@ func (s *NotificationService) GetByID(
 	return notification, nil
 }
 
+func (s *NotificationService) GetByDedupKey(
+	ctx context.Context,
+	dedupKey string,
+) (*domain.Notification, error) {
+	dedupKey = strings.TrimSpace(dedupKey)
+
+	if dedupKey == "" {
+		return nil, errors.New("notification dedupKey is required")
+	}
+
+	notification, err := s.repository.GetByDedupKey(ctx, dedupKey)
+	if err != nil {
+		return nil, fmt.Errorf("get notification: %w", err)
+	}
+	return notification, nil
+}
+
 func (s *NotificationService) Update(
 	ctx context.Context,
 	id string,
@@ -163,7 +180,7 @@ func (s *NotificationService) Dispatch(ctx context.Context, notificationID strin
 
 	if err := snd.Send(ctx, notification); err != nil {
 		_, uerr := s.Update(ctx, notificationID, UpdateNotificationStatusInput{Status: domain.StatusFailed, Error: err.Error()})
-		return errors.Join(uerr)
+		return errors.Join(err, uerr)
 	}
 
 	_, serr := s.Update(ctx, notificationID, UpdateNotificationStatusInput{Status: domain.StatusSent})
