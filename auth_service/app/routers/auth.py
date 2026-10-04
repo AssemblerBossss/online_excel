@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, status
 from starlette.responses import JSONResponse
 
+from auth_service.app.config import auth_service_settings
 from auth_service.app.dependency import get_auth_service
 from auth_service.app.schemas import SUserAuth, SUserRegister, Token, TokenRefresh
 from auth_service.app.services import AuthService
@@ -12,7 +13,7 @@ router = APIRouter()
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-@limiter.limit("3/minute")
+@limiter.limit(auth_service_settings.RATE_LIMIT_REGISTER)
 async def register_user(
     request: Request,
     user_data: SUserRegister,
@@ -30,7 +31,7 @@ async def register_user(
 
 
 @router.post("/login", response_model=Token)
-@limiter.limit("5/minute")
+@limiter.limit(auth_service_settings.RATE_LIMIT_LOGIN)
 async def auth_user(
     request: Request,
     user_data: SUserAuth,
@@ -50,7 +51,7 @@ async def auth_user(
 
 
 @router.post("/logout")
-@limiter.limit("20/minute")
+@limiter.limit(auth_service_settings.RATE_LIMIT_LOGOUT)
 async def logout(
     request: Request,
     token_data: TokenRefresh,
@@ -64,7 +65,7 @@ async def logout(
 
 
 @router.post("/refresh", response_model=Token)
-@limiter.limit("20/minute")
+@limiter.limit(auth_service_settings.RATE_LIMIT_REFRESH)
 async def refresh_tokens(
     request: Request,
     token_data: TokenRefresh,

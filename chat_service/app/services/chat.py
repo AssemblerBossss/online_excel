@@ -46,6 +46,10 @@ class ChatService:
         if not receiver.is_active:
             raise UserBlockedException(data.receiver_email)
 
+        sender = await self.repo.get_user_by_email(sender_email)
+        if not sender or not sender.is_active:
+            raise UserNotFoundException(sender_email)
+
         user1, user2 = sorted([sender_email, data.receiver_email])
         chat = await self.repo.get_chat_by_users(user1, user2)
         if not chat:
