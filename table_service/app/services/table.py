@@ -92,7 +92,15 @@ class TableService:
                 raise CanNotDeleteTableException()
 
             if self.search_service:
-                await self.search_service.delete_from_index(table_id=table_id)
+                try:
+                    await self.search_service.delete_from_index(table_id=table_id)
+
+                except Exception as e:  # noqa: BLE001
+                    logger.exception(
+                        "Failed to remove table %s from search index: %s",
+                        table_id,
+                        e,
+                    )
 
             logger.info(
                 "User %s %s table %s (name: %s)",

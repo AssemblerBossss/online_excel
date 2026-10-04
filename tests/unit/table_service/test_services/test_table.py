@@ -26,7 +26,7 @@ class TestGetAllTables:
         self, service, mock_table_repo, mock_uow
     ) -> None:
         mock_table_repo.get_all_tables.return_value = []
-        result = await service.get_all_tables(uow_session=mock_uow)
+        result = await service.get_all_tables(uow_session=mock_uow, user_id=100, user_role="USER")
         assert result == []
         mock_table_repo.get_all_tables.assert_called_once()
 
@@ -36,7 +36,7 @@ class TestGetAllTables:
         """Корректно преобразует DataTable в DataTableResponse."""
         mock_table_repo.get_all_tables.return_value = [real_data_table]
 
-        result = await service.get_all_tables(uow_session=mock_uow)
+        result = await service.get_all_tables(uow_session=mock_uow, user_id=100, user_role="USER")
 
         assert len(result) == 1
         assert isinstance(result[0], DataTableResponse)
