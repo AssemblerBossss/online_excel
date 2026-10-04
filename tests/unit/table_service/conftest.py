@@ -17,14 +17,19 @@ from tests.fixtures.excel_factories import (  # noqa: F401
 @pytest.fixture
 def mock_uow(mock_table_repo, mock_data_repo, mock_permission_service):
     uow = MagicMock()
-    uow.tables = mock_table_repo  # uow_session.tables -> тот же мок
-    uow.data = mock_data_repo  # uow_session.data
-    uow.permissions = AsyncMock()
+
+    uow.tables = mock_table_repo
+    uow.data = mock_data_repo
+    uow.permissions = mock_permission_service
     uow.users = AsyncMock()
+
+    # Table pins repository
+    uow.table_pins = AsyncMock()
+    uow.table_pins.get_pinned_tables_ids = AsyncMock(return_value=[])
 
     @asynccontextmanager
     async def _start():
-        yield uow  # поддерживает и вложенный start()
+        yield uow
 
     uow.start = _start
     return uow
@@ -95,10 +100,18 @@ def real_data_table() -> DataTable:
         name="Test Table",
         description="Test description",
         is_public=False,
-        columns_schema=[{"name": "col1", "type": "string", "required": False}],
+        columns_schema=[
+            {
+                "name": "col1",
+                "type": "string",
+                "required": False,
+            }
+        ],
         created_by_id=100,
         created_at="2024-01-01T00:00:00",
         updated_at="2024-01-01T00:00:00",
+        is_deleted=False,
+        deleted_at=None,
     )
 
 

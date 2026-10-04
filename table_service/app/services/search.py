@@ -92,8 +92,22 @@ class SearchService:
             logger.exception("Failed to update table %s in Elasticsearch", table_id)
 
     async def delete_from_index(self, table_id: int) -> None:
-        """Удалить таблицу из индекса Elasticsearch."""
+        """Удаление таблицы из индекса Elasticsearch."""
         try:
             await self.es_client.delete(index=TABLE_INDEX, id=str(table_id))
-        except Exception:
-            logger.warning("Не удалось удалить таблицу %s из индекса", table_id)
+            logger.debug("Table %s successfully deleted from search index", table_id)
+        except NotFoundError:
+            # Это нормальная ситуация при повторных удалениях или рассинхронизации
+            logger.debug(
+                "Table %s not found in search index (already deleted?)", table_id
+            )
+        except ESConnectionError as e:
+            logger.warning(
+                "Failed to delete table %s from search index: connection error: %s",
+                table_id,
+                e,
+            )
+        except Exception as e:
+            logger.exception(
+                "Unexpected error deleting table %s from search index: %s", table_id, e
+            )

@@ -50,7 +50,6 @@ class TableRowResponse(TableRowInDB):
     """Схема ответа для получения данных строки таблицы"""
 
 
-
 class FilterOperator(str, Enum):
     """Операторы фильтрации по колонке."""
 
