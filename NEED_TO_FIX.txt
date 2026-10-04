@@ -17,8 +17,6 @@
 ---------------------------------------------------------------------
 КРАТКО: TOP-10, ЧТО ЧИНИТЬ СРАЗУ
 ---------------------------------------------------------------------
- 1. table_service  excel_processor.DTYPE_MAP — frozenset вместо dict:
-    импорт любого Excel с числовой колонкой падает 500.           (T1)
  2. table_service  DataRepository._to_number не существует: любой
     фильтр по числовой колонке падает 500.                        (T2)
  3. table_service  корзина: restore и permanent delete всегда 404 —
@@ -29,8 +27,6 @@
  6. table_service  formulas никогда не сохраняются в БД.          (T6)
  7. auth_service   GET /users/all_users/ всегда 500 (filter_by(**None)),
     GET /users/{id} всегда 500 (нет await).                    (A1, A2)
- 8. auth_service   DELETE /users/{id} всегда 500 (нет uow.start()),
-    user.deleted никогда не публикуется.                          (A3)
 
 10. chat_service   UserNotFound/UserBlocked: текст ошибки
     "Пользователь Пользователь x@y не найден не найден".          (C1)
@@ -70,41 +66,6 @@ auth_service/app/services/user.py:41  — вызывает find_all() без а�
     async def get_all_users(self, uow_session, current_user):
         self._check_is_admin(current_user)
         ...
-
----------------------------------------------------------------------
-A3 [КРИТ] delete_user: нет транзакции, нет события, аватар не удаляется
----------------------------------------------------------------------
-auth_service/app/services/user.py:172-177
-
-    self._check_permissions(current_user, user_id)
-    return await uow_session.user.delete_by_id(user_id)
-
-1) Нет `async with uow_session.start()` -> uow._session is None ->
-   UserRepository(None).delete_by_id -> AttributeError -> 500.
-   Удаление пользователя не работает вообще.
-2) Не публикуется UserDeletedEvent (класс есть, но нигде не используется) ->
-   проекции в table_service/chat_service никогда не узнают об удалении.
-3) Аватар в MinIO остаётся сиротой.
-
-Исправление:
-    async def delete_user(
-        self, uow_session: UnitOfWork, current_user: SUserInfo, user_id: int
-    ) -> bool:
-        self._check_permissions(current_user, user_id)
-        async with uow_session.start():
-            user = await uow_session.user.find_one_or_none_by_id(user_id)
-            if not user:
-                return False
-            avatar = user.avatar_url
-            await uow_session.user.delete_by_id(user_id)
-
-        await avatar_storage.delete(avatar)
-        await self.event_publisher.publish(
-            UserDeletedEvent(user_id=user_id, timestamp=datetime.now(UTC))
-        )
-        return True
-
-(импортировать UserDeletedEvent из auth_service.app.schemas)
 
 
 ---------------------------------------------------------------------
@@ -1029,20 +990,6 @@ user.updated с новым email, upsert делает UPDATE chat_users SET emai
     ALTER TABLE chats DROP CONSTRAINT ..., ADD CONSTRAINT ... FOREIGN KEY
       (user1_email) REFERENCES chat_users(email) ON UPDATE CASCADE;
     (для всех четырёх FK)
-
----------------------------------------------------------------------
-C3 [ВЫС] Отправитель не проверяется -> 500 на FK
----------------------------------------------------------------------
-chat_service/app/services/chat.py:25-52
-Проверяется только получатель. Если отправителя ещё нет в проекции
-(только зарегистрировался — событие не доехало) или он удалён ->
-INSERT messages нарушает FK sender_email -> IntegrityError -> 500.
-Неактивный (удалённый) отправитель может писать.
-
-Исправление:
-        sender = await self.repo.get_user_by_email(sender_email)
-        if not sender or not sender.is_active:
-            raise UserNotFoundException(sender_email)
 
 ---------------------------------------------------------------------
 C4 [ВЫС] Гонка при создании чата и lost update счётчиков

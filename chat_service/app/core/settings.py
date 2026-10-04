@@ -50,7 +50,6 @@ class Settings(BaseSettings):
         env_file=[".env.development", "local.env"],
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
-        # env_prefix="EXCEL_APP__",
         extra="ignore",
     )
 
