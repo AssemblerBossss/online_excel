@@ -36,11 +36,13 @@ jobs:
       - uses: astral-sh/ruff-action@v3
         with:
           version: "0.15.12"
+          src: "./${{ env.SERVICE_NAME }}"
           args: "check --output-format=github"
 
       - uses: astral-sh/ruff-action@v3
         with:
           version: "0.15.12"
+          src: "./${{ env.SERVICE_NAME }}"
           args: "format --check"
 
   unit-tests:
