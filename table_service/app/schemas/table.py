@@ -16,7 +16,6 @@ class DataTableUpdate(DataTableBase):
     """Схема для обновления таблицы"""
 
 
-
 class DataTableCreate(DataTableBase):
     """Схема для создания новой таблицы"""
 

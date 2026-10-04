@@ -37,9 +37,7 @@ class RpcClient:
 
     async def on_response(self, message: AbstractIncomingMessage) -> None:
         """Обрабатывает входящие ответы, резолвит соответствующий future по correlation_id."""
-        future: asyncio.Future | None = self.futures.pop(
-            message.correlation_id, None
-        )
+        future: asyncio.Future | None = self.futures.pop(message.correlation_id, None)
         if future:
             future.set_result(message.body)
 

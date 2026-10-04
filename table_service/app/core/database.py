@@ -23,4 +23,3 @@ async def get_db_session() -> AsyncSession:
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models"""
-
