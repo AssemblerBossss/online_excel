@@ -107,19 +107,36 @@ class UserService:
         if len(content) > auth_service_settings.MAX_AVATAR_SIZE:
             raise FileTooLargeException()
 
-        object_name: str = await avatar_storage.upload_avatar(
-            content=content, content_type=content_type
+        object_name = await avatar_storage.upload_avatar(
+            content, content_type=content_type
         )
 
-        async with uow_session.start():
-            updated = await uow_session.user.set_avatar(
-                user_id=user_id, object_name=object_name
-            )
-            if not updated:
-                await avatar_storage.delete(object_name)
-                return None
-            user = await uow_session.user.find_one_or_none_by_id(user_id)
+        try:
+            async with uow_session.start():
+                user = await uow_session.user.find_one_or_none_by_id(user_id)
+                if not user:
+                    await avatar_storage.delete(object_name)
+                    return None
+                old_object_name = user.avatar_url
+                await uow_session.user.set_avatar(
+                    user_id=user_id, object_name=object_name
+                )
+                user.avatar_url = object_name
+            if old_object_name:
+                try:
+                    await avatar_storage.delete(old_object_name)
+                except Exception as e:
+                    # Если старый аватар не удалился, мы НЕ должны падать с ошибкой.
+                    # Просто логируем. "Мусор" в хранилище потом уберет крон.
+                    logger.warning(
+                        f"Failed to delete old avatar {old_object_name}: {e}"
+                    )
             return SUserInfo.model_validate(user)
+
+        except Exception:
+            await avatar_storage.delete(object_name)
+            raise e
+
 
     async def update_user(
         self,

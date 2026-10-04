@@ -31,8 +31,7 @@
     GET /users/{id} всегда 500 (нет await).                    (A1, A2)
  8. auth_service   DELETE /users/{id} всегда 500 (нет uow.start()),
     user.deleted никогда не публикуется.                          (A3)
- 9. auth_service   /users/{id}/activate недоступен — опечатка "}" в
-    пути.                                                         (A4)
+
 10. chat_service   UserNotFound/UserBlocked: текст ошибки
     "Пользователь Пользователь x@y не найден не найден".          (C1)
     + consumer'ы всех сервисов молча теряют события (A/T/C-общий). (X1)
@@ -71,19 +70,6 @@ auth_service/app/services/user.py:41  — вызывает find_all() без а�
     async def get_all_users(self, uow_session, current_user):
         self._check_is_admin(current_user)
         ...
-
----------------------------------------------------------------------
-A2 [КРИТ] get_user_by_id без await, GET /users/{id} = 500
----------------------------------------------------------------------
-auth_service/app/services/user.py:49
-
-    user = uow_session.user.find_one_or_none_by_id(user_id)   # корутина!
-
-`user` всегда truthy (объект корутины), `SUserInfo.model_validate(coroutine)`
-падает ValidationError -> 500. Плюс warning "coroutine was never awaited".
-
-Исправление:
-    user = await uow_session.user.find_one_or_none_by_id(user_id)
 
 ---------------------------------------------------------------------
 A3 [КРИТ] delete_user: нет транзакции, нет события, аватар не удаляется
@@ -155,32 +141,6 @@ UnsupportedContentTypeException(f"...: {content_type}") в minio_client.py:45
 
 Исправление:
     content={"detail": exc.message}
-
----------------------------------------------------------------------
-A7 [ВЫС] find_not_revoked_by_user_id не фильтрует revoked
----------------------------------------------------------------------
-auth_service/app/repository/token.py:50-59
-
-Имя обещает "не отозванные", а в WHERE только expires_at > now.
-revoke_all_user_tokens и count_active_user_tokens считают/перебирают
-уже отозванные токены.
-
-Исправление:
-    query = select(RefreshToken).where(
-        RefreshToken.user_id == user_id,
-        RefreshToken.revoked.is_(False),
-        RefreshToken.expires_at > datetime.now(UTC),
-    )
-
-А revoke_all_user_tokens лучше одним UPDATE (без загрузки объектов):
-    async def revoke_all_user_tokens(self, user_id: int) -> int:
-        query = (
-            update(RefreshToken)
-            .where(RefreshToken.user_id == user_id, RefreshToken.revoked.is_(False))
-            .values(revoked=True)
-        )
-        result = await self._session.execute(query)
-        return result.rowcount
 
 ---------------------------------------------------------------------
 A8 [ВЫС][БЕЗОП] Гонка в refresh: один refresh-токен можно обменять дважды
@@ -327,30 +287,6 @@ auth_service/app/routers/auth.py:15,33,53,67 vs config.py:32-35
     @limiter.limit(auth_service_settings.RATE_LIMIT_LOGOUT)
     @limiter.limit(auth_service_settings.RATE_LIMIT_REFRESH)
 
----------------------------------------------------------------------
-A15 [СРЕД] Старый аватар не удаляется при замене
----------------------------------------------------------------------
-auth_service/app/services/user.py:92-118
-При загрузке нового аватара старый объект в MinIO остаётся навсегда.
-Также если коммит упадёт после put_object — объект-сирота (удаляется
-только при `not updated`).
-
-Исправление:
-        object_name = await avatar_storage.upload_avatar(...)
-        try:
-            async with uow_session.start():
-                user = await uow_session.user.find_one_or_none_by_id(user_id)
-                if not user:
-                    await avatar_storage.delete(object_name)
-                    return None
-                old_object = user.avatar_url
-                await uow_session.user.set_avatar(user_id=user_id, object_name=object_name)
-                user = await uow_session.user.find_one_or_none_by_id(user_id)
-        except Exception:
-            await avatar_storage.delete(object_name)
-            raise
-        await avatar_storage.delete(old_object)
-        return SUserInfo.model_validate(user)
 
 Плюс: content_type берётся из заголовка клиента — магические байты файла не
 проверяются, и файл читается целиком в память ДО проверки размера

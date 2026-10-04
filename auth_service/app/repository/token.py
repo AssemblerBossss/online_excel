@@ -61,13 +61,6 @@ class TokenRepository:
 
     async def revoke_all_user_tokens(self, user_id: int) -> int:
         """Отозвать все refresh токены пользователя"""
-        tokens = await self.find_not_revoked_by_user_id(user_id=user_id)
-        count = 0
-        for token in tokens:
-            count += 1
-            token.revoked = True
-
-        await self._session.flush()
         query = (
             update(RefreshToken)
             .where(
@@ -76,7 +69,8 @@ class TokenRepository:
             .values(revoked=True)
         )
 
-        return count
+        result = await self._session.execute(query)
+        return result.rowcount
 
     async def delete_expired(self) -> int:
         query = delete(RefreshToken).where(RefreshToken.expires_at < datetime.now(UTC))
