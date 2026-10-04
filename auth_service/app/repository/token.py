@@ -70,9 +70,7 @@ class TokenRepository:
         return count
 
     async def delete_expired(self) -> int:
-        query = delete(RefreshToken).where(
-            RefreshToken.expires_at < datetime.now(UTC)
-        )
+        query = delete(RefreshToken).where(RefreshToken.expires_at < datetime.now(UTC))
         result = await self._session.execute(query)
         await self._session.flush()
         return int(result.rowcount)
