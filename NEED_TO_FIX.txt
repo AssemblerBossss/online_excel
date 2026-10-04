@@ -275,25 +275,6 @@ auth_service/app/сore/rate_limiter.py:9-11
 (или X-Real-IP, если traefik его ставит; и настроить trustedIPs в traefik)
 
 ---------------------------------------------------------------------
-A14 [СРЕД] Лимиты захардкожены, настройки RATE_LIMIT_* не используются
----------------------------------------------------------------------
-auth_service/app/routers/auth.py:15,33,53,67 vs config.py:32-35
-Строки "3/minute" и т.п. продублированы; для /refresh в коде "20/minute",
-а в конфиге RATE_LIMIT_REFRESH="10/minute" — рассинхрон.
-
-Исправление:
-    @limiter.limit(auth_service_settings.RATE_LIMIT_REGISTER)
-    @limiter.limit(auth_service_settings.RATE_LIMIT_LOGIN)
-    @limiter.limit(auth_service_settings.RATE_LIMIT_LOGOUT)
-    @limiter.limit(auth_service_settings.RATE_LIMIT_REFRESH)
-
-
-Плюс: content_type берётся из заголовка клиента — магические байты файла не
-проверяются, и файл читается целиком в память ДО проверки размера
-(routers/user.py:206). Лучше ограничить размер тела на traefik (body-limit
-уже есть) и проверить сигнатуру (b"\x89PNG", b"\xff\xd8\xff", b"RIFF"...WEBP).
-
----------------------------------------------------------------------
 A16 [СРЕД] publisher читает RABBITMQ_URL мимо Settings
 ---------------------------------------------------------------------
 auth_service/app/events/publisher.py:7
