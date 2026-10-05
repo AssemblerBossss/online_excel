@@ -5,7 +5,7 @@ import TablePermissionsPanel from '../components/TablePermissionsPanel';
 import SidebarWithToggle from '../components/SidebarWithToggle';
 import {tablesAPI, TableRow, ColumnSchema, RowFilter, isFormula, evaluateFormula} from "../api/tables";
 import {subscribeToTableEvents} from '../api/ws';
-import {colors, rounded, shadowLevel3, spacing, typography} from '../styles/theme';
+import {colors, rounded, shadowLevel3, spacing, typography,} from '../styles/theme';
 
 const PAGE_SIZE = 50;
 
@@ -581,14 +581,6 @@ export default TableViewPage;
 
 // ── Стили ──
 
-const captionMono: React.CSSProperties = {
-    ...typography.caption,
-    fontFamily: "'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
-    textTransform: "uppercase",
-    letterSpacing: "0.04em",
-    color: colors.body,
-};
-
 const styles: Record<string, React.CSSProperties> = {
     container: {minHeight: "100vh", background: colors.canvasSoft},
     header: {
@@ -669,7 +661,7 @@ const styles: Record<string, React.CSSProperties> = {
     },
     table: {width: "100%", borderCollapse: "collapse", background: colors.canvas},
     th: {
-        ...captionMono,
+        ...typography.captionMono,
         padding: `${spacing.xs}px ${spacing.sm}px`, borderBottom: `1px solid ${colors.hairline}`,
         background: colors.canvasSoft, textAlign: "left", whiteSpace: "nowrap",
     },

@@ -35,10 +35,25 @@ export const typography = {
     bodySm: { fontFamily: fontSans, fontSize: 14, fontWeight: 400, lineHeight: "20px", letterSpacing: "-0.28px" } as CSSProperties,
     bodySmStrong: { fontFamily: fontSans, fontSize: 14, fontWeight: 500, lineHeight: "20px", letterSpacing: "-0.28px" } as CSSProperties,
     caption: { fontFamily: fontSans, fontSize: 12, fontWeight: 400, lineHeight: "16px" } as CSSProperties,
+    captionMono: { fontFamily: fontMono, fontSize: 12, fontWeight: 400, lineHeight: "16px" } as CSSProperties,
     buttonMd: { fontFamily: fontSans, fontSize: 14, fontWeight: 500, lineHeight: "20px" } as CSSProperties,
     buttonLg: { fontFamily: fontSans, fontSize: 16, fontWeight: 500, lineHeight: "24px" } as CSSProperties,
     code: { fontFamily: fontMono, fontSize: 13, fontWeight: 400, lineHeight: "20px" } as CSSProperties,
 };
+
+// размеры редактора таблиц
+export const sheet = {
+    titleBarHeight: 56,
+    toolbarHeight: 40,
+    formulaBarHeight: 32,
+    bottomBarHeight: 36,
+    rowHeight: 28,
+    colWidth: 140,
+    rowHeaderWidth: 48,
+    checkboxColWidth: 32,
+    activeBorder: `2px solid ${colors.link}`,
+} as const;
+
 
 export const rounded = {
     xs: 4,
