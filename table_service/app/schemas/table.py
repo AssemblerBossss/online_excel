@@ -1,7 +1,6 @@
-from datetime import datetime
 from typing import Any
-
-from pydantic import BaseModel
+from datetime import datetime
+from pydantic import BaseModel, Field
 
 
 class DataTableBase(BaseModel):
@@ -16,10 +15,13 @@ class DataTableUpdate(DataTableBase):
     """Схема для обновления таблицы"""
 
 
-class DataTableCreate(DataTableBase):
+class DataTableCreate(BaseModel):
     """Схема для создания новой таблицы"""
 
-    columns_schema: list[dict[str, Any]] | None = None
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    is_public: bool = False
+    columns_schema: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class DataTableResponse(DataTableBase):
