@@ -281,8 +281,7 @@ A18 [НИЗК] Прочее auth_service
 - routers/health.py:12-17 — /ready ничего не проверяет. Минимум SELECT 1:
       async with async_session_maker() as s:
           await s.execute(text("SELECT 1"))
-- services/auth.py:78 — `first_name = user.first_name` (пробелы вокруг =,
-  ruff format поправит); services/auth.py:128 докстринг "хранит локальную
+- services/auth.py:128 докстринг "хранит локальную
   таблицу пользователей" — не отсюда.
 - services/auth.py:65, 102 — raise UserAlreadyExistsException (класс без ())
   работает, но по стилю лучше единообразно с () как в остальных местах.
@@ -355,42 +354,6 @@ services/data.py:136-142 — но только для COMPARISON_OPERATORS, дл
                     Decimal(f.value)
                 except InvalidOperation:
                     raise ValidationException(...)
-
----------------------------------------------------------------------
-T3 [КРИТ] Корзина: restore и permanent delete всегда 404
----------------------------------------------------------------------
-table_service/app/services/table.py:383-396, 419-433
-table_service/app/services/permission.py:66-78
-table_service/app/repository/table.py:34-42
-
-permanent_delete_table и restore_table первым делом вызывают
-get_table_with_manage_access -> tables.get_table_by_id(), а он фильтрует
-`DataTable.is_deleted.is_(False)`. Таблица в корзине is_deleted=True ->
-NotFoundException("Таблица не найдена"). Восстановить или окончательно
-удалить таблицу из корзины НЕВОЗМОЖНО.
-
-При этом repository/table.py:44 get_deleted_table_by_id написан ровно для
-этого, но нигде не вызывается.
-
-Исправление — отдельная проверка для корзины в PermissionService:
-    async def get_deleted_table_with_manage_access(
-        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
-    ) -> DataTable:
-        """Найти таблицу в корзине и проверить право на управление."""
-        table = await uow_session.tables.get_deleted_table_by_id(table_id=table_id)
-        if not table:
-            raise NotFoundException("Таблица не найдена в корзине")
-        if not await self.check_manage_access(
-            uow_session=uow_session, table=table, user_id=user_id, user_role=user_role
-        ):
-            raise AccessDeniedException()
-        return table
-
-и в TableService.permanent_delete_table / restore_table вызывать её вместо
-get_table_with_manage_access.
-
-Также в permanent_delete_table (services/table.py:415-417) logger.info
-случайно вложен в `if self.search_service:` — вынести на уровень выше.
 
 ---------------------------------------------------------------------
 T4 [КРИТ][БЕЗОП] Кэш строк отдаётся без проверки прав
