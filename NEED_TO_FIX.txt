@@ -600,22 +600,6 @@ CancelledError) -> фоновая задача умирает молча, WS-с�
 в перспективе asyncio.gather(..., return_exceptions=True).
 
 ---------------------------------------------------------------------
-T9 [ВЫС][БЕЗОП] Право write позволяет сделать таблицу публичной
----------------------------------------------------------------------
-table_service/app/services/table.py:144-169
-
-update_table требует только write, а DataTableUpdate содержит is_public.
-Пользователь с can_write на чужую приватную таблицу делает её публичной
-для всех. Смена видимости — это управление доступом (manage).
-
-Исправление:
-        payload = update_data.model_dump(exclude_unset=True)
-        if "is_public" in payload:
-            await self.permission_service.get_table_with_manage_access(...)
-        else:
-            await self.permission_service.get_table_with_write_access(...)
-
----------------------------------------------------------------------
 T10 [ВЫС] POST /tables/create с пустым телом -> 500
 ---------------------------------------------------------------------
 table_service/app/schemas/table.py:7-23
@@ -942,27 +926,6 @@ T25 [МЁРТВ] Мёртвый код table_service
 =====================================================================
 ЧАСТЬ 3. CHAT_SERVICE
 =====================================================================
-
----------------------------------------------------------------------
-C1 [КРИТ] Двойной текст в ошибках UserNotFound / UserBlocked
----------------------------------------------------------------------
-chat_service/app/services/chat.py:36, 38-40
-chat_service/app/exceptions.py:21-25, 31-37
-
-    raise UserNotFoundException(f"Пользователь {data.receiver_email} не найден")
-    # а конструктор ожидает email и сам оборачивает:
-    detail = f"Пользователь {email} не найден"
--> "Пользователь Пользователь x@y.ru не найден не найден"
-
-Исправление:
-    raise UserNotFoundException(data.receiver_email)
-    raise UserBlockedException(data.receiver_email)
-    raise SelfMessageException()
-
-Архитектурно: исключения наследуют HTTPException — доменный слой знает
-про HTTP (против правила проекта). Сделать как в table_service (после T7):
-AppException(status_code, detail) + один хендлер в main.py.
-
 ---------------------------------------------------------------------
 C2 [КРИТ] Смена email ломает чат навсегда (FK на email) + poison message
 ---------------------------------------------------------------------
