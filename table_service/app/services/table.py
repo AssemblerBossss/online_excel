@@ -447,7 +447,7 @@ class TableService:
     ) -> None:
         """Закрепить таблицу для текущего пользователя. Достаточно прав на чтение"""
         async with uow_session.start():
-            await self.permission_service.get_table_with_manage_access(
+            await self.permission_service.get_table_with_read_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
@@ -461,7 +461,7 @@ class TableService:
     ) -> None:
         """Открепить таблицу от текущего пользователя"""
         async with uow_session.start():
-            await self.permission_service.get_table_with_manage_access(
+            await self.permission_service.get_table_with_read_access(
                 uow_session=uow_session,
                 table_id=table_id,
                 user_id=user_id,
