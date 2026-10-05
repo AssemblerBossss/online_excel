@@ -499,61 +499,6 @@ row_data.model_dump()` — тип параметра и так TableRowCreate/Up
 else никогда не выполняется.
 
 ---------------------------------------------------------------------
-T7 [ВЫС] Двойная регистрация @app.exception_handler(AppException)
----------------------------------------------------------------------
-table_service/app/main.py:115-119 и 131-133
-
-    @app.exception_handler(AppException)            # опечатка, должно быть
-    async def invalid_ws_ticket_handler(...):       # InvalidWSTicketException
-        return JSONResponse(status_code=401, ...)
-    ...
-    @app.exception_handler(AppException)            # перезаписывает первый
-    async def app_exception_handler(...): -> 500
-
-Первый хендлер мёртв (перезаписан в dict), InvalidWSTicketException
-отдаёт 500 вместо 401. CanNotDeleteTableException и
-TokenInvalidFormatException хендлеров не имеют -> 500.
-CanNotUpdateTableException -> 404 (странно, логичнее 404 "не найдена"
-отдавать NotFound'ом, а этот — 409/500).
-ExportJobNotFoundException не имеет detail -> клиенту уходит
-"Internal server error" со статусом 404.
-
-Исправление — статус как атрибут исключения, один хендлер:
-    # exceptions.py
-    class AppException(Exception):
-        status_code: int = 500
-        detail: str = "Internal server error"
-
-        def __init__(self, detail: str | None = None):
-            self.detail = detail or self.__class__.detail
-            super().__init__(self.detail)
-
-    class AccessDeniedException(AppException):
-        status_code = 403
-        detail = "Нет доступа к данной таблице"
-
-    class ValidationException(AppException):
-        status_code = 422
-        ...
-    class NotFoundException(AppException):
-        status_code = 404
-    class InvalidWSTicketException(AppException):
-        status_code = 401
-    class ExportJobNotFoundException(AppException):
-        status_code = 404
-        detail = "Задача экспорта не найдена"
-    ... и т.д.
-
-    # main.py
-    def register_exception_handlers(app: FastAPI) -> None:
-        @app.exception_handler(AppException)
-        async def app_exception_handler(request: Request, exc: AppException):
-            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
-
-Минус ~80 строк однотипных хендлеров, и новые исключения не надо
-регистрировать вручную.
-
----------------------------------------------------------------------
 T8 [ВЫС] TableWsManager.broadcast меняет set во время итерации
 ---------------------------------------------------------------------
 table_service/app/core/ws_manager.py:32-38
@@ -882,14 +827,9 @@ T24 [СРЕД] Прочее table_service
 ---------------------------------------------------------------------
 T25 [МЁРТВ] Мёртвый код table_service
 ---------------------------------------------------------------------
-- core/rabbitmq.py (весь файл)          RabbitMQUserValidator + get_user_validator,
-                                        помечены @deprecated, нигде не вызываются.
-- infrastructure/rabbitmq.py (весь файл) RpcClient — используется только
-                                        мёртвым валидатором. К тому же
+ К тому же
                                         asyncio.get_running_loop() в __init__
                                         упадёт при создании вне event loop.
-- core/__init__.py:5, 21                экспорт get_user_validator
-- infrastructure/__init__.py:2, 4       экспорт RpcClient
 - core/database.py:19-21                get_db_session (+ экспорт в core/__init__)
 - core/settings.py:5-7                  LOG_FORMAT_DEFAULT
 - core/settings.py:10-24                UvicornConfig, GunicornConfig и поля
