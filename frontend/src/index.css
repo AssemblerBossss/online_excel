@@ -25,3 +25,8 @@ body {
 * {
   box-sizing: border-box;
 }
+
+/* Hover для элементов редактора таблиц — inline-стили не умеют :hover */
+.sheet-hover:hover:not(:disabled) {
+  background: #f5f5f5; /* canvasSoft2 */
+}
