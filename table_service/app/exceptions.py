@@ -1,6 +1,7 @@
 class AppException(Exception):
     """Базовое доменное исключение."""
 
+    status_code: int = 500
     detail: str = "Internal server error"
 
     def __init__(self, detail: str | None = None):
@@ -9,68 +10,85 @@ class AppException(Exception):
 
 
 class AccessDeniedException(AppException):
-    detail = "Нет доступа к данной таблице"
+    status_code: int = 403
+    detail: str = "Нет доступа к данной таблице"
 
 
 class ValidationException(AppException):
-    detail = "Ошибка валидации данных"
+    status_code: int = 422
+    detail: str = "Ошибка валидации данных"
 
 
 class NotFoundException(AppException):
-    detail = "Not Found"
+    status_code: int = 404
+    detail: str = "Ресурс не найден"
 
 
 class CanNotCreateTableException(AppException):
-    detail = "Не удалось создать таблицу"
+    status_code: int = 400
+    detail: str = "Не удалось создать таблицу"
 
 
 class CanNotDeleteTableException(AppException):
-    detail = "Не удалось удалить таблицу"
+    status_code: int = 409
+    detail: str = "Не удалось удалить таблицу"
 
 
 class ForbiddenException(AppException):
-    detail = "Недостаточно прав"
+    status_code: int = 403
+    detail: str = "Недостаточно прав"
 
 
 class TokenInvalidFormatException(AppException):
-    detail = "Неверный формат токена. Ожидается 'Bearer <токен>'"
+    status_code: int = 401
+    detail: str = "Неверный формат токена. Ожидается 'Bearer <токен>'"
 
 
 class InvalidWSTicketException(AppException):
-    detail = "Недействительный или истёкший WebSocket-тикет"
+    status_code: int = 401
+    detail: str = "Недействительный или истёкший WebSocket-тикет"
 
 
 class InvalidFileFormatException(AppException):
-    detail = "Неверный формат файла"
+    status_code: int = 401
+    detail: str = "Неверный формат файла"
 
 
 class InvalidFileMimeTypeException(AppException):
-    detail = "Неподдерживаемый тип файла"
+    status_code: int = 415
+    detail: str = "Неподдерживаемый тип файла"
 
 
 class EmptyFileException(AppException):
-    detail = "Файл пустой"
+    status_code: int = 400
+    detail: str = "Файл пустой"
 
 
 class FileParseException(AppException):
-    detail = "Ошибка парсинга файла"
+    status_code: int = 400
+    detail: str = "Ошибка парсинга файла"
 
 
 class CanNotUpdateTableException(AppException):
-    detail = "Ошибка обновления таблицы"
+    status_code: int = 400
+    detail: str = "Ошибка обновления таблицы"
 
 
 class PermissionAlreadyExistsException(AppException):
-    detail = "Права для этого пользователя уже существуют"
+    status_code: int = 409
+    detail: str = "Права для этого пользователя уже существуют"
 
 
 class CanNotCreatePermissionException(AppException):
-    detail = "Не удалось создать права доступа"
+    status_code: int = 400
+    detail: str = "Не удалось создать права доступа"
 
 
 class UserNotFoundException(AppException):
-    detail = "Пользователь с таким email не найден"
+    status_code: int = 404
+    detail: str = "Пользователь с таким email не найден"
 
 
 class ExportJobNotFoundException(AppException):
-    pass
+    status_code: int = 404
+    detail: str = "Задача экспорта не найдена"
