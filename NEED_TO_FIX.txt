@@ -357,42 +357,6 @@ services/data.py:136-142 — но только для COMPARISON_OPERATORS, дл
                     raise ValidationException(...)
 
 ---------------------------------------------------------------------
-T3 [КРИТ] Корзина: restore и permanent delete всегда 404
----------------------------------------------------------------------
-table_service/app/services/table.py:383-396, 419-433
-table_service/app/services/permission.py:66-78
-table_service/app/repository/table.py:34-42
-
-permanent_delete_table и restore_table первым делом вызывают
-get_table_with_manage_access -> tables.get_table_by_id(), а он фильтрует
-`DataTable.is_deleted.is_(False)`. Таблица в корзине is_deleted=True ->
-NotFoundException("Таблица не найдена"). Восстановить или окончательно
-удалить таблицу из корзины НЕВОЗМОЖНО.
-
-При этом repository/table.py:44 get_deleted_table_by_id написан ровно для
-этого, но нигде не вызывается.
-
-Исправление — отдельная проверка для корзины в PermissionService:
-    async def get_deleted_table_with_manage_access(
-        self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
-    ) -> DataTable:
-        """Найти таблицу в корзине и проверить право на управление."""
-        table = await uow_session.tables.get_deleted_table_by_id(table_id=table_id)
-        if not table:
-            raise NotFoundException("Таблица не найдена в корзине")
-        if not await self.check_manage_access(
-            uow_session=uow_session, table=table, user_id=user_id, user_role=user_role
-        ):
-            raise AccessDeniedException()
-        return table
-
-и в TableService.permanent_delete_table / restore_table вызывать её вместо
-get_table_with_manage_access.
-
-Также в permanent_delete_table (services/table.py:415-417) logger.info
-случайно вложен в `if self.search_service:` — вынести на уровень выше.
-
----------------------------------------------------------------------
 T4 [КРИТ][БЕЗОП] Кэш строк отдаётся без проверки прав
 ---------------------------------------------------------------------
 table_service/app/api/endpoints/data.py:81-93
@@ -543,32 +507,6 @@ CancelledError) -> фоновая задача умирает молча, WS-с�
 Для обрыва соединения с Redis — обернуть в цикл переподключения с паузой.
 Плюс рассылка последовательная: один медленный клиент тормозит всех —
 в перспективе asyncio.gather(..., return_exceptions=True).
-
----------------------------------------------------------------------
-T10 [ВЫС] POST /tables/create с пустым телом -> 500
----------------------------------------------------------------------
-table_service/app/schemas/table.py:7-23
-Все поля DataTableCreate опциональны (name, columns_schema = None), а в
-модели name и columns_schema NOT NULL (models/table.py:19,22), is_public
-передаётся None явно (repository/table.py:80) — default=False модели при
-явном None не срабатывает.
--> IntegrityError -> 500 вместо 422.
-
-Исправление:
-    class DataTableCreate(BaseModel):
-        name: str = Field(min_length=1, max_length=255)
-        description: str | None = None
-        is_public: bool = False
-        columns_schema: list[dict[str, Any]] = Field(default_factory=list)
-
----------------------------------------------------------------------
-T11 [ВЫС] pin_table требует manage вместо read
----------------------------------------------------------------------
-table_service/app/services/table.py:446-472
-Докстринг: "Достаточно прав на чтение", код: get_table_with_manage_access.
-Читатель публичной/расшаренной таблицы не может её закрепить (403).
-Исправление: get_table_with_read_access в pin_table и unpin_table
-(откреплять можно вообще без проверки прав — удаляется своя запись).
 
 ---------------------------------------------------------------------
 T13 [ВЫС] Импорт Excel превращает числа-строки в даты; блокирует event loop
