@@ -32,22 +32,7 @@ from table_service.app.core import (
 )
 from table_service.app.core.ws_manager import table_ws_manager
 from table_service.app.exceptions import (
-    AccessDeniedException,
     AppException,
-    CanNotCreatePermissionException,
-    CanNotCreateTableException,
-    CanNotUpdateTableException,
-    EmptyFileException,
-    ExportJobNotFoundException,
-    FileParseException,
-    ForbiddenException,
-    InvalidFileFormatException,
-    InvalidFileMimeTypeException,
-    InvalidWSTicketException,
-    NotFoundException,
-    PermissionAlreadyExistsException,
-    UserNotFoundException,
-    ValidationException,
 )
 
 setup_service_logging()
@@ -55,82 +40,16 @@ logger = logging.getLogger(__name__)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-
-    @app.exception_handler(AccessDeniedException)
-    async def access_denied_handler(request: Request, exc: AccessDeniedException):
-        return JSONResponse(status_code=403, content={"detail": exc.detail})
-
-    @app.exception_handler(ValidationException)
-    async def validation_handler(request: Request, exc: ValidationException):
-        return JSONResponse(status_code=422, content={"detail": exc.detail})
-
-    @app.exception_handler(NotFoundException)
-    async def not_found_handler(request: Request, exc: NotFoundException):
-        return JSONResponse(status_code=404, content={"detail": exc.detail})
-
-    @app.exception_handler(CanNotCreateTableException)
-    async def cant_create_handler(request: Request, exc: CanNotCreateTableException):
-        return JSONResponse(status_code=500, content={"detail": exc.detail})
-
-    @app.exception_handler(ForbiddenException)
-    async def forbidden_handler(request: Request, exc: ForbiddenException):
-        return JSONResponse(status_code=403, content={"detail": exc.detail})
-
-    @app.exception_handler(InvalidFileFormatException)
-    async def invalid_file_format_handler(
-        request: Request, exc: InvalidFileFormatException
-    ):
-        return JSONResponse(status_code=400, content={"detail": exc.detail})
-
-    @app.exception_handler(InvalidFileMimeTypeException)
-    async def invalid_mime_handler(request: Request, exc: InvalidFileMimeTypeException):
-        return JSONResponse(status_code=415, content={"detail": exc.detail})
-
-    @app.exception_handler(EmptyFileException)
-    async def empty_file_handler(request: Request, exc: EmptyFileException):
-        return JSONResponse(status_code=400, content={"detail": exc.detail})
-
-    @app.exception_handler(FileParseException)
-    async def file_parse_handler(request: Request, exc: FileParseException):
-        return JSONResponse(status_code=400, content={"detail": exc.detail})
-
-    @app.exception_handler(CanNotUpdateTableException)
-    async def cannot_update_table_handler(
-        request: Request, exc: CanNotUpdateTableException
-    ):
-        return JSONResponse(status_code=404, content={"detail": exc.detail})
-
-    @app.exception_handler(PermissionAlreadyExistsException)
-    async def permission_exists_handler(
-        request: Request, exc: PermissionAlreadyExistsException
-    ):
-        return JSONResponse(status_code=409, content={"detail": exc.detail})
-
-    @app.exception_handler(CanNotCreatePermissionException)
-    async def cant_create_permission_handler(
-        request: Request, exc: CanNotCreatePermissionException
-    ):
-        return JSONResponse(status_code=500, content={"detail": exc.detail})
+    """Единый обработчик для всех исключений"""
 
     @app.exception_handler(AppException)
-    async def invalid_ws_ticket_handler(
-        request: Request, exc: InvalidWSTicketException
-    ):
-        return JSONResponse(status_code=401, content={"detail": exc.detail})
-
-    @app.exception_handler(ExportJobNotFoundException)
-    async def export_job_not_found_handler(
-        request: Request, exc: ExportJobNotFoundException
-    ):
-        return JSONResponse(status_code=404, content={"detail": exc.detail})
-
-    @app.exception_handler(UserNotFoundException)
-    async def user_not_found_handler(request: Request, exc: UserNotFoundException):
-        return JSONResponse(status_code=404, content={"detail": exc.detail})
-
-    @app.exception_handler(AppException)
-    async def app_exception_handler(request: Request, exc: AppException):
-        return JSONResponse(status_code=500, content={"detail": exc.detail})
+    async def app_exception_handler(
+        request: Request, exc: AppException
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
 
 
 @asynccontextmanager

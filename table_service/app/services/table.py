@@ -1,5 +1,6 @@
 import logging
-from typing import Callable, Awaitable, Any
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 import pandas as pd
 from fastapi import UploadFile
@@ -95,7 +96,7 @@ class TableService:
                 try:
                     await self.search_service.delete_from_index(table_id=table_id)
 
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     logger.exception(
                         "Failed to remove table %s from search index: %s",
                         table_id,
@@ -203,6 +204,13 @@ class TableService:
             )
 
             payload = update_data.model_dump(exclude_none=True)
+            if "is_public" in payload:
+                await self.permission_service.get_table_with_manage_access(
+                    uow_session=uow_session,
+                    table_id=table_id,
+                    user_id=user_id,
+                    user_role=user_role,
+                )
             updated = await uow_session.tables.update_table(table_id, payload)
             if not updated:
                 raise CanNotUpdateTableException()
