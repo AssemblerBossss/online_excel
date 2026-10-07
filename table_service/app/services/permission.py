@@ -285,9 +285,6 @@ class PermissionService:
             ):
                 raise PermissionAlreadyExistsException()
 
-
-
-=======
             try:
                 perm = await uow_session.permissions.create_permission(
                     table_id=table_id,
@@ -303,9 +300,13 @@ class PermissionService:
 
             if not perm:
                 raise CanNotCreatePermissionException()
-               
+
             response = self._to_response(perm, email=target_user.email)
-                target_id, target_email, perm_id = (
+            target_id, target_email, perm_id = (
+                target_user.id,
+                target_user.email,
+                perm.id,
+            )
 
         await self.invalidate_table_access(table_id)
         logger.info(
