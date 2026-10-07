@@ -10,7 +10,7 @@ from fastapi import (
 )
 from redis.asyncio import Redis
 
-from services.data import _rows_cache_key, ROWS_CACHE_TTL
+from table_service.app.services.data import _rows_cache_key, ROWS_CACHE_TTL
 from table_service.app.api.dependencies import (
     get_redis,
     get_data_service,

@@ -6,7 +6,6 @@ from redis.asyncio import Redis
 from table_service.app.services.cache import AccessLevel
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.exceptions import (
-    AccessDeniedException,
     NotFoundException,
     ValidationException,
 )
@@ -69,6 +68,9 @@ class DataService:
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
+
+    async def _invalidate_rows_cache(self, table_id: int) -> None:
+        await self.redis.delete(_rows_cache_key(table_id))
 
     async def _publish_row_event(
         self,
@@ -245,6 +247,7 @@ class DataService:
 
             response = self._to_row_response(row)
 
+        await self._invalidate_rows_cache(table_id)
         await self._publish_row_event(
             event=RowEventType.row_created,
             table_id=table_id,
@@ -288,6 +291,7 @@ class DataService:
 
             response = self._to_row_response(row)
 
+        await self._invalidate_rows_cache(table_id)
         await self._publish_row_event(
             event=RowEventType.row_updated,
             table_id=table_id,
@@ -323,6 +327,7 @@ class DataService:
                 "User %s deleted row %s from table %s", user_id, row_id, table_id
             )
 
+        await self._invalidate_rows_cache(table_id)
         await self._publish_row_event(
             event=RowEventType.row_deleted,
             table_id=table_id,
@@ -373,6 +378,7 @@ class DataService:
             )
             response = self._to_row_response(new_row)
 
+        await self._invalidate_rows_cache(table_id)
         # Публикуем как обычное создание строки — у соавторов таблицы,
         # смотрящих её сейчас через WS, копия появится в реальном времени.
         await self._publish_row_event(
@@ -412,6 +418,9 @@ class DataService:
                 len(row_ids),
                 table_id,
             )
+        if deleted_ids:
+            await self._invalidate_rows_cache(table_id)
+
         for row_id in deleted_ids:
             await self._publish_row_event(
                 event=RowEventType.row_deleted,
