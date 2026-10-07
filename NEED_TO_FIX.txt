@@ -500,28 +500,6 @@ table_service/app/services/table.py:274, 315
    попадают в row_data под ключом "nan" (строка 77) — мусор в JSON.
 
 ---------------------------------------------------------------------
-T14 [ВЫС] Индексация в ES до коммита -> "призраки" в поиске
----------------------------------------------------------------------
-table_service/app/services/table.py:131-138, 214-221, 306-313, 435-442
-
-index_table вызывается внутри транзакции. Если дальше что-то падает
-(bulk insert строк при импорте, коммит) — транзакция откатывается, а
-документ в ES уже есть: поиск показывает несуществующую таблицу.
-Аналогично update_table (ES обновлён, БД откатилась).
-
-Исправление: индексировать после выхода из `async with uow_session.start()`:
-        async with uow_session.start():
-            table = await uow_session.tables.create_table(...)
-            response = self._to_response(table)
-        if self.search_service:
-            await self.search_service.index_table(...)
-        return response
-
-Также create_table/update_table НЕ ловят ошибки ES (в отличие от delete):
-ES лежит -> создать таблицу нельзя (500), хотя поиск — вторичная функция.
-Обернуть index_table/update_table в try/except + logger.exception.
-
----------------------------------------------------------------------
 T15 [ВЫС] Консьюмер событий пользователей молча теряет события
 ---------------------------------------------------------------------
 table_service/app/core/user_event_consumer.py:39-56
