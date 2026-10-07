@@ -1,9 +1,8 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 
 from sqlalchemy import (
     ColumnElement,
     Numeric,
-    Sequence,
     String,
     asc,
     cast,
@@ -99,6 +98,7 @@ class DataRepository(Base):
             select(TableRow)
             .where(TableRow.table_id == table_id)
             .execution_options(yield_per=chunk_size)
+            .order_by(TableRow.id)
         )
 
         result = await self._session.stream(stmt)
