@@ -123,7 +123,7 @@ class DataValidationService:
             return f"Поле {col_name} должно быть числом"
         if isinstance(value, str):
             try:
-                float(value) if "." in value else int(value)
+                float(value)
             except ValueError:
                 return f"Поле {col_name} должно быть числом"
         elif not isinstance(value, (int, float)):
