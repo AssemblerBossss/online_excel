@@ -73,6 +73,19 @@ async def get_user_by_email(
     return user
 
 
+@router.get(
+    "/all_users/",
+    response_model=list[SUserInfo],
+    dependencies=[Depends(get_current_active_user)],
+)
+async def get_all_users(
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
+) -> list[SUserInfo]:
+    """Получить список всех пользователей"""
+    return await user_service.get_all_users(uow_session=uow_session)
+
+
 @router.patch(
     "/{user_id}/role", response_model=SUserInfo, status_code=status.HTTP_200_OK
 )
@@ -179,19 +192,6 @@ async def activate_user(
     if not user:
         raise UserNotFoundException()
     return user
-
-
-@router.get(
-    "/all_users/",
-    response_model=list[SUserInfo],
-    dependencies=[Depends(get_current_active_user)],
-)
-async def get_all_users(
-    user_service: Annotated[UserService, Depends(get_user_service)],
-    uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
-) -> list[SUserInfo]:
-    """Получить список всех пользователей"""
-    return await user_service.get_all_users(uow_session=uow_session)
 
 
 @router.post("/{user_id}/avatar", response_model=SUserInfo)

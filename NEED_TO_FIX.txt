@@ -260,16 +260,6 @@ aio_pika воспримет vhost как "/" только если путь пу
 ---------------------------------------------------------------------
 A18 [НИЗК] Прочее auth_service
 ---------------------------------------------------------------------
-- utils/minio_client.py:50 — upload_avatar пишет в settings.MINIO_BUCKET, а
-  delete/ensure — в self._bucket_name. Использовать self._bucket_name везде.
-- dependency.py:21 — int(user_id) без try: заголовок "abc" -> 500 вместо 401.
-      try:
-          uid = int(user_id)
-      except ValueError:
-          raise HTTPException(status_code=401, detail="Not authenticated")
-- routers/user.py:184 — "/all_users/" объявлен ПОСЛЕ "/{user_id}". Запрос
-  без слеша "/users/all_users" матчится в /{user_id} -> 422. Переименовать в
-  GET "/users/" или объявить выше /{user_id}.
 - сore/logging_config.py:16 — "service": "auth_service" захардкожен,
   параметр service_name игнорируется: "service": self.service_name.
   Докстринг "для API Gateway" — копипаст. timestamp берётся now(), а не

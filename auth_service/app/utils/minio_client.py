@@ -47,7 +47,7 @@ class AvatarStorage:
             )
         object_name = f"avatars/{uuid.uuid4().hex}{extension}"
         await self._client.put_object(
-            bucket_name=settings.MINIO_BUCKET,
+            bucket_name=self._bucket_name,
             object_name=object_name,
             data=BytesIO(content),
             length=len(content),
