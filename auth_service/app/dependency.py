@@ -16,9 +16,13 @@ async def get_current_user(request: Request) -> SUserFilter:
 
     if not user_id or not email:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        uid = int(user_id)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
     return SUserFilter(
-        id=int(user_id),
+        id=int(uid),
         email=email,
         role=role,
         is_active=is_active.lower() == "true" if is_active else False,

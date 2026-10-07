@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -63,3 +72,7 @@ class TablePermission(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     table: Mapped[DataTable] = relationship("DataTable", back_populates="permissions")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "table_id", name="uq_table_permission_table_user"),
+    )

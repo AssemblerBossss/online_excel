@@ -143,7 +143,7 @@ class ExportJobService:
                 table_id=table_id, chunk_size=CHUNK_SIZE
             ):
                 chunk.append(row.row_data)
-                if len(chunk) > CHUNK_SIZE:
+                if len(chunk) >= CHUNK_SIZE:
                     await asyncio.to_thread(
                         self.excel_processor.append_rows_chunk,
                         sheet,

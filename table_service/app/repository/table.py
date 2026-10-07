@@ -1,6 +1,7 @@
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
-from sqlalchemy import Sequence, delete, or_, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
