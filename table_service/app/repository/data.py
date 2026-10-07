@@ -173,18 +173,15 @@ class DataRepository(Base):
     ) -> TableRow | None:
         """
         Создать новую строку в указанной таблице.
-
         Args:
             table_id: ID таблицы, в которую добавляется строка
             row_data: Данные строки в формате JSON/dict. Должны соответствовать схеме таблицы.
         """
-        row_data_dict = (
-            row_data.row_data
-            if hasattr(row_data, "row_data")
-            else row_data.model_dump()
+        new_row = TableRow(
+            table_id=table_id,
+            row_data=row_data.row_data,
+            formulas=row_data.formulas,
         )
-
-        new_row = TableRow(table_id=table_id, row_data=row_data_dict)
         self._session.add(new_row)
         await self._session.flush()
         await self._session.refresh(new_row)
@@ -195,7 +192,6 @@ class DataRepository(Base):
     ) -> int:
         """
         Массовое создание строк в таблице.
-
         Args:
             table_id: ID таблицы, в которую добавляются строки
             rows_data: Список данных строк для вставки
@@ -203,23 +199,26 @@ class DataRepository(Base):
         if not rows_data:
             return 0
 
-        rows_to_insert = []
-        for row in rows_data:
-            row_data_dict = (
-                row.row_data if hasattr(row, "row_data") else row.model_dump()
+        rows_to_insert: list = [
+            TableRow(
+                table_id=table_id,
+                row_data=row.row_data,
+                formulas=row.formulas,
             )
-            rows_to_insert.append(TableRow(table_id=table_id, row_data=row_data_dict))
-
+            for row in rows_data
+        ]
         self._session.add_all(rows_to_insert)
         await self._session.flush()
         return len(rows_to_insert)
 
     async def copy_rows(self, source_table_id: int, target_table_id: int) -> int:
         """Скопировать все строки из одной таблицы в другую."""
-        select_stmt = select(literal(target_table_id), TableRow.row_data).where(
-            TableRow.table_id == source_table_id
+        select_stmt = select(
+            literal(target_table_id), TableRow.row_data, TableRow.formulas
+        ).where(TableRow.table_id == source_table_id)
+        stmt = insert(TableRow).from_select(
+            ["table_id", "row_data", "formulas"], select_stmt
         )
-        stmt = insert(TableRow).from_select(["table_id", "row_data"], select_stmt)
         result = await self._session.execute(stmt)
         return result.rowcount
 
@@ -237,16 +236,14 @@ class DataRepository(Base):
             row_id: ID строки
             row_data: Данные строки в формате JSON/dict. Должны соответствовать схеме таблицы.
         """
-        row_data_dict = (
-            row_data.row_data
-            if hasattr(row_data, "row_data")
-            else row_data.model_dump()
-        )
 
         stmt = (
             update(TableRow)
             .where(TableRow.table_id == table_id, TableRow.id == row_id)
-            .values(row_data=row_data_dict)
+            .values(
+                row_data=row_data.row_data,
+                formulas=row_data.formulas,
+            )
             .returning(TableRow)
         )
 

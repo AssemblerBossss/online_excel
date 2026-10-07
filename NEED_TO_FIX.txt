@@ -342,47 +342,6 @@ get_current_active_user — деактивированный в проекции
 reader_ids и фильтровать term-запросом, обновляя его при изменении прав.
 
 ---------------------------------------------------------------------
-T6 [КРИТ] formulas никогда не сохраняются
----------------------------------------------------------------------
-table_service/app/repository/data.py:165-185, 187-209, 211-218, 220-247
-
-TableRowCreate/TableRowUpdate содержат formulas (schemas/data.py:14),
-модель имеет колонку formulas (models/data.py:29), миграция c2c4dc200571
-её добавила — но create_table_row, bulk_create_table_row, copy_rows и
-update_table_row пишут ТОЛЬКО row_data. Формулы теряются при создании,
-редактировании, дублировании строки и копировании таблицы.
-
-Исправление:
-    async def create_table_row(self, table_id: int, row_data: TableRowCreate) -> TableRow:
-        new_row = TableRow(
-            table_id=table_id,
-            row_data=row_data.row_data,
-            formulas=row_data.formulas,
-        )
-        self._session.add(new_row)
-        await self._session.flush()
-        await self._session.refresh(new_row)
-        return new_row
-
-    # bulk_create_table_row — то же: formulas=row.formulas
-
-    async def copy_rows(self, source_table_id: int, target_table_id: int) -> int:
-        select_stmt = select(
-            literal(target_table_id), TableRow.row_data, TableRow.formulas
-        ).where(TableRow.table_id == source_table_id)
-        stmt = insert(TableRow).from_select(
-            ["table_id", "row_data", "formulas"], select_stmt
-        )
-        ...
-
-    # update_table_row
-            .values(row_data=row_data.row_data, formulas=row_data.formulas)
-
-Заодно убрать хак `row_data.row_data if hasattr(row_data, "row_data") else
-row_data.model_dump()` — тип параметра и так TableRowCreate/Update, ветка
-else никогда не выполняется.
-
----------------------------------------------------------------------
 T8 [ВЫС] TableWsManager.broadcast меняет set во время итерации
 ---------------------------------------------------------------------
 table_service/app/core/ws_manager.py:32-38
