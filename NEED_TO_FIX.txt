@@ -312,33 +312,7 @@ A19 [МЁРТВ] Мёртвый код auth_service
 
 =====================================================================
 ЧАСТЬ 2. TABLE_SERVICE
-=====================================================================
-
----------------------------------------------------------------------
-T2 [КРИТ] DataRepository._to_number не существует
----------------------------------------------------------------------
-table_service/app/repository/data.py:73, 81
-
-    val = cls._to_number(f.value) if numeric else f.value
-
-Метода _to_number нет ни в классе, ни в проекте (grep пустой). Любой фильтр
-eq/ne/gt/gte/lt/lte по колонке типа "number" -> AttributeError -> 500.
-
-Исправление — добавить в DataRepository:
-    @staticmethod
-    def _to_number(value: str) -> Decimal:
-        return Decimal(value)
-(from decimal import Decimal; сервис уже гарантирует, что значение число —
-services/data.py:136-142 — но только для COMPARISON_OPERATORS, для eq/ne
-проверки нет -> см. ниже)
-
-И в services/data.py:136 проверять число для ВСЕХ операторов кроме contains:
-            if f.field in numeric_fields and f.op is not FilterOperator.contains:
-                try:
-                    Decimal(f.value)
-                except InvalidOperation:
-                    raise ValidationException(...)
-
+=====================================================================cle
 ---------------------------------------------------------------------
 T4 [КРИТ][БЕЗОП] Кэш строк отдаётся без проверки прав
 ---------------------------------------------------------------------

@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Sequence
+from decimal import Decimal
 
 from sqlalchemy import (
     ColumnElement,
@@ -28,6 +29,11 @@ from table_service.app.schemas import (
 class DataRepository(Base):
     # Реальные колонки таблицы (всё остальное живёт в JSON-поле row_data)
     _REAL_COLUMNS = frozenset({"id", "created_at", "updated_at"})
+
+    @staticmethod
+    def _to_number(value: str) -> Decimal:
+        """Преобразует строковое значение в Decimal сравнения в БД."""
+        return Decimal(value)
 
     @classmethod
     def _text_expr(cls, field: str) -> ColumnElement[str]:
