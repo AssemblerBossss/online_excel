@@ -67,9 +67,11 @@ async def get_validation_service() -> DataValidationService:
     return DataValidationService()
 
 
-def get_permission_service() -> PermissionService:
+def get_permission_service(
+    redis: Annotated[Redis, Depends(get_redis)],
+) -> PermissionService:
     """Получить экземпляр сервиса разрешений пользователей."""
-    return PermissionService()
+    return PermissionService(redis=redis)
 
 
 def get_excel_processor_service() -> ExcelProcessorService:
