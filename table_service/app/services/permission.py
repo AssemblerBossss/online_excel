@@ -1,6 +1,8 @@
 import logging
 from typing import Awaitable, Callable
 from redis.asyncio import Redis
+from collections.abc import Awaitable, Callable
+from sqlalchemy.exc import IntegrityError
 
 from table_service.app.services.cache import AccessCache, AccessLevel
 from table_service.app.core.unit_of_work import UnitOfWork
@@ -283,22 +285,27 @@ class PermissionService:
             ):
                 raise PermissionAlreadyExistsException()
 
-            perm = await uow_session.permissions.create_permission(
-                table_id=table_id,
-                user_id=target_user.id,
-                can_read=data.can_read,
-                can_write=data.can_write,
-                can_manage=data.can_manage,
-            )
+
+
+=======
+            try:
+                perm = await uow_session.permissions.create_permission(
+                    table_id=table_id,
+                    user_id=target_user.id,
+                    can_read=data.can_read,
+                    can_write=data.can_write,
+                    can_manage=data.can_manage,
+                )
+            except IntegrityError:
+                # Если два запроса пришли одновременно, второй упадет здесь,
+                # и мы вернем  409 ошибку.
+                raise PermissionAlreadyExistsException()
+
             if not perm:
                 raise CanNotCreatePermissionException()
-
+               
             response = self._to_response(perm, email=target_user.email)
-            target_id, target_email, perm_id = (
-                target_user.id,
-                target_user.email,
-                perm.id,
-            )
+                target_id, target_email, perm_id = (
 
         await self.invalidate_table_access(table_id)
         logger.info(

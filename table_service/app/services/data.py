@@ -1,5 +1,6 @@
 import logging
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Literal
 from redis.asyncio import Redis
 
@@ -11,7 +12,7 @@ from table_service.app.exceptions import (
 )
 from table_service.app.models import TableRow
 from table_service.app.schemas import (
-    COMPARISON_OPERATORS,
+    FilterOperator,
     PaginatedRows,
     RowEventType,
     RowFilter,
@@ -122,10 +123,10 @@ class DataService:
                         f"Недопустимая колонка фильтра: '{f.field}'"
                     )
                 # Числовые сравнения требуют числового значения
-                if f.field in numeric_fields and f.op in COMPARISON_OPERATORS:
+                if f.field in numeric_fields and f.op is not FilterOperator.contains:
                     try:
-                        float(f.value)
-                    except ValueError:
+                        Decimal(f.value)
+                    except (InvalidOperation, ValueError, TypeError):
                         raise ValidationException(
                             f"Значение фильтра по '{f.field}' должно быть числом"
                         )

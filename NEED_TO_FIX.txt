@@ -1,10 +1,3 @@
-=====================================================================
-РЕВЬЮ: auth_service, table_service, chat_service
-Баги, логические ошибки, безопасность, мёртвый код + код исправлений
-=====================================================================
-Исходники НЕ менялись. Старый 1.txt (план notification_service)
-переименован в 1.notification_plan.txt.
-
 Пометки важности:
   [КРИТ]  — функционал сломан / 500 / утечка данных. Чинить первым.
   [ВЫС]   — логическая ошибка, проявится в реальной работе.
@@ -12,13 +5,9 @@
   [НИЗК]  — косметика, стиль, мелочи.
   [МЁРТВ] — мёртвый код, можно удалять.
 
-Пути даны относительно корня репозитория, номер строки — после ":".
-
 ---------------------------------------------------------------------
 КРАТКО: TOP-10, ЧТО ЧИНИТЬ СРАЗУ
 ---------------------------------------------------------------------
- 2. table_service  DataRepository._to_number не существует: любой
-    фильтр по числовой колонке падает 500.                        (T2)
  3. table_service  корзина: restore и permanent delete всегда 404 —
     проверка прав ищет только НЕудалённые таблицы.                (T3)
  4. table_service  кэш строк отдаётся ДО проверки прав — любой
@@ -260,16 +249,6 @@ aio_pika воспримет vhost как "/" только если путь пу
 ---------------------------------------------------------------------
 A18 [НИЗК] Прочее auth_service
 ---------------------------------------------------------------------
-- utils/minio_client.py:50 — upload_avatar пишет в settings.MINIO_BUCKET, а
-  delete/ensure — в self._bucket_name. Использовать self._bucket_name везде.
-- dependency.py:21 — int(user_id) без try: заголовок "abc" -> 500 вместо 401.
-      try:
-          uid = int(user_id)
-      except ValueError:
-          raise HTTPException(status_code=401, detail="Not authenticated")
-- routers/user.py:184 — "/all_users/" объявлен ПОСЛЕ "/{user_id}". Запрос
-  без слеша "/users/all_users" матчится в /{user_id} -> 422. Переименовать в
-  GET "/users/" или объявить выше /{user_id}.
 - сore/logging_config.py:16 — "service": "auth_service" захардкожен,
   параметр service_name игнорируется: "service": self.service_name.
   Докстринг "для API Gateway" — копипаст. timestamp берётся now(), а не
@@ -329,33 +308,7 @@ A19 [МЁРТВ] Мёртвый код auth_service
 
 =====================================================================
 ЧАСТЬ 2. TABLE_SERVICE
-=====================================================================
-
----------------------------------------------------------------------
-T2 [КРИТ] DataRepository._to_number не существует
----------------------------------------------------------------------
-table_service/app/repository/data.py:73, 81
-
-    val = cls._to_number(f.value) if numeric else f.value
-
-Метода _to_number нет ни в классе, ни в проекте (grep пустой). Любой фильтр
-eq/ne/gt/gte/lt/lte по колонке типа "number" -> AttributeError -> 500.
-
-Исправление — добавить в DataRepository:
-    @staticmethod
-    def _to_number(value: str) -> Decimal:
-        return Decimal(value)
-(from decimal import Decimal; сервис уже гарантирует, что значение число —
-services/data.py:136-142 — но только для COMPARISON_OPERATORS, для eq/ne
-проверки нет -> см. ниже)
-
-И в services/data.py:136 проверять число для ВСЕХ операторов кроме contains:
-            if f.field in numeric_fields and f.op is not FilterOperator.contains:
-                try:
-                    Decimal(f.value)
-                except InvalidOperation:
-                    raise ValidationException(...)
-
+=====================================================================cle
 ---------------------------------------------------------------------
 T5 [КРИТ][БЕЗОП] /search показывает приватные таблицы всех пользователей
 ---------------------------------------------------------------------
@@ -514,28 +467,6 @@ table_service/app/services/table.py:274, 315
    попадают в row_data под ключом "nan" (строка 77) — мусор в JSON.
 
 ---------------------------------------------------------------------
-T14 [ВЫС] Индексация в ES до коммита -> "призраки" в поиске
----------------------------------------------------------------------
-table_service/app/services/table.py:131-138, 214-221, 306-313, 435-442
-
-index_table вызывается внутри транзакции. Если дальше что-то падает
-(bulk insert строк при импорте, коммит) — транзакция откатывается, а
-документ в ES уже есть: поиск показывает несуществующую таблицу.
-Аналогично update_table (ES обновлён, БД откатилась).
-
-Исправление: индексировать после выхода из `async with uow_session.start()`:
-        async with uow_session.start():
-            table = await uow_session.tables.create_table(...)
-            response = self._to_response(table)
-        if self.search_service:
-            await self.search_service.index_table(...)
-        return response
-
-Также create_table/update_table НЕ ловят ошибки ES (в отличие от delete):
-ES лежит -> создать таблицу нельзя (500), хотя поиск — вторичная функция.
-Обернуть index_table/update_table в try/except + logger.exception.
-
----------------------------------------------------------------------
 T15 [ВЫС] Консьюмер событий пользователей молча теряет события
 ---------------------------------------------------------------------
 table_service/app/core/user_event_consumer.py:39-56
@@ -602,13 +533,6 @@ bucket_name=app_settings.MINIO_EXPORT_BUCKET вместо self._bucket_name.
 ---------------------------------------------------------------------
 T18 [СРЕД] Экспорт: порядок строк не определён, чанк на 1 больше
 ---------------------------------------------------------------------
-table_service/app/repository/data.py:98-102 — stream_rows_by_table_id без
-ORDER BY: Postgres вернёт строки в произвольном порядке.
-    .order_by(TableRow.id)
-
-table_service/app/services/export_job.py:146 — `len(chunk) > CHUNK_SIZE`
-даёт чанки по 4001. Должно быть `>=`.
-
 export_job.run выполняется в BackgroundTasks того же процесса: рестарт пода
 во время экспорта -> задача навсегда "running" до истечения JOB_TTL. Для
 надёжности — очередь (arq/celery/RabbitMQ) либо хотя бы статус error по
@@ -629,21 +553,6 @@ table_service/app/repository/table.py:17, 57
 Также get_all_tables без ORDER BY — порядок таблиц в списке "прыгает".
 
 ---------------------------------------------------------------------
-T20 [СРЕД] TablePermission: нет UNIQUE(table_id, user_id)
----------------------------------------------------------------------
-table_service/app/models/table.py:48-65
-create_permission проверяет существование SELECT'ом, затем INSERT — два
-параллельных запроса создадут дубль, после чего get_permissions
-(scalar_one_or_none) падает MultipleResultsFound -> 500 на всех операциях
-с таблицей для этого юзера.
-
-Исправление (модель + миграция):
-    __table_args__ = (
-        UniqueConstraint("table_id", "user_id", name="uq_table_permissions_table_user"),
-    )
-и в сервисе ловить IntegrityError -> PermissionAlreadyExistsException.
-
----------------------------------------------------------------------
 T21 [СРЕД] Валидация строк: дыры
 ---------------------------------------------------------------------
 table_service/app/services/data_validation.py
@@ -651,8 +560,6 @@ table_service/app/services/data_validation.py
   {"name": None} проходят как заполненные.
       value = row_data.get(col_name)
       if col_schema.get("required") and (value is None or value == ""):
-- :126 число-строка "1e5" или " 5" -> ошибка (int("1e5") падает).
-      float(value)   # хватит одной проверки
 - :231 min_value/max_value проверяются только для int/float, а числа из
   формы часто приходят строкой "5" -> ограничения обходятся.
   Приводить: num = float(value) if isinstance(value, str) else value.
@@ -696,8 +603,6 @@ T24 [СРЕД] Прочее table_service
   заголовке (аналогично A18).
 - api/dependencies.py:127-128 — докстринг "из request.state (JWT middleware)",
   а читаются заголовки X-User-* от traefik.
-- api/dependencies.py:34-36 + 45,52 — две зависимости на одно и то же
-  (get_redis и get_redis_client). Оставить одну.
 - services/data.py:74-92 ensure_read_access дублирует
   permission_service.get_table_with_read_access — заменить вызовом:
       async with uow_session.start():
@@ -716,10 +621,6 @@ T24 [СРЕД] Прочее table_service
   события таблицы до переподключения.
 - api/endpoints/data.py:75 — параметр `filter` затеняет builtin.
 - schemas/export.py:32 — комментарий "status=done", а в enum "completed".
-- repository/data.py:6 — `Sequence` импортирован из sqlalchemy (это
-  SQL-объект Sequence для автоинкремента, не typing). Аннотации работают
-  случайно. Нужен `from collections.abc import Sequence`.
-  То же repository/table.py:3.
 - repository/user_projection.py:9 — self.session (публичный), в остальных
   репозиториях self._session через Base. Унаследовать от Base.
 - main.py:144-151 — отдельный Redis-клиент для FastAPICache, при том что
@@ -752,7 +653,6 @@ T25 [МЁРТВ] Мёртвый код table_service
                                         идёт через stream_rows_by_table_id).
 - services/data_validation.py:260-289   validate_batch — не вызывается (и
                                         объявлен async без единого await).
-- services/data_validation.py:14-15     пустой __init__.
 - exceptions.py:35-36                   TokenInvalidFormatException
 - schemas/data.py:38-51                 TableRowInDB используется только как
                                         база пустого TableRowResponse — слить
@@ -762,7 +662,6 @@ T25 [МЁРТВ] Мёртвый код table_service
                                         см. T10 — он станет не пустым).
 - services/table.py:87                  закомментированный return
 - api/endpoints/health.py               дубль root-эндпоинта из main.py:209
-- utils/__init__.py                     пустой пакет utils
 - models/table_pin.py:15, 28;
   models/table.py:54                    комментарии "← Добавлен FK",
                                         "← Добавить ondelete" — мусор после правок.
@@ -1062,14 +961,6 @@ X3 [НИЗК] Копипаст между сервисами
 - get_current_user по X-User-* — копии в auth и table с разными схемами
   (SUserFilter с id vs user_id).
 Кандидат в общий пакет (libs/common) — но это рефакторинг, не баг.
-
----------------------------------------------------------------------
-X4 [НИЗК] CLAUDE.md устарел
----------------------------------------------------------------------
-Описывает api_gateway, которого больше нет (заменён traefik +
-traefik-jwt-plugin), не упоминает chat_service и notification_service.
-Стоит обновить, иначе следующий разбор кода начнётся с неверной картины.
-
 
 =====================================================================
 ПОРЯДОК РАБОТ (предложение)

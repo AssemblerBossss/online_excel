@@ -92,24 +92,23 @@ class TableService:
             if not success:
                 raise CanNotDeleteTableException()
 
-            if self.search_service:
-                try:
-                    await self.search_service.delete_from_index(table_id=table_id)
+        if self.search_service:
+            try:
+                await self.search_service.delete_from_index(table_id=table_id)
+            except Exception as e:
+                logger.exception(
+                    "Failed to remove table %s from search index: %s",
+                    table_id,
+                    e,
+                )
 
-                except Exception as e:
-                    logger.exception(
-                        "Failed to remove table %s from search index: %s",
-                        table_id,
-                        e,
-                    )
-
-            logger.info(
-                "User %s %s table %s (name: %s)",
-                user_id,
-                action_text,
-                table_id,
-                table.name,
-            )
+        logger.info(
+            "User %s %s table %s (name: %s)",
+            user_id,
+            action_text,
+            table_id,
+            table.name,
+        )
 
     async def get_all_tables(
         self, uow_session: UnitOfWork, user_id: int, user_role: str
@@ -174,7 +173,8 @@ class TableService:
             if not table:
                 raise CanNotCreateTableException()
 
-            if self.search_service:
+        if self.search_service:
+            try:
                 await self.search_service.index_table(
                     table_id=table.id,
                     name=table.name,
@@ -182,10 +182,16 @@ class TableService:
                     is_public=table.is_public,
                     created_by_id=table.created_by_id,
                 )
-            logger.info(
-                "User %s created table %s (name: '%s')", user_id, table.id, table.name
-            )
-            return self._to_response(table)
+            except Exception as e:
+                logger.exception(
+                    "Failed to index newly created table %s (non-fatal): %s",
+                    table.id,
+                    e,
+                )
+        logger.info(
+            "User %s created table %s (name: '%s')", user_id, table.id, table.name
+        )
+        return self._to_response(table)
 
     async def update_table(
         self,
@@ -215,11 +221,18 @@ class TableService:
             if not updated:
                 raise CanNotUpdateTableException()
 
-            if self.search_service and payload:
+        if self.search_service and payload:
+            try:
                 await self.search_service.update_table(table_id=updated.id, **payload)
+            except Exception as e:
+                logger.exception(
+                    "Failed to update table %s in search index (non-fatal): %s",
+                    table_id,
+                    e,
+                )
 
-            logger.info("User %s updated table %s", user_id, table_id)
-            return self._to_response(updated)
+        logger.info("User %s updated table %s", user_id, table_id)
+        return self._to_response(updated)
 
     async def duplicate_table(
         self,
@@ -264,7 +277,8 @@ class TableService:
                     source_table_id=source_table.id, target_table_id=new_table.id
                 )
 
-            if self.search_service:
+        if self.search_service:
+            try:
                 await self.search_service.index_table(
                     table_id=new_table.id,
                     name=new_table.name,
@@ -272,16 +286,22 @@ class TableService:
                     is_public=new_table.is_public,
                     created_by_id=new_table.created_by_id,
                 )
+            except Exception as e:
+                logger.exception(
+                    "Failed to index duplicated table %s (non-fatal): %s",
+                    new_table.id,
+                    e,
+                )
 
-            logger.info(
-                "User %s duplicated table %s -> %s (with_rows=%s, rows copied=%s)",
-                user_id,
-                source_table.id,
-                new_table.id,
-                with_rows,
-                copied,
-            )
-            return self._to_response(new_table)
+        logger.info(
+            "User %s duplicated table %s -> %s (with_rows=%s, rows copied=%s)",
+            user_id,
+            source_table.id,
+            new_table.id,
+            with_rows,
+            copied,
+        )
+        return self._to_response(new_table)
 
     async def create_table_from_excel_file(
         self,
@@ -355,8 +375,13 @@ class TableService:
                         user_id,
                     )
                     raise CanNotCreateTableException()
+                rows, failed = self.excel_processor.build_rows(df)
+                created = await uow_session.data.bulk_create_table_row(
+                    table_id=table.id, rows_data=rows
+                )
 
-                if self.search_service:
+            if self.search_service:
+                try:
                     await self.search_service.index_table(
                         table_id=table.id,
                         name=table.name,
@@ -364,23 +389,25 @@ class TableService:
                         is_public=table.is_public,
                         created_by_id=table.created_by_id,
                     )
+                except Exception as e:
+                    logger.exception(
+                        "Failed to index Excel-created table %s (non-fatal): %s",
+                        table.id,
+                        e,
+                    )
 
-                rows, failed = self.excel_processor.build_rows(df)
-                created = await uow_session.data.bulk_create_table_row(
-                    table_id=table.id, rows_data=rows
-                )
-                logger.info(
-                    "User %s created table %s from Excel '%s' "
-                    "(%s columns, %s rows: %s imported, %s failed)",
-                    user_id,
-                    table.id,
-                    excel_file.filename,
-                    len(df.columns),
-                    len(df),
-                    created,
-                    failed,
-                )
-                return self._to_response(table)
+            logger.info(
+                "User %s created table %s from Excel '%s' "
+                "(%s columns, %s rows: %s imported, %s failed)",
+                user_id,
+                table.id,
+                excel_file.filename,
+                len(df.columns),
+                len(df),
+                created,
+                failed,
+            )
+            return self._to_response(table)
 
         except pd.errors.EmptyDataError:
             logger.warning(
@@ -439,7 +466,8 @@ class TableService:
             if not restored:
                 raise NotFoundException("Table not found in trash")
 
-            if self.search_service:
+        if self.search_service:
+            try:
                 await self.search_service.index_table(
                     table_id=restored.id,
                     name=restored.name,
@@ -447,8 +475,14 @@ class TableService:
                     is_public=restored.is_public,
                     created_by_id=restored.created_by_id,
                 )
+            except Exception as e:
+                logger.exception(
+                    "Failed to re-index restored table %s (non-fatal): %s",
+                    table_id,
+                    e,
+                )
 
-            logger.info("User %s restored table %s from trash", user_id, table_id)
+        logger.info("User %s restored table %s from trash", user_id, table_id)
 
     async def pin_table(
         self, uow_session: UnitOfWork, table_id: int, user_id: int, user_role: str
