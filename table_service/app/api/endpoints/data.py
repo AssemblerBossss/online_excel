@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Annotated, Literal
 
@@ -11,35 +10,31 @@ from fastapi import (
 )
 from redis.asyncio import Redis
 
+from table_service.app.services.data import _rows_cache_key, ROWS_CACHE_TTL
 from table_service.app.api.dependencies import (
+    get_redis,
+    get_data_service,
     get_async_uow_session,
     get_current_active_user,
-    get_data_service,
-    get_redis,
+    get_permission_service,
 )
 from table_service.app.core.unit_of_work import UnitOfWork
-from table_service.app.exceptions import ValidationException
+from table_service.app.exceptions import ValidationException, AccessDeniedException
 from table_service.app.schemas import (
-    BulkDeleteRequest,
-    BulkDeleteResponse,
-    FilterOperator,
-    PaginatedRows,
     RowFilter,
     SCurrentUser,
+    PaginatedRows,
+    FilterOperator,
     TableRowCreate,
-    TableRowResponse,
     TableRowUpdate,
+    TableRowResponse,
+    BulkDeleteRequest,
+    BulkDeleteResponse,
 )
-from table_service.app.services import DataService
+from table_service.app.services import DataService, PermissionService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-ROWS_CACHE_TTL = 60
-
-
-def _rows_cache_key(table_id: int) -> str:
-    return f"rows:table:{table_id}"
 
 
 def _parse_filters(raw: list[str] | None) -> list[RowFilter]:
@@ -65,6 +60,7 @@ def _parse_filters(raw: list[str] | None) -> list[RowFilter]:
 )
 async def list_table_rows(
     data_service: Annotated[DataService, Depends(get_data_service)],
+    permission_service: Annotated[PermissionService, Depends(get_permission_service)],
     current_user: Annotated[SCurrentUser, Depends(get_current_active_user)],
     redis: Annotated[Redis, Depends(get_redis)],
     uow_session: Annotated[UnitOfWork, Depends(get_async_uow_session)],
@@ -77,7 +73,7 @@ async def list_table_rows(
 ):
 
     filters = _parse_filters(filter)
-    # Кэшируем только дефолтный запрос (без пагинации и сортировки)
+    # Кэшируем только дефолтный запрос
     use_cache = (
         skip == 0
         and limit == 100
@@ -85,12 +81,22 @@ async def list_table_rows(
         and sort_order == "asc"
         and not filter
     )
-    cache_key = _rows_cache_key(table_id)
-
     if use_cache:
+        has_access = await permission_service.check_read_access_cached(
+            uow_session=uow_session,
+            table_id=table_id,
+            user_id=current_user.user_id,
+            user_role=current_user.role,
+        )
+
+        if not has_access:
+            raise AccessDeniedException()
+
+        # 2. Только после authorization — rows cache
+        cache_key = _rows_cache_key(table_id)
         cached = await redis.get(cache_key)
         if cached:
-            return json.loads(cached)
+            return PaginatedRows.model_validate_json(cached)
 
     result = await data_service.get_table_rows(
         uow_session=uow_session,
@@ -105,7 +111,11 @@ async def list_table_rows(
     )
 
     if use_cache:
-        await redis.setex(cache_key, ROWS_CACHE_TTL, result.model_dump_json())
+        await redis.setex(
+            _rows_cache_key(table_id),
+            ROWS_CACHE_TTL,
+            result.model_dump_json(),
+        )
 
     return result
 

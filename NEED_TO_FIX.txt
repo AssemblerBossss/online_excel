@@ -310,39 +310,6 @@ A19 [МЁРТВ] Мёртвый код auth_service
 ЧАСТЬ 2. TABLE_SERVICE
 =====================================================================cle
 ---------------------------------------------------------------------
-T4 [КРИТ][БЕЗОП] Кэш строк отдаётся без проверки прав
----------------------------------------------------------------------
-table_service/app/api/endpoints/data.py:81-93
-
-    cache_key = _rows_cache_key(table_id)       # "rows:table:{id}" — общий
-    if use_cache:
-        cached = await redis.get(cache_key)
-        if cached:
-            return json.loads(cached)           # <- до data_service, т.е. до прав
-
-Кэш общий на таблицу. Как только владелец открыл свою приватную таблицу,
-ЛЮБОЙ залогиненный пользователь в течение 60 с получает её строки через
-GET /data/{id}/rows — проверка доступа внутри get_table_rows не вызывается.
-
-Плюс кэш не сбрасывается при импорте Excel, удалении/восстановлении
-таблицы, изменении прав, дублировании с with_rows.
-
-Исправление: проверять доступ всегда, кэшировать только данные. И убрать
-кэш из роутера в сервис (роутер не должен знать про Redis):
-    # endpoints/data.py
-    result = await data_service.get_table_rows(...)   # всегда
-    return result
-
-    # services/data.py, get_table_rows
-    async with uow_session.start():
-        table = await self.permission_service.get_table_with_read_access(...)
-        if self._is_default_query(skip, limit, sort_by, sort_order, filters):
-            cached = await self.cache.get(rows_cache_key(table_id))
-            if cached:
-                return PaginatedRows.model_validate_json(cached)
-        ...
-
----------------------------------------------------------------------
 T5 [КРИТ][БЕЗОП] /search показывает приватные таблицы всех пользователей
 ---------------------------------------------------------------------
 table_service/app/api/endpoints/search.py:12-21

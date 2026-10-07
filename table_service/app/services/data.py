@@ -2,10 +2,11 @@ import logging
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Literal
+from redis.asyncio import Redis
 
+from table_service.app.services.cache import AccessLevel
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.exceptions import (
-    AccessDeniedException,
     NotFoundException,
     ValidationException,
 )
@@ -26,18 +27,37 @@ from table_service.app.services.row_events import RowEventPublisher
 
 logger = logging.getLogger(__name__)
 
+ROWS_CACHE_TTL = 60
+
+
+def _rows_cache_key(table_id: int) -> str:
+    return f"rows:table:{table_id}"
+
 
 class DataService:
     def __init__(
         self,
+        redis: Redis,
         permission_service: PermissionService,
         validation_service: DataValidationService | None = None,
         event_publisher: RowEventPublisher | None = None,
     ):
-
+        self.redis = redis
         self.permission_service = permission_service
         self.validation_service = validation_service or DataValidationService()
         self.event_publisher = event_publisher
+
+    @staticmethod
+    def _is_default_query(
+        skip: int, limit: int, sort_by, sort_order: Literal["asc", "desc"], filters
+    ) -> bool:
+        return (
+            skip == 0
+            and limit == 100
+            and sort_by is None
+            and sort_order == "asc"
+            and not filters
+        )
 
     @staticmethod
     def _to_row_response(row: TableRow) -> TableRowResponse:
@@ -49,6 +69,9 @@ class DataService:
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
+
+    async def _invalidate_rows_cache(self, table_id: int) -> None:
+        await self.redis.delete(_rows_cache_key(table_id))
 
     async def _publish_row_event(
         self,
@@ -72,48 +95,14 @@ class DataService:
             )
         )
 
-    async def ensure_read_access(
-        self,
-        uow_session: UnitOfWork,
-        table_id: int,
-        user_id: int,
-        user_role: str,
-    ) -> None:
-        """Проверить право чтения таблицы (используется при WS-подписке)."""
+    async def _load_rows(
+        self, uow_session, table_id, skip, limit, sort_by, sort_order, filters
+    ) -> PaginatedRows:
+        """Приватный метод: права тут НЕ проверяются, это делает get_table_rows."""
         async with uow_session.start():
-            table = await uow_session.tables.get_table_by_id(table_id)
+            table = await uow_session.tables.get_table_by_id(table_id=table_id)
             if not table:
                 raise NotFoundException("Таблица не найдена")
-            if not await self.permission_service.check_read_access(
-                uow_session=uow_session,
-                table=table,
-                user_id=user_id,
-                user_role=user_role,
-            ):
-                raise AccessDeniedException()
-
-    async def get_table_rows(
-        self,
-        uow_session: UnitOfWork,
-        table_id: int,
-        user_id: int,
-        user_role: str,
-        skip: int = 0,
-        limit: int = 100,
-        sort_by: str | None = None,
-        sort_order: Literal["asc", "desc"] = "asc",
-        filters: list[RowFilter] | None = None,
-    ) -> PaginatedRows:
-        """Получить строки таблицы"""
-        filters = filters or []
-
-        async with uow_session.start():
-            table = await self.permission_service.get_table_with_read_access(
-                uow_session=uow_session,
-                table_id=table_id,
-                user_id=user_id,
-                user_role=user_role,
-            )
 
             schema = table.columns_schema or []
             column_names = {c["name"] for c in schema if c.get("name")}
@@ -160,6 +149,48 @@ class DataService:
                 skip=skip,
                 limit=limit,
             )
+
+    async def get_table_rows(
+        self,
+        uow_session: UnitOfWork,
+        table_id: int,
+        user_id: int,
+        user_role: str,
+        skip: int = 0,
+        limit: int = 100,
+        sort_by: str | None = None,
+        sort_order: Literal["asc", "desc"] = "asc",
+        filters: list[RowFilter] | None = None,
+    ) -> PaginatedRows:
+        filters = filters or []
+
+        # 1. Доступ: ВСЕГДА, для любых параметров запроса, один раз, с кэшем.
+        #    Вызываем ДО `async with uow_session.start()`, не внутри.
+        await self.permission_service.ensure_access(
+            uow_session=uow_session,
+            table_id=table_id,
+            user_id=user_id,
+            user_role=user_role,
+            level=AccessLevel.READ,
+        )
+
+        # 2. Кэш строк (общий для всех пользователей, т.к. доступ уже проверен)
+        use_cache = self._is_default_query(skip, limit, sort_by, sort_order, filters)
+        if use_cache:
+            cached = await self.redis.get(_rows_cache_key(table_id))
+            if cached:
+                return PaginatedRows.model_validate_json(cached)
+
+        # 3. БД
+        result = await self._load_rows(
+            uow_session, table_id, skip, limit, sort_by, sort_order, filters
+        )
+
+        if use_cache:
+            await self.redis.setex(
+                _rows_cache_key(table_id), ROWS_CACHE_TTL, result.model_dump_json()
+            )
+        return result
 
     async def get_table_row(
         self,
@@ -217,6 +248,7 @@ class DataService:
 
             response = self._to_row_response(row)
 
+        await self._invalidate_rows_cache(table_id)
         await self._publish_row_event(
             event=RowEventType.row_created,
             table_id=table_id,
@@ -260,6 +292,7 @@ class DataService:
 
             response = self._to_row_response(row)
 
+        await self._invalidate_rows_cache(table_id)
         await self._publish_row_event(
             event=RowEventType.row_updated,
             table_id=table_id,
@@ -295,6 +328,7 @@ class DataService:
                 "User %s deleted row %s from table %s", user_id, row_id, table_id
             )
 
+        await self._invalidate_rows_cache(table_id)
         await self._publish_row_event(
             event=RowEventType.row_deleted,
             table_id=table_id,
@@ -345,6 +379,7 @@ class DataService:
             )
             response = self._to_row_response(new_row)
 
+        await self._invalidate_rows_cache(table_id)
         # Публикуем как обычное создание строки — у соавторов таблицы,
         # смотрящих её сейчас через WS, копия появится в реальном времени.
         await self._publish_row_event(
@@ -384,6 +419,9 @@ class DataService:
                 len(row_ids),
                 table_id,
             )
+        if deleted_ids:
+            await self._invalidate_rows_cache(table_id)
+
         for row_id in deleted_ids:
             await self._publish_row_event(
                 event=RowEventType.row_deleted,
