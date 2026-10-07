@@ -662,21 +662,6 @@ table_service/app/repository/table.py:17, 57
 Также get_all_tables без ORDER BY — порядок таблиц в списке "прыгает".
 
 ---------------------------------------------------------------------
-T20 [СРЕД] TablePermission: нет UNIQUE(table_id, user_id)
----------------------------------------------------------------------
-table_service/app/models/table.py:48-65
-create_permission проверяет существование SELECT'ом, затем INSERT — два
-параллельных запроса создадут дубль, после чего get_permissions
-(scalar_one_or_none) падает MultipleResultsFound -> 500 на всех операциях
-с таблицей для этого юзера.
-
-Исправление (модель + миграция):
-    __table_args__ = (
-        UniqueConstraint("table_id", "user_id", name="uq_table_permissions_table_user"),
-    )
-и в сервисе ловить IntegrityError -> PermissionAlreadyExistsException.
-
----------------------------------------------------------------------
 T21 [СРЕД] Валидация строк: дыры
 ---------------------------------------------------------------------
 table_service/app/services/data_validation.py

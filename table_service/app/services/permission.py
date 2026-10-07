@@ -1,5 +1,7 @@
 import logging
-from typing import Callable, Awaitable
+from collections.abc import Awaitable, Callable
+
+from sqlalchemy.exc import IntegrityError
 
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.exceptions import (
@@ -213,16 +215,22 @@ class PermissionService:
             ):
                 raise PermissionAlreadyExistsException()
 
-            if not (
-                perm := await uow_session.permissions.create_permission(
+            try:
+                perm = await uow_session.permissions.create_permission(
                     table_id=table_id,
                     user_id=target_user.id,
                     can_read=data.can_read,
                     can_write=data.can_write,
                     can_manage=data.can_manage,
                 )
-            ):
+            except IntegrityError:
+                # Если два запроса пришли одновременно, второй упадет здесь,
+                # и мы вернем  409 ошибку.
+                raise PermissionAlreadyExistsException()
+
+            if not perm:
                 raise CanNotCreatePermissionException()
+
             logger.info(
                 "User %s granted permission %s to user %s (%s) on table %s",
                 user_id,
