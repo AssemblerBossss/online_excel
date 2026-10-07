@@ -95,17 +95,19 @@ def get_table_service(
 
 
 def get_data_service(
+    redis: Annotated[Redis, Depends(get_redis_client)],
+    event_publisher: Annotated[RowEventPublisher, Depends(get_row_event_publisher)],
     permission_service: Annotated[PermissionService, Depends(get_permission_service)],
     validation_service: Annotated[
         DataValidationService, Depends(get_validation_service)
     ],
-    event_publisher: Annotated[RowEventPublisher, Depends(get_row_event_publisher)],
 ) -> DataService:
     """Получить экземпляр сервиса данных."""
     return DataService(
+        redis=redis,
+        event_publisher=event_publisher,
         permission_service=permission_service,
         validation_service=validation_service,
-        event_publisher=event_publisher,
     )
 
 

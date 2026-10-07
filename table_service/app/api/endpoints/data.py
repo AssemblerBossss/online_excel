@@ -10,6 +10,7 @@ from fastapi import (
 )
 from redis.asyncio import Redis
 
+from services.data import _rows_cache_key, ROWS_CACHE_TTL
 from table_service.app.api.dependencies import (
     get_redis,
     get_data_service,
@@ -34,12 +35,6 @@ from table_service.app.services import DataService, PermissionService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-ROWS_CACHE_TTL = 60
-
-
-def _rows_cache_key(table_id: int) -> str:
-    return f"rows:table:{table_id}"
 
 
 def _parse_filters(raw: list[str] | None) -> list[RowFilter]:
