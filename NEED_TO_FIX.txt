@@ -57,33 +57,6 @@ access-токен, а при активации обратно — проекц�
     user.is_active = data.get("is_active", True)
 
 ---------------------------------------------------------------------
-A11 [СРЕД] UserUpdateEvent.old_email / old_role никогда не заполняются
----------------------------------------------------------------------
-auth_service/app/services/user.py:82-89, 143-151
-Поля объявлены (schemas/events.py:29-30), но в событие не передаются.
-notification_service (план в 1.notification_plan.txt) хочет письма о смене
-роли/email — без old_* ему не из чего собрать текст.
-
-Исправление (change_role):
-        async with uow_session.start():
-            user = await uow_session.user.find_one_or_none_by_id(user_id)
-            if not user:
-                return None
-            old_role = user.role.value
-            await uow_session.user.change_user_role(user_id=user_id, new_role=role)
-            user = await uow_session.user.find_one_or_none_by_id(user_id)
-        await self.event_publisher.publish(
-            UserUpdateEvent(..., old_role=old_role)
-        )
-Аналогично old_email в update_user.
-
-Также: UserDeletedEvent (schemas/events.py:33) не наследует UserEvent и не
-имеет event_id -> консьюмеры не смогут делать идемпотентность по event_id.
-    class UserDeletedEvent(BaseModel):
-        event_id: UUID = Field(default_factory=uuid4)
-        ...
-
----------------------------------------------------------------------
 A12 [СРЕД] Событие публикуется вне транзакции (нет outbox)
 ---------------------------------------------------------------------
 auth_service/app/services/auth.py:63-86 (и все publish в services/user.py)
