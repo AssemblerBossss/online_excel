@@ -1,29 +1,27 @@
-import os
-
 import aio_pika
-from aio_pika import DeliveryMode, ExchangeType, Message
-from pydantic import BaseModel
+from aio_pika.abc import AbstractRobustConnection, AbstractChannel, AbstractExchange
 
-RABBITMQ_URL = os.getenv("RABBITMQ_URL")
+from auth_service.app.config import auth_service_settings as settings
+from auth_service.app.schemas import BaseEvent
 
 
 class EventPublisher:
     def __init__(self):
-        self.connection: aio_pika.Connection = None
-        self.channel: aio_pika.Channel = None
-        self.exchange: aio_pika.Exchange = None
+        self.connection: AbstractRobustConnection | None = None
+        self.channel: AbstractChannel | None = None
+        self.exchange: AbstractExchange | None = None
 
     async def connect(self):
-        self.connection = await aio_pika.connect_robust(RABBITMQ_URL)
+        self.connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
         self.channel = await self.connection.channel()
         self.exchange = await self.channel.declare_exchange(
-            "user.events", ExchangeType.TOPIC, durable=True
+            "user.events", aio_pika.ExchangeType.TOPIC, durable=True
         )
 
-    async def publish(self, event: BaseModel):
-        message = Message(
+    async def publish(self, event: BaseEvent):
+        message = aio_pika.Message(
             body=event.model_dump_json().encode(),
-            delivery_mode=DeliveryMode.PERSISTENT,
+            delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
             content_type="application/json",
             type=event.event_type,
         )
