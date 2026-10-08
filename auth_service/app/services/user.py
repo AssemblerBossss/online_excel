@@ -77,17 +77,19 @@ class UserService:
         if current_user.role != UserRole.ADMIN:
             raise ForbiddenException()
         async with uow_session.start():
-            updated = await uow_session.user.change_user_role(
-                user_id=user_id, new_role=role
-            )
-            if not updated:
+            user = await uow_session.user.find_one_or_none_by_id(user_id)
+            if not user:
                 return None
+
+            old_role = user.role
+            await uow_session.user.change_user_role(user_id=user_id, new_role=role)
             user = await uow_session.user.find_one_or_none_by_id(user_id)
         await self.event_publisher.publish(
             UserUpdateEvent(
                 user_id=user_id,
+                old_role=old_role,
                 email=user.email,
-                role=str(user.role.value),
+                role=str(UserRole(user.role).value),
                 timestamp=datetime.now(UTC),
             )
         )
@@ -149,15 +151,19 @@ class UserService:
 
         values = data.model_dump(exclude_unset=True)
         async with uow_session.start():
+            user = await uow_session.user.find_one_or_none_by_id(user_id=user_id)
+            if not user:
+                return None
+
             if "email" in values:
                 existing = await uow_session.user.find_by_email(email=values["email"])
                 if existing and existing.id != user_id:
                     raise UserAlreadyExistsException
+
+            old_email = user.email if "email" in values else None
+
             if values:
                 await uow_session.user.update_by_id(user_id, values=values)
-            user = await uow_session.user.find_one_or_none_by_id(user_id=user_id)
-            if not user:
-                return None
 
         # Проекция в table_service хранит только email/role — событие нужно лишь при смене email
         if "email" in values:
@@ -165,6 +171,7 @@ class UserService:
                 UserUpdateEvent(
                     user_id=user.id,
                     email=user.email,
+                    old_email=old_email,
                     role=str(user.role.value),
                     timestamp=datetime.now(UTC),
                 )
