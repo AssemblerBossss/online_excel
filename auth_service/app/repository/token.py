@@ -91,3 +91,22 @@ class TokenRepository:
         """Подсчитать количество активных токенов пользователя"""
         tokens = await self.find_not_revoked_by_user_id(user_id=user_id)
         return len(tokens)
+
+    async def revoke_active(self, refresh_token: str) -> RefreshToken | None:
+        """
+        Атомарно отзывает активный токен и возвращает его запись.
+        Если токен уже отозван, не существует или истек, вернет None.
+        Это защищает от race condition (двойного использования одного токена).
+        """
+        query = (
+            update(RefreshToken)
+            .where(
+                RefreshToken.refresh_token == refresh_token,
+                RefreshToken.revoked.is_(False),
+                RefreshToken.expires_at > datetime.now(UTC),
+            )
+            .values(revoked=True)
+            .returning(RefreshToken)
+        )
+        result = await self._session.execute(query)
+        return result.scalar_one_or_none()

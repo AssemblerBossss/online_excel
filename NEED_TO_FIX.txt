@@ -1,26 +1,11 @@
-Пометки важности:
-  [КРИТ]  — функционал сломан / 500 / утечка данных. Чинить первым.
-  [ВЫС]   — логическая ошибка, проявится в реальной работе.
-  [СРЕД]  — гонки, неконсистентность, риски.
-  [НИЗК]  — косметика, стиль, мелочи.
-  [МЁРТВ] — мёртвый код, можно удалять.
-
 ---------------------------------------------------------------------
 КРАТКО: TOP-10, ЧТО ЧИНИТЬ СРАЗУ
 ---------------------------------------------------------------------
- 3. table_service  корзина: restore и permanent delete всегда 404 —
-    проверка прав ищет только НЕудалённые таблицы.                (T3)
- 4. table_service  кэш строк отдаётся ДО проверки прав — любой
-    пользователь читает чужую приватную таблицу.                  (T4)
  5. table_service  /search отдаёт приватные таблицы всех юзеров.  (T5)
- 6. table_service  formulas никогда не сохраняются в БД.          (T6)
  7. auth_service   GET /users/all_users/ всегда 500 (filter_by(**None)),
-    GET /users/{id} всегда 500 (нет await).                    (A1, A2)
-
 10. chat_service   UserNotFound/UserBlocked: текст ошибки
     "Пользователь Пользователь x@y не найден не найден".          (C1)
     + consumer'ы всех сервисов молча теряют события (A/T/C-общий). (X1)
-
 
 =====================================================================
 ЧАСТЬ 1. AUTH_SERVICE
@@ -91,42 +76,6 @@ UnsupportedContentTypeException(f"...: {content_type}") в minio_client.py:45
 
 Исправление:
     content={"detail": exc.message}
-
----------------------------------------------------------------------
-A8 [ВЫС][БЕЗОП] Гонка в refresh: один refresh-токен можно обменять дважды
----------------------------------------------------------------------
-auth_service/app/services/auth.py:143-174
-
-SELECT токена -> проверка revoked -> UPDATE revoked=True. Два параллельных
-запроса с одним токеном оба проходят проверку и оба получают новую пару
-(классическая атака на ротацию refresh-токенов).
-
-Исправление — атомарно "погасить" токен и получить его одной командой.
-Репозиторий (только доступ к данным):
-    async def revoke_active(self, refresh_token: str) -> RefreshToken | None:
-        query = (
-            update(RefreshToken)
-            .where(
-                RefreshToken.refresh_token == refresh_token,
-                RefreshToken.revoked.is_(False),
-                RefreshToken.expires_at > datetime.now(UTC),
-            )
-            .values(revoked=True)
-            .returning(RefreshToken)
-        )
-        return (await self._session.execute(query)).scalar_one_or_none()
-
-Сервис:
-    async with uow_session.start():
-        token_record = await uow_session.token.revoke_active(refresh_token)
-        if not token_record:
-            raise InvalidRefreshTokenException()
-        user = await uow_session.user.find_one_or_none_by_id(token_record.user_id)
-        if not user or not user.is_active:
-            raise UserInactiveException()
-        ... создать новый токен ...
-
-(второй update(... revoked=True) в сервисе тогда не нужен)
 
 ---------------------------------------------------------------------
 A10 [ВЫС] activate/deactivate не публикуют событий; проекции не знают об is_active
@@ -260,11 +209,6 @@ A18 [НИЗК] Прочее auth_service
 - routers/health.py:12-17 — /ready ничего не проверяет. Минимум SELECT 1:
       async with async_session_maker() as s:
           await s.execute(text("SELECT 1"))
-- services/auth.py:78 — `first_name = user.first_name` (пробелы вокруг =,
-  ruff format поправит); services/auth.py:128 докстринг "хранит локальную
-  таблицу пользователей" — не отсюда.
-- services/auth.py:65, 102 — raise UserAlreadyExistsException (класс без ())
-  работает, но по стилю лучше единообразно с () как в остальных местах.
 - register_user: гонка двух регистраций с одним email -> IntegrityError
   -> 500. Ловить IntegrityError и кидать UserAlreadyExistsException.
 - change_role: админ может понизить сам себя / последнего админа.
@@ -340,47 +284,6 @@ get_current_active_user — деактивированный в проекции
 
 Для большого числа таблиц лучше индексировать в документ список
 reader_ids и фильтровать term-запросом, обновляя его при изменении прав.
-
----------------------------------------------------------------------
-T6 [КРИТ] formulas никогда не сохраняются
----------------------------------------------------------------------
-table_service/app/repository/data.py:165-185, 187-209, 211-218, 220-247
-
-TableRowCreate/TableRowUpdate содержат formulas (schemas/data.py:14),
-модель имеет колонку formulas (models/data.py:29), миграция c2c4dc200571
-её добавила — но create_table_row, bulk_create_table_row, copy_rows и
-update_table_row пишут ТОЛЬКО row_data. Формулы теряются при создании,
-редактировании, дублировании строки и копировании таблицы.
-
-Исправление:
-    async def create_table_row(self, table_id: int, row_data: TableRowCreate) -> TableRow:
-        new_row = TableRow(
-            table_id=table_id,
-            row_data=row_data.row_data,
-            formulas=row_data.formulas,
-        )
-        self._session.add(new_row)
-        await self._session.flush()
-        await self._session.refresh(new_row)
-        return new_row
-
-    # bulk_create_table_row — то же: formulas=row.formulas
-
-    async def copy_rows(self, source_table_id: int, target_table_id: int) -> int:
-        select_stmt = select(
-            literal(target_table_id), TableRow.row_data, TableRow.formulas
-        ).where(TableRow.table_id == source_table_id)
-        stmt = insert(TableRow).from_select(
-            ["table_id", "row_data", "formulas"], select_stmt
-        )
-        ...
-
-    # update_table_row
-            .values(row_data=row_data.row_data, formulas=row_data.formulas)
-
-Заодно убрать хак `row_data.row_data if hasattr(row_data, "row_data") else
-row_data.model_dump()` — тип параметра и так TableRowCreate/Update, ветка
-else никогда не выполняется.
 
 ---------------------------------------------------------------------
 T8 [ВЫС] TableWsManager.broadcast меняет set во время итерации
