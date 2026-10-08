@@ -137,7 +137,6 @@ class UserService:
             await avatar_storage.delete(object_name)
             raise
 
-
     async def update_user(
         self,
         uow_session: UnitOfWork,
