@@ -135,8 +135,7 @@ class UserService:
 
         except Exception:
             await avatar_storage.delete(object_name)
-            raise e
-
+            raise
 
     async def update_user(
         self,

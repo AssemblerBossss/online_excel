@@ -1,37 +1,50 @@
-from .events import UserDeletedEvent, UserRegisterEvent, UserUpdateEvent
+from .events import (
+    BaseEvent,
+    UserEvent,
+    UserUpdateEvent,
+    UserDeletedEvent,
+    UserRegisterEvent,
+)
 from .user import (
-    EmailModel,
-    SUserAddDB,
-    SUserAuth,
-    SUserChangePassword,
-    SUserFilter,
-    SUserInfo,
-    SUserProfileUpdate,
-    SUserRegister,
-    SUserRoleUpdate,
-    SUserUpdate,
     Token,
-    TokenRefresh,
     UserBase,
     UserRole,
+    EmailModel,
+    SUserInfo,
+    SUserAuth,
+    SUserAddDB,
+    SUserUpdate,
+    SUserFilter,
+    TokenRefresh,
+    SUserRegister,
+    SUserRoleUpdate,
+    SUserProfileUpdate,
+    SUserChangePassword,
 )
 
 __all__ = [
+    # events
+    "BaseEvent",
+    "UserDeletedEvent",
+    "UserEvent",
+    "UserRegisterEvent",
+    "UserUpdateEvent",
+    # user: базовые
+    "UserBase",
+    "UserRole",
     "EmailModel",
+    # user: регистрация и аутентификация
     "SUserAddDB",
+    "SUserRegister",
     "SUserAuth",
     "SUserChangePassword",
-    "SUserFilter",
+    # user: профиль и обновление
     "SUserInfo",
-    "SUserProfileUpdate",
-    "SUserRegister",
-    "SUserRoleUpdate",
     "SUserUpdate",
+    "SUserProfileUpdate",
+    "SUserRoleUpdate",
+    # user: фильтры и токены
+    "SUserFilter",
     "Token",
     "TokenRefresh",
-    "UserBase",
-    "UserDeletedEvent",
-    "UserRegisterEvent",
-    "UserRole",
-    "UserUpdateEvent",
 ]

@@ -31,7 +31,6 @@ async def lifespan(app: FastAPI):
     """Управление жизненным циклом приложения"""
     logger.info("Starting Auth Service...")
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
     await event_publisher.connect()
     logger.info("✅ Event publisher connected")
@@ -51,6 +50,8 @@ app = FastAPI(
     lifespan=lifespan,
     # redirect_slashes=False,
 )
+
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
 # CORS
 app.add_middleware(
