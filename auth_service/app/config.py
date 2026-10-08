@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from pydantic_settings import BaseSettings
 
 
@@ -56,7 +58,7 @@ class Settings(BaseSettings):
     def RABBITMQ_URL(self) -> str:
         return (
             f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}"
-            f"@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{self.RABBITMQ_VHOST}"
+            f"@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{quote(self.RABBITMQ_VHOST, safe='')}"
         )
 
     @property

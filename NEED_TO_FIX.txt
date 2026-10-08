@@ -122,28 +122,6 @@ auth_service/app/сore/rate_limiter.py:9-11
 (или X-Real-IP, если traefik его ставит; и настроить trustedIPs в traefik)
 
 ---------------------------------------------------------------------
-A16 [СРЕД] publisher читает RABBITMQ_URL мимо Settings
----------------------------------------------------------------------
-auth_service/app/events/publisher.py:7
-
-    RABBITMQ_URL = os.getenv("RABBITMQ_URL")
-
-При этом Settings.RABBITMQ_URL (config.py:56) собран из RABBITMQ_* и нигде
-не используется. Если env RABBITMQ_URL не задан (k8s-манифест, локальный
-запуск) -> connect_robust(None) -> падение старта.
-
-Исправление:
-    from auth_service.app.config import auth_service_settings
-    ...
-    self.connection = await aio_pika.connect_robust(auth_service_settings.RABBITMQ_URL)
-
-Замечание: в RABBITMQ_URL vhost "/" подставляется как ".../" + "/" = "//" —
-aio_pika воспримет vhost как "/" только если путь пустой. Надёжнее:
-    from urllib.parse import quote
-    f"amqp://...:{self.RABBITMQ_PORT}/{quote(self.RABBITMQ_VHOST, safe='')}"
-
-
----------------------------------------------------------------------
 A18 [НИЗК] Прочее auth_service
 ---------------------------------------------------------------------
 - сore/logging_config.py:16 — "service": "auth_service" захардкожен,
