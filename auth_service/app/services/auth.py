@@ -62,7 +62,7 @@ class AuthService:
         """Регистрирует нового пользователя."""
         async with uow_session.start():
             if await uow_session.user.find_by_email(email=user_data.email):
-                raise UserAlreadyExistsException
+                raise UserAlreadyExistsException()
 
             hashed_password = get_password_hash(user_data.password)
 
@@ -99,7 +99,7 @@ class AuthService:
             if not user or not verify_password(
                 user_data.password, user.hashed_password
             ):
-                raise IncorrectEmailOrPasswordException
+                raise IncorrectEmailOrPasswordException()
 
             access_token = create_access_token(data=self._build_token_data(user))
             refresh_token, refresh_token_expires = self._create_refresh_token_data()
@@ -125,9 +125,7 @@ class AuthService:
         user_agent: str | None = None,
         ip_address: str | None = None,
     ) -> Token:
-        """хранит локальную таблицу пользователей
-        Обновление токенов по refresh token
-
+        """
         Args:
             refresh_token: Refresh token
             user_agent: User agent клиента
@@ -141,14 +139,10 @@ class AuthService:
             HTTPException: Если refresh token невалиден
         """
         async with uow_session.start():
-            token_record: RefreshToken = await uow_session.token.find_by_token(
-                refresh_token=refresh_token
+            token_record: RefreshToken = await uow_session.token.revoke_active(
+                refresh_token
             )
-            if (
-                not token_record
-                or token_record.revoked
-                or token_record.expires_at < datetime.now(UTC)
-            ):
+            if not token_record:
                 raise InvalidRefreshTokenException()
 
             user = await uow_session.user.find_one_or_none_by_id(
@@ -159,10 +153,6 @@ class AuthService:
 
             new_access_token = create_access_token(data=self._build_token_data(user))
             new_refresh_token, refresh_token_expires = self._create_refresh_token_data()
-
-            await uow_session.token.update(
-                filters={"refresh_token": refresh_token}, values={"revoked": True}
-            )
 
             token = RefreshToken(
                 refresh_token=new_refresh_token,
