@@ -9,11 +9,11 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from auth_service.app.config import auth_service_settings
+from auth_service.app.core import limiter, scheduler_lifespan, setup_service_logging
 from auth_service.app.events import event_publisher
 from auth_service.app.exceptions import AppException
 from auth_service.app.routers import auth_router, health_router, user_router
 from auth_service.app.utils import avatar_storage
-from auth_service.app.сore import limiter, setup_service_logging
 
 setup_service_logging()
 logger = logging.getLogger(__name__)
@@ -39,7 +39,8 @@ async def lifespan(app: FastAPI):
     await avatar_storage.ensure_avatar_bucket()
     logger.info("✅  MinIO bucket ready")
 
-    yield
+    async with scheduler_lifespan():
+        yield
 
     logger.info("🛑 Shutting down Auth Service...")
     await event_publisher.disconnect()

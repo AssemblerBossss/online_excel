@@ -2,6 +2,7 @@ import logging
 from datetime import UTC, datetime
 
 from auth_service.app.config import auth_service_settings
+from auth_service.app.core import UnitOfWork
 from auth_service.app.events import event_publisher
 from auth_service.app.exceptions import (
     FileTooLargeException,
@@ -19,7 +20,6 @@ from auth_service.app.schemas import (
     UserUpdateEvent,
 )
 from auth_service.app.utils import avatar_storage, get_password_hash, verify_password
-from auth_service.app.сore import UnitOfWork
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,6 @@ class UserService:
         except Exception:
             await avatar_storage.delete(object_name)
             raise e
-
 
     async def update_user(
         self,

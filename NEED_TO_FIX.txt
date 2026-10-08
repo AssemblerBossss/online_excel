@@ -183,11 +183,6 @@ aio_pika воспримет vhost как "/" только если путь пу
 ---------------------------------------------------------------------
 A18 [НИЗК] Прочее auth_service
 ---------------------------------------------------------------------
-- сore/logging_config.py:16 — "service": "auth_service" захардкожен,
-  параметр service_name игнорируется: "service": self.service_name.
-  Докстринг "для API Gateway" — копипаст. timestamp берётся now(), а не
-  record.created (время форматирования, не события):
-      datetime.fromtimestamp(record.created, UTC)
 - main.py:56-62 — allow_origins=["*"] + allow_credentials=True: браузер
   такую комбинацию отвергает для credentialed-запросов; CORS всё равно
   на traefik (cors@file) — middleware в сервисе можно убрать.
