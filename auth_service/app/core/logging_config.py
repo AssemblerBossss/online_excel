@@ -6,14 +6,14 @@ from datetime import UTC, datetime
 
 class ServiceJsonFormatter(logging.Formatter):
     def __init__(self, service_name: str):
-        super().__init__()  # ВАЖНО
+        super().__init__()
         self.service_name = service_name
 
     def format(self, record: logging.LogRecord) -> str:
         log_record = {
             "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
             "level": record.levelname,
-            "service": "auth_service",
+            "service": self.service_name,
             "module": record.module,
             "function": record.funcName,
             "line": record.lineno,

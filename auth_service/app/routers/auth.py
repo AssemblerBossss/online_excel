@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, Request, status
 from starlette.responses import JSONResponse
 
 from auth_service.app.config import auth_service_settings
+from auth_service.app.core import UnitOfWork, get_async_uow_session, limiter
 from auth_service.app.dependency import get_auth_service
 from auth_service.app.schemas import SUserAuth, SUserRegister, Token, TokenRefresh
 from auth_service.app.services import AuthService
-from auth_service.app.сore import UnitOfWork, get_async_uow_session, limiter
 
 router = APIRouter()
 

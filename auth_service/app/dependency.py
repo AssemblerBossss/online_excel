@@ -2,10 +2,10 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 
+from auth_service.app.core import UnitOfWork, get_async_uow_session
 from auth_service.app.models import User as UserORM
 from auth_service.app.schemas import SUserFilter, SUserInfo
 from auth_service.app.services import AuthService, UserService
-from auth_service.app.сore import UnitOfWork, get_async_uow_session
 
 
 async def get_current_user(request: Request) -> SUserFilter:

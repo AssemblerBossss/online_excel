@@ -2,6 +2,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from auth_service.app.config import auth_service_settings
+from auth_service.app.core.unit_of_work import UnitOfWork
 from auth_service.app.events import event_publisher
 from auth_service.app.exceptions import (
     IncorrectEmailOrPasswordException,
@@ -22,7 +23,6 @@ from auth_service.app.utils import (
     get_password_hash,
     verify_password,
 )
-from auth_service.app.сore.unit_of_work import UnitOfWork
 
 logger = logging.getLogger(__name__)
 

@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, UploadFile, status
 
+from auth_service.app.core import UnitOfWork, get_async_uow_session
 from auth_service.app.dependency import (
     get_current_active_user,
     get_user_service,
@@ -14,7 +15,6 @@ from auth_service.app.schemas.user import (
     SUserRoleUpdate,
 )
 from auth_service.app.services import UserService
-from auth_service.app.сore import UnitOfWork, get_async_uow_session
 
 router = APIRouter()
 
