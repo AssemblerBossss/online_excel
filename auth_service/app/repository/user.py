@@ -36,7 +36,9 @@ class UserRepository:
 
     async def find_all(self, filters: dict | None = None) -> Sequence[User]:
         """Найти всех пользователей по фильтрам"""
-        query = select(User).filter_by(**filters)
+        query = select(User)
+        if filters:
+            query = query.filter_by(**filters)
         result = (await self._session.execute(query)).scalars().all()
         return result
 
@@ -116,11 +118,13 @@ class UserRepository:
             query = query.filter_by(**filters)
 
         result = await self._session.execute(query)
-        return result.scalar()
+        return result.scalar_one()
 
     async def exists(self, filter_dict: dict | None = None) -> bool:
         """Проверить существование пользователя по фильтрам"""
-        query = select(User.id).filter_by(**filter_dict).limit(1)
+        query = select(User.id)
+        if filter_dict:
+            query = query.filter_by(**filter_dict)
         result = (await self._session.execute(query)).scalar() is not None
         return result
 

@@ -10,58 +10,6 @@
 =====================================================================
 ЧАСТЬ 1. AUTH_SERVICE
 =====================================================================
-
----------------------------------------------------------------------
-A1 [КРИТ] find_all(filters=None) -> TypeError, GET /users/all_users/ = 500
----------------------------------------------------------------------
-auth_service/app/repository/user.py:37-41
-auth_service/app/services/user.py:41  — вызывает find_all() без аргументов.
-
-    query = select(User).filter_by(**filters)   # filters is None -> TypeError
-
-Та же проблема в exists(filter_dict=None): repository/user.py:121-125.
-
-Исправление:
-    async def find_all(self, filters: dict | None = None) -> Sequence[User]:
-        query = select(User)
-        if filters:
-            query = query.filter_by(**filters)
-        return (await self._session.execute(query)).scalars().all()
-
-    async def exists(self, filter_dict: dict | None = None) -> bool:
-        query = select(User.id)
-        if filter_dict:
-            query = query.filter_by(**filter_dict)
-        result = await self._session.execute(query.limit(1))
-        return result.scalar() is not None
-
-Плюс: список ВСЕХ пользователей (email, роль) доступен любому
-залогиненному. Если это не задумано — ограничить админом:
-    async def get_all_users(self, uow_session, current_user):
-        self._check_is_admin(current_user)
-        ...
-
-
----------------------------------------------------------------------
-A5 [ВЫС] Обработчик RateLimitExceeded регистрируется в lifespan — не работает
----------------------------------------------------------------------
-auth_service/app/main.py:33-34
-
-    app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
-
-Starlette собирает middleware-стек (и копирует dict exception_handlers в
-ExceptionMiddleware) при ПЕРВОМ вызове __call__ — а lifespan как раз и
-приходит через __call__. Хендлер, добавленный внутри lifespan, в стек уже
-не попадает -> при превышении лимита клиент получает 500 вместо 429.
-
-Исправление — регистрировать при создании app, до старта:
-    app = FastAPI(...)
-    app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-custom_rate_limit_handler — пустая обёртка над _rate_limit_exceeded_handler,
-удалить (см. мёртвый код).
-
 ---------------------------------------------------------------------
 A10 [ВЫС] activate/deactivate не публикуют событий; проекции не знают об is_active
 ---------------------------------------------------------------------
@@ -92,33 +40,6 @@ access-токен, а при активации обратно — проекц�
 
 И в upsert проекций (table/chat) писать is_active из события:
     user.is_active = data.get("is_active", True)
-
----------------------------------------------------------------------
-A11 [СРЕД] UserUpdateEvent.old_email / old_role никогда не заполняются
----------------------------------------------------------------------
-auth_service/app/services/user.py:82-89, 143-151
-Поля объявлены (schemas/events.py:29-30), но в событие не передаются.
-notification_service (план в 1.notification_plan.txt) хочет письма о смене
-роли/email — без old_* ему не из чего собрать текст.
-
-Исправление (change_role):
-        async with uow_session.start():
-            user = await uow_session.user.find_one_or_none_by_id(user_id)
-            if not user:
-                return None
-            old_role = user.role.value
-            await uow_session.user.change_user_role(user_id=user_id, new_role=role)
-            user = await uow_session.user.find_one_or_none_by_id(user_id)
-        await self.event_publisher.publish(
-            UserUpdateEvent(..., old_role=old_role)
-        )
-Аналогично old_email в update_user.
-
-Также: UserDeletedEvent (schemas/events.py:33) не наследует UserEvent и не
-имеет event_id -> консьюмеры не смогут делать идемпотентность по event_id.
-    class UserDeletedEvent(BaseModel):
-        event_id: UUID = Field(default_factory=uuid4)
-        ...
 
 ---------------------------------------------------------------------
 A12 [СРЕД] Событие публикуется вне транзакции (нет outbox)
@@ -157,28 +78,6 @@ auth_service/app/сore/rate_limiter.py:9-11
             return forwarded.split(",")[-1].strip()
         return request.client.host if request.client else "unknown"
 (или X-Real-IP, если traefik его ставит; и настроить trustedIPs в traefik)
-
----------------------------------------------------------------------
-A16 [СРЕД] publisher читает RABBITMQ_URL мимо Settings
----------------------------------------------------------------------
-auth_service/app/events/publisher.py:7
-
-    RABBITMQ_URL = os.getenv("RABBITMQ_URL")
-
-При этом Settings.RABBITMQ_URL (config.py:56) собран из RABBITMQ_* и нигде
-не используется. Если env RABBITMQ_URL не задан (k8s-манифест, локальный
-запуск) -> connect_robust(None) -> падение старта.
-
-Исправление:
-    from auth_service.app.config import auth_service_settings
-    ...
-    self.connection = await aio_pika.connect_robust(auth_service_settings.RABBITMQ_URL)
-
-Замечание: в RABBITMQ_URL vhost "/" подставляется как ".../" + "/" = "//" —
-aio_pika воспримет vhost как "/" только если путь пустой. Надёжнее:
-    from urllib.parse import quote
-    f"amqp://...:{self.RABBITMQ_PORT}/{quote(self.RABBITMQ_VHOST, safe='')}"
-
 
 ---------------------------------------------------------------------
 A18 [НИЗК] Прочее auth_service
