@@ -32,3 +32,31 @@ class SCellStyle(BaseModel):
         data = self.model_dump(exclude_none=True)
         return data or None
 
+
+class SCellWrite(BaseModel):
+    row: int = Field(ge=0, lt=MAX_ROWS)
+    col: int = Field(ge=0, lt=MAX_COLS)
+    raw: str | None = Field(default=None, max_length=MAX_RAW_LENGTH)
+    value: Any = None
+
+    @field_validator("value")
+    @classmethod
+    def validate_value(cls, v: Any) -> Any:
+        if v is None or isinstance(v, str | int | float | bool):
+            return v
+        if isinstance(v, dict) and set(v) == {"e"} and isinstance(v["e"], str):
+            return v
+        raise ValueError(
+            "value: ожидается число, строка, bool, null или {'e': '#ERR'}"
+        )
+
+class SStyleWrite(BaseModel):
+    row: int = Field(ge=0, lt=MAX_ROWS)
+    col: int = Field(ge=0, lt=MAX_COLS)
+    style: SCellStyle | None = None
+
+    @field_serializer("style")
+    def serialize_style(self, style: SCellStyle | None) -> dict[str, Any] | None:
+        """В JSON (события WS) уходят только заданные свойства, без null."""
+        return style.to_db() if style else None
+
