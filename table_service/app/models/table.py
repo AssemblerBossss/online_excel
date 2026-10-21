@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sqlalchemy import (
-    JSON,
     Boolean,
     DateTime,
     ForeignKey,
@@ -11,12 +10,11 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-
-if TYPE_CHECKING:
-    from table_service.app.models.data import TableRow
 
 from table_service.app.core import Base
 
@@ -28,7 +26,20 @@ class DataTable(Base):
     name: Mapped[str] = mapped_column(String, nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
 
-    columns_schema: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    # Счётчик всех принятых пакетов изменений листа (порядок WS-событий)
+    revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
+    # Счётчик структурных изменений (вставка/удаление строк и колонок)
+    layout_revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
+    # Ширины колонок, оформление целых строк/колонок, закрепление и т.п.
+    sheet_meta: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
 
     created_by_id: Mapped[int] = mapped_column(Integer, nullable=False)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -41,9 +52,6 @@ class DataTable(Base):
 
     permissions: Mapped[list[TablePermission]] = relationship(
         "TablePermission", back_populates="table", cascade="all, delete-orphan"
-    )
-    rows: Mapped[list[TableRow]] = relationship(
-        "TableRow", back_populates="table", cascade="all, delete-orphan"
     )
 
     # Для помещения в корзину

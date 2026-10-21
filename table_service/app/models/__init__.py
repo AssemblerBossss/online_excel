@@ -1,12 +1,13 @@
-from .data import TableRow
-from .table import DataTable, TablePermission
+from .cell import SheetCell
 from .table_pin import TablePin
 from .user_projection import UserProjection
+from .table import DataTable, TablePermission
+
 
 __all__ = [
-    "DataTable",
-    "TablePermission",
     "TablePin",
-    "TableRow",
+    "DataTable",
+    "SheetCell",
     "UserProjection",
+    "TablePermission",
 ]
