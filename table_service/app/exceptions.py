@@ -92,3 +92,8 @@ class UserNotFoundException(AppException):
 class ExportJobNotFoundException(AppException):
     status_code: int = 404
     detail: str = "Задача экспорта не найдена"
+
+
+class LayoutConflictException(AppException):
+    status_code: int = 409
+    detail: str = "Структура таблицы изменилась, обновите лист"

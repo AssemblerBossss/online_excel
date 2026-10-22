@@ -22,6 +22,9 @@ class SheetCell(Base):
     col: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     raw: Mapped[str | None] = mapped_column(Text)
+    # Вычисленное значение: число, строка, bool или {"e": "#DIV/0!"} для ошибки.
+    value: Mapped[Any] = mapped_column(JSONB(none_as_null=True), nullable=True)
+    # Оформление: {"bg": "#ffeb3b", "bold": true, ...}. NULL — без оформления.
     style: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
 
     def __repr__(self):
