@@ -53,3 +53,16 @@ class CellRepository(Base):
         result = await self._session.stream(stmt)
         async for cell in result:
             yield cell
+
+    async def upsert_results(self, table_id: int, cells: list[dict[str, Any]]) -> None:
+        """Записать raw+value. cells: [{row, col, raw, value}], без дублей (row, col)."""
+        for start in range(0, len(cells), UPSERT_CHUNK):
+            chunk = cells[start : start + UPSERT_CHUNK]
+            stmt = pg_insert(SheetCell).values(
+                [{"table_id": table_id, **cell} for cell in chunk]
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=[SheetCell.table_id, SheetCell.row, SheetCell.col],
+                set_={"raw": stmt.excluded.raw, "value": stmt.excluded.value},
+            )
+            await self._session.execute(stmt)
