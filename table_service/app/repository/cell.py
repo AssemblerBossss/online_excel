@@ -54,7 +54,7 @@ class CellRepository(Base):
         async for cell in result:
             yield cell
 
-    async def upsert_results(self, table_id: int, cells: list[dict[str, Any]]) -> None:
+    async def upsert_cells(self, table_id: int, cells: list[dict[str, Any]]) -> None:
         """Записать raw+value. cells: [{row, col, raw, value}], без дублей (row, col)."""
         for start in range(0, len(cells), UPSERT_CHUNK):
             chunk = cells[start : start + UPSERT_CHUNK]
@@ -66,3 +66,27 @@ class CellRepository(Base):
                 set_={"raw": stmt.excluded.raw, "value": stmt.excluded.value},
             )
             await self._session.execute(stmt)
+
+    async def upsert_styles(self, table_id: int, styles: list[dict[str, Any]]) -> None:
+        """Записать style. styles: [{row, col, style}], без дублей (row, col)."""
+        for start in range(0, len(styles), UPSERT_CHUNK):
+            chunk = styles[start : start + UPSERT_CHUNK]
+            stmt = pg_insert(SheetCell).values(
+                [{"table_id": table_id, **item} for item in chunk]
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=[SheetCell.table_id, SheetCell.row, SheetCell.col],
+                set_={"style": stmt.excluded.style},
+            )
+            await self._session.execute(stmt)
+
+    async def delete_empty(self, table_id: int, min_row: int, max_row: int) -> None:
+        """Убрать «пустые» ячейки (нет ни raw, ни value, ни style) в диапазоне строк."""
+        stmt = delete(SheetCell).where(
+            SheetCell.table_id == table_id,
+            SheetCell.row.between(min_row, max_row),
+            SheetCell.raw.is_(None),
+            SheetCell.value.is_(None),
+            SheetCell.style.is_(None),
+        )
+        await self._session.execute(stmt)
