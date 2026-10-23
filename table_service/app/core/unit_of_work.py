@@ -43,7 +43,7 @@ class UnitOfWork:
         return TableRepository(self._session)
 
     @property
-    def data(self) -> CellRepository:
+    def cells(self) -> CellRepository:
         return CellRepository(self._session)
 
     @property

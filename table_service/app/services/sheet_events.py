@@ -11,7 +11,7 @@ def sheet_channel(table_id: int) -> str:
     return f"events:sheet:{table_id}"
 
 
-class RowEventPublisher:
+class SheetEventPublisher:
     """Публикует события листа в Redis Pub/Sub для WS-подписчиков."""
 
     def __init__(self, redis: Redis) -> None:
