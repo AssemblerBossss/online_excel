@@ -1,7 +1,6 @@
 import logging
 from typing import Awaitable, Callable
 from redis.asyncio import Redis
-from collections.abc import Awaitable, Callable
 from sqlalchemy.exc import IntegrityError
 
 from table_service.app.services.cache import AccessCache, AccessLevel

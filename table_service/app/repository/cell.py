@@ -1,7 +1,6 @@
 from collections.abc import AsyncIterator, Sequence
 from typing import Any, Literal
 
-from pandas.core.interchange import column
 from sqlalchemy import Row, delete, insert, literal, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
