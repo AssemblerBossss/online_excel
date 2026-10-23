@@ -1,4 +1,3 @@
-from typing import Any
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -21,7 +20,6 @@ class DataTableCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = None
     is_public: bool = False
-    columns_schema: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class DataTableResponse(DataTableBase):
@@ -31,7 +29,6 @@ class DataTableResponse(DataTableBase):
     created_by: int
     created_at: datetime
     updated_at: datetime | None = None
-    columns_schema: list[dict[str, Any]] | None = None
     is_deleted: bool = False
     deleted_at: datetime | None = None
     is_pinned: bool = False

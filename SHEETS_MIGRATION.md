@@ -889,6 +889,8 @@ class CellRepository(Base):
 
 Три новых метода: блокировка строки таблицы на запись (`get_table_for_update`) и на чтение (`get_table_for_share`), атомарное увеличение ревизий (`bump_revision`). Из `create_table` убираем `columns_schema`.
 
+Важно: `populate_existing=True` в обоих методах блокировки обязателен. До блокировки сервис уже загрузил `DataTable` в сессию (проверка прав через `get_table_by_id`). Обычный `select().with_for_update()` в SQLAlchemy не перезаписывает атрибуты объекта, который уже есть в identity map, поэтому без этой опции `revision`/`layout_revision` останутся значениями «до блокировки». Тогда проверка `base_layout_revision` пропустит конфликт, а снимок получит устаревшую `revision`.
+
 
 **Правка 1 из 3.** **Заменить строку 113**.
 
@@ -919,6 +921,7 @@ class CellRepository(Base):
             select(DataTable)
             .where(DataTable.id == table_id, DataTable.is_deleted.is_(False))
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
@@ -928,6 +931,7 @@ class CellRepository(Base):
             select(DataTable)
             .where(DataTable.id == table_id, DataTable.is_deleted.is_(False))
             .with_for_update(read=True)
+            .execution_options(populate_existing=True)
         )
         return (await self._session.execute(stmt)).scalar_one_or_none()
 

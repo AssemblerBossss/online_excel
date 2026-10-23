@@ -42,6 +42,47 @@ class TableRepository(Base):
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_table_for_update(self, table_id: int) -> DataTable | None:
+        """Таблица с блокировкой строки (SELECT ... FOR UPDATE): сериализует записи в лист."""
+        stmt = (
+            select(DataTable).where(
+                DataTable.id == table_id,
+                DataTable.is_deleted.is_(False).execution_options(
+                    populate_existing=True
+                ),
+            )
+        ).with_for_update()
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_table_for_share(self, table_id: int) -> DataTable | None:
+        """Таблица с разделяемой блокировкой: пока читаем снимок, пакеты изменений ждут."""
+        stmt = (
+            select(DataTable)
+            .where(DataTable.id == table_id, DataTable.is_deleted.is_(False))
+            .with_for_update(read=True)
+            .execution_options(populate_existing=True)
+        )
+        return (await self._session.execute(stmt)).scalar_one_or_none()
+
+    async def bump_revision(
+        self, table_id: int, structural: bool, meta: dict | None
+    ) -> tuple[int, int]:
+        """Увеличить revision (и layout_revision для структурных операций), опц. заменить meta."""
+        values: dict = {"revision": DataTable.revision + 1}
+        if structural:
+            values["layout_revision"] = DataTable.layout_revision + 1
+        if meta is not None:
+            values["sheet_meta"] = meta
+        stmt = (
+            update(DataTable)
+            .where(DataTable.id == table_id)
+            .values(**values)
+            .returning(DataTable.revision, DataTable.layout_revision)
+        )
+        revision, layout_revision = (await self._session.execute(stmt)).one()
+        return revision, layout_revision
+
     async def get_deleted_table_by_id(self, table_id: int) -> DataTable | None:
         """Получить удалённую таблицу по ID (только из корзины)."""
         stmt = (
@@ -79,7 +120,6 @@ class TableRepository(Base):
                 name=table_data.get("name"),
                 description=table_data.get("description"),
                 is_public=table_data.get("is_public"),
-                columns_schema=table_data.get("columns_schema"),
                 created_by_id=user_id,
                 is_deleted=False,
             )
@@ -110,7 +150,7 @@ class TableRepository(Base):
 
         Благодаря cascade="all, delete-orphan" в модели DataTable,
         при удалении таблицы автоматически удалятся:
-        - Все строки таблицы (TableRow)
+        - Все ячейки таблицы (SheetCell)
         - Все права доступа (TablePermission)
         """
         stmt = delete(DataTable).where(DataTable.id == table_id, DataTable.is_deleted)

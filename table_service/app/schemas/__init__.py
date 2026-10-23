@@ -1,15 +1,3 @@
-from .data import (
-    COMPARISON_OPERATORS,
-    BulkDeleteRequest,
-    BulkDeleteResponse,
-    FilterOperator,
-    PaginatedRows,
-    RowFilter,
-    TableRowCreate,
-    TableRowInDB,
-    TableRowResponse,
-    TableRowUpdate,
-)
 from .export import (
     ExportJobStatus,
     SExportJob,
@@ -21,6 +9,16 @@ from .permission import (
     TablePermissionResponse,
     TablePermissionUpdate,
 )
+from .sheet import (
+    SCellStyle,
+    SCellWrite,
+    SSheetBatch,
+    SSheetBatchResult,
+    SSheetEvent,
+    SSheetSnapshot,
+    SStructuralOp,
+    SStyleWrite,
+)
 from .table import (
     DataTableCreate,
     DataTableDuplicate,
@@ -28,33 +26,29 @@ from .table import (
     DataTableUpdate,
 )
 from .user import SCurrentUser, SUserFilter
-from .ws import RowEventType, SRowEvent, SWsTicketResponse
+from .ws import SWsTicketResponse
 
 __all__ = [
-    "COMPARISON_OPERATORS",
-    "BulkDeleteRequest",
-    "BulkDeleteResponse",
     "DataTableCreate",
     "DataTableDuplicate",
     "DataTableResponse",
     "DataTableUpdate",
     "ExportJobStatus",
-    "FilterOperator",
-    "PaginatedRows",
-    "RowEventType",
-    "RowFilter",
+    "SCellStyle",
+    "SCellWrite",
     "SCurrentUser",
     "SExportJob",
     "SExportJobCreated",
     "SExportJobStatusResponse",
-    "SRowEvent",
+    "SSheetBatch",
+    "SSheetBatchResult",
+    "SSheetEvent",
+    "SSheetSnapshot",
+    "SStructuralOp",
+    "SStyleWrite",
     "SUserFilter",
     "SWsTicketResponse",
     "TablePermissionCreate",
     "TablePermissionResponse",
     "TablePermissionUpdate",
-    "TableRowCreate",
-    "TableRowInDB",
-    "TableRowResponse",
-    "TableRowUpdate",
 ]
