@@ -1,5 +1,5 @@
-from .data import DataService
 from .table import TableService
+from .sheet import SheetService
 from .search import SearchService
 from .ws_ticket import WsTicketService
 from .export_job import ExportJobService
@@ -11,12 +11,12 @@ from .excel_processor import ExcelProcessorService
 
 
 __all__ = [
-    "DataService",
     "DataValidationService",
     "ExcelProcessorService",
     "ExportJobService",
     "SheetEventPublisher",
     "PermissionService",
+    "SheetService",
     "SearchService",
     "TableService",
     "WsTicketService",
