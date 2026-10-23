@@ -9,7 +9,7 @@ on:
       - "CI - Auth Service"
       - "CI - Table Service"
     types: [ completed ]
-    branches: [ main, develop ]
+    branches: [ main, dev ]
   workflow_dispatch:
 
 env:
