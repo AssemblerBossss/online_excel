@@ -46,7 +46,10 @@ class TableRepository(Base):
         """Таблица с блокировкой строки (SELECT ... FOR UPDATE): сериализует записи в лист."""
         stmt = (
             select(DataTable).where(
-                DataTable.id == table_id, DataTable.is_deleted.is_(False)
+                DataTable.id == table_id,
+                DataTable.is_deleted.is_(False).execution_options(
+                    populate_existing=True
+                ),
             )
         ).with_for_update()
         result = await self._session.execute(stmt)
@@ -58,6 +61,7 @@ class TableRepository(Base):
             select(DataTable)
             .where(DataTable.id == table_id, DataTable.is_deleted.is_(False))
             .with_for_update(read=True)
+            .execution_options(populate_existing=True)
         )
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
