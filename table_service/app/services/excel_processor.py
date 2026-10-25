@@ -135,7 +135,7 @@ class ExcelProcessorService:
             style["numFmt"] = "percent"
         return style
 
-    # --------------------------------------------------------------- экспорт
+    # ---------------экспорт
 
     @staticmethod
     def create_streaming_workbook() -> tuple[Workbook, Any]:
