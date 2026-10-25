@@ -2,11 +2,11 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from repository import CellRepository
 from table_service.app.repository import (
     PermissionRepository,
     TablePinRepository,
     TableRepository,
+    CellRepository,
     UserRepository,
 )
 
