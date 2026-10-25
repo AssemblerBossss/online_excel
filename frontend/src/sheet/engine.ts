@@ -6,7 +6,7 @@ import {
     type SimpleCellAddress,
 } from 'hyperformula';
 
-import { cellKey, keyCol, MAX_COLS, MAX_ROWS } from './address';
+import { cellKey, keyCol, keyRow, MAX_COLS, MAX_ROWS } from './address';
 import { formatValue } from './format';
 import type {
     CellStyle,
@@ -114,4 +114,96 @@ export function remapMeta(meta: SheetMeta, op: StructuralOp): SheetMeta {
         next.col_styles = remapRecord(meta.col_styles, op);
     }
     return next;
+}
+
+export class SheetEngine {
+    private readonly hf: HyperFormula;
+    private readonly sheet: number;
+
+    private mirror = new Map<number, CellSnap>();
+    styles = new Map<number, CellStyle>();
+    meta: SheetMeta = {};
+
+    /** Прямоугольник, скопированный через hf.copy, и его оформление (для вставки со сдвигом ссылок). */
+    private clip: {rect: Rect; styles: (CellStyle | undefined)[][]} | null = null;
+
+    constructor() {
+        this.hf = HyperFormula.buildEmpty({
+            licenseKey: 'gpl-v3',
+            maxRows: MAX_ROWS,
+            maxColumns: MAX_COLS,
+            dateFormats: ['DD.MM.YYYY', 'YYYY-MM-DD', 'DD/MM/YYYY'],
+        });
+        this.hf.addSheet(SHEET_NAME);
+        this.sheet = this.hf.getSheetId(SHEET_NAME)!;
+    }
+
+    destroy(): void {
+        this.hf.destroy();
+    }
+
+    private addr(row: number, col: number): SimpleCellAddress {
+        return {sheet: this.sheet, row, col};
+    }
+
+
+    /**
+     * Заменить содержимое снимком с сервера.
+     * Возвращает «починку»: ячейки, у которых сохранённое value не совпало с вычисленным
+     * (например, импорт из Excel без кэша значений) — её нужно отправить на сервер.
+     */
+    load(snapshot: SheetSnapshot): CellWrite[] {
+        this.hf.clearSheet(this.sheet);
+        this.mirror.clear();
+        this.styles.clear();
+        this.clip = null;
+        this.meta = snapshot.meta ?? {};
+        
+        this.hf.suspendEvaluation();
+        for (const [row, col, raw, value, style] of snapshot.cells) {
+            const key = cellKey(row, col);
+            if (style) this.styles.set(key, style);
+            // raw == null: значение «разлито» формулой массива из другой ячейки — его пересчитает HF
+            if (raw !== null) this.hf.setCellContents(this.addr(row, col), raw);
+            if (raw !== null || value !== null) this.mirror.set(key, {raw, value});
+        }
+        this.hf.resumeEvaluation();
+        return this.diffKeys(Array.from(this.mirror.keys()));
+    }
+
+    /** Размеры занятой области (для начального числа строк/колонок в сетке). */
+    extent(): {rows: number, cols: number} {
+        let rows = 0;
+        let cols = 0;
+        const grow = (key: number) => {
+            rows = Math.max(rows, keyRow(key) + 1);
+            cols = Math.max(cols, keyCol(key) + 1);
+        };
+        for (const key of this.mirror.keys()) grow(key);
+        for (const key of this.styles.keys()) grow(key);
+        return {rows, cols};
+    }
+
+    effectiveStyle(row: number, col: number): CellStyle | undefined {
+        const colStyle = this.meta.col_styles?.[col];
+        const rowStyle = this.meta.row_styles?.[row];
+        const cellStyle = this.styles.get(cellKey(row, col));
+        if (!colStyle && !rowStyle && !cellStyle) return undefined;
+        return {...colStyle, ...rowStyle, ...cellStyle};
+    }
+
+    view(row: number, col: number): CellView {
+        const style = this.effectiveStyle(row, col);
+        const addr = this.addr(row, col);
+        const cellType = this.hf.getCellType(addr);
+        if (cellType === CellType.EMPTY) return {text: '', raw: '', isError: false, isNumber: false, style};
+        
+        const value = this.hf.getCellValue(addr);
+        const shown = formatValue(this.hf, value, this.hf.getCellValueDetailedType(addr), style);
+        const raw = cellType === CellType.ARRAY ? shown.text : (serialize(this.hf.getCellSerialized(addr)) ?? '');
+        return {...shown, raw, style};
+
+    }
+
+
 }
