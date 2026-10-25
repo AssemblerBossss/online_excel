@@ -36,7 +36,7 @@ async def table_ws_events(
     table_id: int = Path(ge=1),
     ticket: str = Query(...),
 ):
-    """Подписка на события строк таблицы. Аутентификация — одноразовым тикетом в query."""
+    """Подписка на события листа таблицы. Аутентификация — одноразовым тикетом в query."""
     try:
         user = await ticket_service.redeem(ticket)
         await permission_service.ensure_access(

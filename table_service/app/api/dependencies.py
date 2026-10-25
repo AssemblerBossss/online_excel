@@ -15,15 +15,14 @@ from table_service.app.core import (
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.schemas import SCurrentUser, SUserFilter
 from table_service.app.services import (
-    DataService,
-    DataValidationService,
     ExcelProcessorService,
     ExportJobService,
     PermissionService,
-    RowEventPublisher,
     SearchService,
     TableService,
     WsTicketService,
+    SheetService,
+    SheetEventPublisher,
 )
 
 
@@ -41,11 +40,11 @@ def get_export_storage() -> ExportStorage:
     return export_storage
 
 
-def get_row_event_publisher(
+def get_sheet_event_publisher(
     redis: Annotated[Redis, Depends(get_redis_client)],
-) -> RowEventPublisher:
-    """Получить издателя событий строк (Redis Pub/Sub)."""
-    return RowEventPublisher(redis=redis)
+) -> SheetEventPublisher:
+    """Получить издателя событий листа (Redis Pub/Sub)."""
+    return SheetEventPublisher(redis=redis)
 
 
 def get_ws_ticket_service(
@@ -60,11 +59,6 @@ def get_search_service(
 ) -> SearchService:
     """Получить экземпляр сервиса поиска (Elasticsearch)."""
     return SearchService(es_client=es)
-
-
-async def get_validation_service() -> DataValidationService:
-    """Получить экземпляр сервиса валидации данных."""
-    return DataValidationService()
 
 
 def get_permission_service(
@@ -94,20 +88,14 @@ def get_table_service(
     )
 
 
-def get_data_service(
-    redis: Annotated[Redis, Depends(get_redis_client)],
-    event_publisher: Annotated[RowEventPublisher, Depends(get_row_event_publisher)],
+def get_sheet_service(
+    event_publisher: Annotated[SheetEventPublisher, Depends(get_sheet_event_publisher)],
     permission_service: Annotated[PermissionService, Depends(get_permission_service)],
-    validation_service: Annotated[
-        DataValidationService, Depends(get_validation_service)
-    ],
-) -> DataService:
-    """Получить экземпляр сервиса данных."""
-    return DataService(
-        redis=redis,
+) -> SheetService:
+    """Получить экземпляр сервиса листа."""
+    return SheetService(
         event_publisher=event_publisher,
         permission_service=permission_service,
-        validation_service=validation_service,
     )
 
 

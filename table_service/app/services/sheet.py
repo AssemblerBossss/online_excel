@@ -1,5 +1,4 @@
 import logging
-from redis.asyncio import Redis
 
 from schemas.sheet import MAX_CELLS_IN_EVENT, SSheetEvent
 from table_service.app.schemas import SSheetSnapshot, SSheetBatch, SSheetBatchResult
@@ -20,11 +19,9 @@ class SheetService:
 
     def __init__(
         self,
-        redis: Redis,
         permission_service: PermissionService,
         event_publisher: SheetEventPublisher | None = None,
     ):
-        self.redis = redis
         self.permission_service = permission_service
         self.event_publisher = event_publisher
 
