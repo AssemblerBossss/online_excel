@@ -1,7 +1,13 @@
 import logging
 
-from schemas.sheet import MAX_CELLS_IN_EVENT, SSheetEvent
-from table_service.app.schemas import SSheetSnapshot, SSheetBatch, SSheetBatchResult
+
+from table_service.app.schemas import (
+    SSheetSnapshot,
+    SSheetBatch,
+    SSheetBatchResult,
+    SSheetEvent,
+)
+from table_service.app.schemas.sheet import MAX_CELLS_IN_EVENT
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.exceptions import (
     NotFoundException,

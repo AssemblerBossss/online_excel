@@ -11,8 +11,7 @@ from fastapi import (
     status,
 )
 
-from table_service.app.services import PermissionService
-from table_service.app.services import AccessLevel
+from table_service.app.services import PermissionService, AccessLevel, WsTicketService
 from table_service.app.api.dependencies import (
     get_async_uow_session,
     get_ws_ticket_service,
@@ -21,7 +20,6 @@ from table_service.app.api.dependencies import (
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.core.ws_manager import table_ws_manager
 from table_service.app.exceptions import AppException
-from table_service.app.services.ws_ticket import WsTicketService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
