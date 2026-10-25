@@ -120,13 +120,19 @@ export class SheetEngine {
     private readonly hf: HyperFormula;
     private readonly sheet: number;
 
+    /** Последнее известное серверу состояние непустых ячеек: ключ -> {raw, value}. */
     private mirror = new Map<number, CellSnap>();
+    /** Оформление отдельных ячеек (по ключу ячейки). */
     styles = new Map<number, CellStyle>();
+    /** Метаданные листа: ширины колонок, оформление строк/колонок, закрепление. */
     meta: SheetMeta = {};
 
     /** Прямоугольник, скопированный через hf.copy, и его оформление (для вставки со сдвигом ссылок). */
     private clip: {rect: Rect; styles: (CellStyle | undefined)[][]} | null = null;
 
+    /**
+     * Создаёт движок HyperFormula с одним листом `Sheet1`.
+     */
     constructor() {
         this.hf = HyperFormula.buildEmpty({
             licenseKey: 'gpl-v3',
@@ -138,14 +144,15 @@ export class SheetEngine {
         this.sheet = this.hf.getSheetId(SHEET_NAME)!;
     }
 
+    /** Уничтожает экземпляр HyperFormula и освобождает память. */
     destroy(): void {
         this.hf.destroy();
     }
 
+    /** Собирает адрес ячейки для HyperFormula из строки и колонки текущего листа. */
     private addr(row: number, col: number): SimpleCellAddress {
         return {sheet: this.sheet, row, col};
     }
-
 
     /**
      * Заменить содержимое снимком с сервера.
@@ -171,7 +178,11 @@ export class SheetEngine {
         return this.diffKeys(Array.from(this.mirror.keys()));
     }
 
-    /** Размеры занятой области (для начального числа строк/колонок в сетке). */
+    /**
+     * Возвращает размеры занятой области (максимальные строка и колонка среди
+     * ячеек с содержимым и ячеек с оформлением).
+     * Используется для начального числа строк/колонок в сетке.
+     */
     extent(): {rows: number, cols: number} {
         let rows = 0;
         let cols = 0;
@@ -184,6 +195,10 @@ export class SheetEngine {
         return {rows, cols};
     }
 
+    /**
+     * Возвращает итоговый стиль ячейки: слияние стиля колонки, строки и самой ячейки
+     * (в порядке возрастания приоритета). `undefined`, если стилей нет вовсе.
+     */
     effectiveStyle(row: number, col: number): CellStyle | undefined {
         const colStyle = this.meta.col_styles?.[col];
         const rowStyle = this.meta.row_styles?.[row];
@@ -192,6 +207,10 @@ export class SheetEngine {
         return {...colStyle, ...rowStyle, ...cellStyle};
     }
 
+    /**
+     * Возвращает представление ячейки для UI: отображаемый текст, исходное содержимое
+     * для редактирования, признаки ошибки/числа и эффективный стиль.
+     */
     view(row: number, col: number): CellView {
         const style = this.effectiveStyle(row, col);
         const addr = this.addr(row, col);
@@ -204,6 +223,152 @@ export class SheetEngine {
         return {...shown, raw, style};
 
     }
+
+    /**
+     * Снимает текущее состояние ячейки из движка: `raw` (что ввели) и `value` (что вычислилось).
+     * Для пустой ячейки оба поля `null`; для «разлитой» (ARRAY) — `raw: null`, только значение.
+     */
+    private snap(row: number, col: number): CellSnap {
+        const addr = this.addr(row, col);
+        const cellType = this.hf.getCellType(addr);
+        if (cellType === CellType.EMPTY) return {raw: null, value: null};
+        const value = toWire(this.hf.getCellValue(addr));
+        if (cellType === CellType.ARRAY) return {raw: null, value};
+        return {raw: serialize(this.hf.getCellSerialized(addr)), value: value};
+    }
+
+    /**
+     * Сравнивает текущее состояние указанных ячеек с зеркалом `mirror`.
+     * Обновляет зеркало и возвращает список изменений для отправки на сервер.
+     * Ячейки, которые не изменились, в результат не попадают.
+     */
+    private diffKeys(keys: Iterable<number>): CellWrite[] {
+        const out: CellWrite[] = [];
+        for (const key of new Set(keys)) {
+            const row = keyRow(key);
+            const col = keyCol(key);
+            const now =  this.snap(row, col);
+            const old = this.mirror.get(key);
+            if (old && old.raw === now.raw && sameValue(old.value, now.value)) continue;
+            if (!old && now.raw === null && now.value === null) continue;
+            if (now.raw === null && now.value === null) this.mirror.delete(key);
+            else this.mirror.set(key, now);
+            out.push({row, col, raw: now.raw, value: now.value});
+        }
+        return out;
+    }
+
+    private keysOf(changes: ExportedChange[], extra: Iterable<number> = []): number[] {
+        const keys = new Set<number>(extra);
+        for (const change of changes) {
+            if ('address' in change && change.address.sheet === this.sheet) {
+                keys.add(cellKey(change.address.row, change.address.col));
+            }
+        }
+        return Array.from(keys);
+    }
+
+    private rectKeys(rect: Rect): number[] {
+        const keys: number[] = [];
+        for (let r = rect.y; r < rect.y + rect.height; r++) {
+            for (let c = rect.x; c < rect.x + rect.width; c++) {
+                keys.push(cellKey(r,c));
+            }
+        }
+        return keys;
+    }
+
+    private autoDateStyles(keys: number[]): StyleWrite[] {
+        const out: StyleWrite[] = [];
+        for (const key of keys) {
+            const row = keyRow(key);
+            const col = keyCol(key);
+            const addr = this.addr(row, col);
+            if (this.hf.getCellType(addr) != CellType.VALUE) continue;
+            const detailed = this.hf.getCellValueDetailedType(addr);
+            const fmt = detailed === 'NUMBER_DATE' ? 'date' : detailed === 'NUMBER_DATETIME' ? 'datetime': null;
+            if (!fmt || this.styles.get(key)?.numFmt) continue;
+            const style = {...this.styles.get(key), numFmt: fmt} as CellStyle;
+            this.styles.set(key, style);
+            out.push({row, col, style});
+        }
+        return out;
+    }
+
+
+
+        /**
+     * Собирает уникальные ключи ячеек, затронутых изменениями HyperFormula,
+     * и добавляет к ним ключи из `extra`.
+     *
+     * HyperFormula не всегда возвращает в `changes` все затронутые ячейки
+     * (например, при записи пустой строки в уже пустую ячейку или при
+     * структурных сдвигах). Параметр `extra` позволяет проверить
+     * дополнительные ячейки, которые вы подозреваете могли измениться.
+     *
+     * @param changes - массив изменений, возвращённый методами HyperFormula
+     * @param extra - дополнительные ключи ячеек для проверки
+     * @returns массив уникальных ключей ячеек текущего листа
+     */
+    private keysOf(changes: ExportedChange[], extra: Iterable<number> = []): number[] {
+        const keys = new Set<number>(extra);
+        for (const change of changes) {
+            if ('address' in change && change.address.sheet === this.sheet) {
+                keys.add(cellKey(change.address.row, change.address.col));
+            }
+        }
+        return Array.from(keys);
+    }
+
+    /**
+     * Возвращает ключи всех ячеек внутри прямоугольника `rect`.
+     * Используется, когда нужно проверить или обновить целую область
+     * (вставка, очистка, применение оформления).
+     *
+     * @param rect - прямоугольная область (координаты + размеры)
+     * @returns массив ключей ячеек внутри прямоугольника
+     */
+    private rectKeys(rect: Rect): number[] {
+        const keys: number[] = [];
+        for (let r = rect.y; r < rect.y + rect.height; r++) {
+            for (let c = rect.x; c < rect.x + rect.width; c++) {
+                keys.push(cellKey(r,c));
+            }
+        }
+        return keys;
+    }
+
+    /**
+     * Автоматически назначает формат даты/даты-времени ячейкам,
+     * в которые пользователь ввёл дату вручную (как в Google Таблицах).
+     *
+     * Проверяет только ячейки с типом `VALUE`. Если HyperFormula распознал
+     * значение как `NUMBER_DATE` или `NUMBER_DATETIME` и у ячейки ещё нет
+     * собственного `numFmt`, добавляет соответствующий формат в стиль
+     * и возвращает список изменений для отправки в UI.
+     *
+     * @param keys - ключи ячеек для проверки (обычно прямоугольник ввода)
+     * @returns список записей стилей для изменённых ячеек
+     */
+    private autoDateStyles(keys: number[]): StyleWrite[] {
+        const out: StyleWrite[] = [];
+        for (const key of keys) {
+            const row = keyRow(key);
+            const col = keyCol(key);
+            const addr = this.addr(row, col);
+            if (this.hf.getCellType(addr) != CellType.VALUE) continue;
+            const detailed = this.hf.getCellValueDetailedType(addr);
+            const fmt = detailed === 'NUMBER_DATE' ? 'date' : detailed === 'NUMBER_DATETIME' ? 'datetime': null;
+            if (!fmt || this.styles.get(key)?.numFmt) continue;
+            const style = {...this.styles.get(key), numFmt: fmt} as CellStyle;
+            this.styles.set(key, style);
+            out.push({row, col, style});
+        }
+        return out;
+    }
+
+
+
 
 
 }
