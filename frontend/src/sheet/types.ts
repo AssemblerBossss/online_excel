@@ -49,7 +49,7 @@ export interface SheetSnapshot {
 export type StructuralKind = 'insert_rows' | 'delete_rows' | 'insert_cols' | 'delete_cols';
 
 /** Структурная операция: что, с какой позиции, сколько. */
-export interface StructuralOP {
+export interface StructuralOp {
     kind: StructuralKind;
     index: number;
     count: number;
@@ -74,7 +74,7 @@ export interface StyleWrite {
 export interface SheetBatch {
     client_id: string;
     base_layout_revision: number;
-    structural: StructuralOP | null;
+    structural: StructuralOp | null;
     cells: CellWrite[];
     styles: StyleWrite[];
     meta: SheetMeta | null;
@@ -94,7 +94,7 @@ export interface SheetEvent {
     layout_revision: number;
     actor_id: number;
     client_id: string;
-    structural: StructuralOP | null;
+    structural: StructuralOp | null;
     cells: CellWrite[];
     styles: StyleWrite[];
     meta: SheetMeta | null;
@@ -106,7 +106,7 @@ export interface EngineResult {
     cells: CellWrite[];
     styles: StyleWrite[];
     meta?: SheetMeta;
-    structural?: StructuralOP;
+    structural?: StructuralOp;
 }
 
 /** Прямоугольная область (для выделения, оверлеев, видимой зоны). */
