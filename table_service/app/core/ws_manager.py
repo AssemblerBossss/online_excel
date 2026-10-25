@@ -6,7 +6,7 @@ from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 
-EVENTS_PATTERN = "events:rows:*"
+EVENTS_PATTERN = "events:sheet:*"
 
 
 class TableWsManager:

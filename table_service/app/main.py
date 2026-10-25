@@ -12,13 +12,13 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from redis.asyncio import Redis
 
 from table_service.app.api.endpoints import (
-    data_router,
     health_router,
     permissions_router,
     search_router,
     tables_router,
     trash_router,
     ws_router,
+    sheet_router,
 )
 from table_service.app.core import (
     app_settings,
@@ -140,7 +140,7 @@ def register_routers(app: FastAPI) -> None:
 
     # Подключение дочерних роутеров
     routers = [
-        (data_router, "/data", "Data"),
+        (sheet_router, "/data", "Sheet"),
         (tables_router, "/tables", "Tables"),
         (search_router, "/search", "Search"),
         (trash_router, "/tables/trash", "Trash"),

@@ -114,6 +114,7 @@ class SSheetSnapshot(BaseModel):
     revision: int
     layout_revision: int
     meta: dict[str, Any]
+    can_write: bool
     # Компактный формат: [row, col, raw, value, style]
     cells: list[list[Any]]
 

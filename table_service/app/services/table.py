@@ -1,9 +1,9 @@
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
-
-import pandas as pd
+from zipfile import BadZipFile
 from fastapi import UploadFile
+from openpyxl.utils.exceptions import InvalidFileException
 from pydantic import ValidationError
 
 from table_service.app.core.unit_of_work import UnitOfWork
@@ -11,7 +11,6 @@ from table_service.app.exceptions import (
     CanNotCreateTableException,
     CanNotDeleteTableException,
     CanNotUpdateTableException,
-    EmptyFileException,
     FileParseException,
     InvalidFileFormatException,
     InvalidFileMimeTypeException,
@@ -56,7 +55,6 @@ class TableService:
             name=table.name,
             description=table.description,
             is_public=table.is_public,
-            columns_schema=table.columns_schema,
             created_by=table.created_by_id,
             created_at=table.created_at,
             updated_at=table.updated_at,
@@ -244,8 +242,7 @@ class TableService:
         new_name: str | None = None,
     ) -> DataTableResponse:
         """
-        Клонировать таблицу: копирует columns_schema, опционально строки.
-
+        Клонировать таблицу: опционально копирует ячейки и meta (ширины колонок и т.п.).
         Клон создаётся приватным (is_public=False) и принадлежит текущему пользователю.
         """
         async with uow_session.start():
@@ -262,7 +259,6 @@ class TableService:
                 "name": new_name,
                 "description": source_table.description,
                 "is_public": False,
-                "columns_schema": source_table.columns_schema,
             }
 
             new_table = await uow_session.tables.create_table(
@@ -273,7 +269,7 @@ class TableService:
 
             copied = 0
             if with_rows:
-                copied = await uow_session.data.copy_rows(
+                copied = await uow_session.cells.copy_cells(
                     source_table_id=source_table.id, target_table_id=new_table.id
                 )
 
@@ -321,16 +317,14 @@ class TableService:
             description: Описание таблицы
         """
         # Валидация файла
-        if not excel_file.filename.endswith((".xlsx", ".xls")):
+        if not excel_file.filename.endswith(".xlsx"):
             logger.warning(
                 "User %s uploaded file with invalid format: '%s'",
                 user_id,
                 excel_file.filename,
             )
 
-            raise InvalidFileFormatException(
-                "Файл должен быть в формате Excel (.xlsx или .xls)"
-            )
+            raise InvalidFileFormatException("Файл должен быть в формате Excel (.xlsx)")
 
         if excel_file.content_type not in ALLOWED_EXCEL_MIME_TYPES:
             logger.warning(
@@ -344,14 +338,10 @@ class TableService:
             )
 
         try:
-            df = pd.read_excel(excel_file.file)
-
+            cells = self.excel_processor.parse_workbook(excel_file.file)
             # Если название таблицы не указано, используем имя файла без расширения
             if table_name is None:
                 table_name = excel_file.filename.rsplit(".", 1)[0]
-
-            # Генерация схемы колонок на основе DataFrame
-            columns_schema = self.excel_processor.build_columns_schema(df)
 
             if not description:
                 description = f"Таблица создана из файла {excel_file.filename}"
@@ -360,7 +350,6 @@ class TableService:
                     name=table_name,
                     description=description,
                     is_public=False,
-                    columns_schema=columns_schema,
                 )
 
                 payload = table_data.model_dump()
@@ -375,9 +364,8 @@ class TableService:
                         user_id,
                     )
                     raise CanNotCreateTableException()
-                rows, failed = self.excel_processor.build_rows(df)
-                created = await uow_session.data.bulk_create_table_row(
-                    table_id=table.id, rows_data=rows
+                created = await uow_session.cells.bulk_insert(
+                    table_id=table.id, cells=cells
                 )
 
             if self.search_service:
@@ -397,26 +385,16 @@ class TableService:
                     )
 
             logger.info(
-                "User %s created table %s from Excel '%s' "
-                "(%s columns, %s rows: %s imported, %s failed)",
+                "User %s created table %s from Excel '%s' (%s cells imported)",
                 user_id,
                 table.id,
                 excel_file.filename,
-                len(df.columns),
-                len(df),
                 created,
-                failed,
             )
             return self._to_response(table)
-
-        except pd.errors.EmptyDataError:
-            logger.warning(
-                "User %s uploaded empty Excel file '%s'", user_id, excel_file.filename
-            )
-            raise EmptyFileException("Excel файл пустой")
         except ValidationError:
             raise
-        except (pd.errors.ParserError, ValueError, TypeError):
+        except (InvalidFileException, BadZipFile, KeyError, ValueError, TypeError):
             logger.warning(
                 "User %s uploaded unparseable Excel file '%s'",
                 user_id,

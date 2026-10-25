@@ -2,11 +2,11 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from repository import CellRepository
 from table_service.app.repository import (
     PermissionRepository,
     TablePinRepository,
     TableRepository,
+    CellRepository,
     UserRepository,
 )
 
@@ -43,7 +43,7 @@ class UnitOfWork:
         return TableRepository(self._session)
 
     @property
-    def data(self) -> CellRepository:
+    def cells(self) -> CellRepository:
         return CellRepository(self._session)
 
     @property
