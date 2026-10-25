@@ -24,7 +24,7 @@ from table_service.app.services.excel_processor import ExcelProcessorService
 from table_service.app.services.permission import PermissionService
 
 JOB_TTL = 3600
-CHUNK_SIZE = 4000
+CHUNK_SIZE = 4000  # строк листа в одном чанке записи в xlsx
 logger = logging.getLogger(__name__)
 
 
@@ -126,37 +126,39 @@ class ExportJobService:
     async def _build_file(
         self, uow_session: UnitOfWork, table_id: int
     ) -> tuple[BytesIO, int]:
-        """Собрать xlsx: строки из БД чанками, запись в write-only книгу в потоке."""
+        """Собрать xlsx: ячейки из БД потоком, строка за строкой, запись в write-only книгу в потоке."""
         async with uow_session.start():
             table = await uow_session.tables.get_table_by_id(table_id)
             if not table:
                 raise NotFoundException("Таблица не найдена")
 
-            workbook, sheet, column_names = (
-                self.excel_processor.create_streaming_workbook(table.columns_schema)
-            )
+            workbook, sheet = self.excel_processor.create_streaming_workbook()
 
-            total_rows = 0
-            chunk: list[dict] = []
+            next_row = 0  # индекс следующей строки, которую нужно записать в лист
+            chunk: list[tuple[int, list]] = []  # [(индекс строки, [ячейки])]
 
-            async for row in uow_session.data.stream_rows_by_table_id(
+            async for cell in uow_session.cells.stream_all(
                 table_id=table_id, chunk_size=CHUNK_SIZE
             ):
-                chunk.append(row.row_data)
-                if len(chunk) >= CHUNK_SIZE:
-                    await asyncio.to_thread(
-                        self.excel_processor.append_rows_chunk,
-                        sheet,
-                        column_names,
-                        chunk,
-                    )
-                    total_rows += len(chunk)
-                    chunk = []
+                if chunk and chunk[-1][0] == cell.row:
+                    chunk[-1][1].append(cell)
+                else:
+                    if len(chunk) >= CHUNK_SIZE:
+                        next_row = await asyncio.to_thread(
+                            self.excel_processor.append_rows_chunk,
+                            sheet,
+                            chunk,
+                            next_row,
+                        )
+                        chunk = []
+                    chunk.append((cell.row, [cell]))
+
             if chunk:
-                await asyncio.to_thread(
-                    self.excel_processor.append_rows_chunk, sheet, column_names, chunk
+                next_row = await asyncio.to_thread(
+                    self.excel_processor.append_rows_chunk, sheet, chunk, next_row
                 )
-                total_rows += len(chunk)
+
+                total_rows = next_row
         buffer = await asyncio.to_thread(
             self.excel_processor.finalize_workbook, workbook
         )

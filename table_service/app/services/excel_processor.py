@@ -1,179 +1,193 @@
 import logging
-import warnings
+from collections.abc import Iterable
+from datetime import date, datetime, time
 from io import BytesIO
 from typing import Any
 
-import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.cell import WriteOnlyCell
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils.datetime import to_excel
 from openpyxl.workbook import Workbook
 
-from table_service.app.exceptions import EmptyFileException
-from table_service.app.schemas import TableRowCreate
+from table_service.app.exceptions import EmptyFileException, ValidationException
+from table_service.app.schemas.sheet import MAX_COLS, MAX_ROWS
 
 logger = logging.getLogger(__name__)
 
+# Форматы, которые понимает HyperFormula на фронте (dateFormats в engine.ts)
+DATE_TEXT_FORMAT = "%d.%m.%Y"
+DATETIME_TEXT_FORMAT = "%d.%m.%Y %H:%M:%S"
+
+EXCEL_ERRORS = {"#DIV/0!", "#N/A", "#NAME?", "#NULL!", "#NUM!", "#REF!", "#VALUE!"}
+
+EXCEL_NUMBER_FORMATS = {
+    "number": "#,##0.00",
+    "percent": "0.00%",
+    "currency": '#,##0.00 "₽"',
+    "date": "DD.MM.YYYY",
+    "datetime": "DD.MM.YYYY HH:MM:SS",
+}
+
 
 class ExcelProcessorService:
-    """Преобразование DataFrame в схему колонок и строки таблицы. Без доступа к БД."""
+    """Импорт .xlsx в ячейки листа и экспорт обратно. Без доступа к БД."""
 
-    DTYPE_MAP = dict(
-        {
-            "int64": "number",
-            "int32": "number",
-            "int16": "number",
-            "int8": "number",
-            "float64": "number",
-            "float32": "number",
-            "float16": "number",
-            "bool": "boolean",
-            "datetime64[ns]": "datetime",
-            "datetime64": "datetime",
-            "object": "string",
-        }
-    )
+    # ---------------------------------------------------------------- импорт
 
-    COMMON_DATE_FORMATS = (
-        "%Y-%m-%d",  # 2024-01-15
-        "%d.%m.%Y",  # 15.01.2024
-        "%m/%d/%Y",  # 01/15/2024
-        "%d/%m/%Y",  # 15/01/2024
-        "%Y-%m-%d %H:%M:%S",  # 2024-01-15 14:30:00
-        "%d.%m.%Y %H:%M:%S",  # 15.01.2024 14:30:00
-        "%m/%d/%Y %H:%M:%S",  # 01/15/2024 14:30:00
-        "%Y-%m-%dT%H:%M:%S",  # 2024-01-15T14:30:00
-    )
+    def parse_workbook(self, file) -> list[dict[str, Any]]:
+        """Прочитать первый лист: формулы сохраняются, значения берутся из кэша Excel.
 
-    def build_columns_schema(self, df: pd.DataFrame) -> list[dict[str, Any]]:
-        """Сгенерировать схему колонок по DataFrame с автоопределением типов."""
-        if df.empty or df.columns.empty:
-            raise EmptyFileException("Файл не содержит данных для импорта")
+        Возвращает ячейки в формате SheetCell: {row, col, raw, value, style}.
+        """
+        workbook = load_workbook(file, data_only=False)
+        file.seek(0)
+        cached_workbook = load_workbook(file, data_only=True)
+        sheet = workbook.active
+        cached_sheet = cached_workbook.active
 
-        schema = []
-        for col in df.columns:
-            if pd.isna(col) or str(col).strip() == "":
-                continue
-            schema.append(
-                {
-                    "name": str(col),
-                    "type": self._infer_column_type(df[col]),
-                    "required": False,
-                }
+        if sheet.max_row > MAX_ROWS or sheet.max_column > MAX_COLS:
+            raise ValidationException(
+                f"Лист слишком большой: максимум {MAX_ROWS} строк и {MAX_COLS} колонок"
             )
-        return schema
 
-    def build_rows(self, df: pd.DataFrame) -> tuple[list[TableRowCreate], int]:
-        """
-        Преобразовать строки DataFrame в объекты для bulk insert.
+        cells: list[dict[str, Any]] = []
+        for row in sheet.iter_rows():
+            for cell in row:
+                parsed = self._convert_cell(cell, cached_sheet[cell.coordinate].value)
+                if parsed:
+                    cells.append(parsed)
+        if not cells:
+            raise EmptyFileException("Файл не содержит данных для импорта")
+        return cells
 
-        Преобразование по типам колонок:
-        — числа остаются числами,
-        — даты приводятся к ISO-строкам,
-        — boolean остаётся boolean,
-        — остальное в строки.
-        """
-        rows, failed = [], 0
-        for _, row in df.iterrows():
-            try:
-                row_data = {
-                    str(col): self._convert_value(row[col], str(df[col].dtype))
-                    for col in df.columns
-                }
-                rows.append(TableRowCreate(row_data=row_data))
-            except Exception:
-                failed += 1
-        return rows, failed
+    def _convert_cell(self, cell, cached_value: Any) -> dict[str, Any] | None:
+        content = getattr(
+            cell.value, "text", cell.value
+        )  # ArrayFormula -> текст формулы
+        style = self._style_from_cell(cell)
+        raw: str | None = None
+        value: Any = None
 
-    def _infer_column_type(self, series: pd.Series) -> str:
-        """Определить тип колонки схемы по dtype и содержимому."""
-        dtype = str(series.dtype)
-        if dtype == "object":
-            return "datetime" if self._is_datetime_column(series) else "string"
-        return self.DTYPE_MAP.get(dtype, "string")
+        if content is None:
+            pass
+        elif isinstance(content, str) and content.startswith("="):
+            raw, value = content, self._json_value(cached_value)
+        elif isinstance(content, bool):
+            raw, value = ("TRUE" if content else "FALSE"), content
+        elif isinstance(content, datetime) and content.time() != time.min:
+            raw, value = content.strftime(DATETIME_TEXT_FORMAT), to_excel(content)
+            style["numFmt"] = "datetime"
+        elif isinstance(content, date):  # datetime ровно в полночь тоже считаем датой
+            raw, value = content.strftime(DATE_TEXT_FORMAT), to_excel(content)
+            style["numFmt"] = "date"
+        elif isinstance(content, int | float):
+            raw, value = str(content), content
+        else:
+            raw, value = str(content), str(content)
 
-    def _convert_value(self, value: Any, dtype: str) -> Any:
-        """Привести одно значение к типу, пригодному для хранения."""
-        if self._is_na(value):
+        if raw is None and not style:
             return None
-
-        if dtype in ("int64", "int32", "int16", "int8"):
-            return int(value)
-        if dtype in ("float64", "float32", "float16"):
-            return float(value)
-        if dtype == "bool":
-            return bool(value)
-        if "datetime" in dtype:
-            return pd.Timestamp(value).isoformat()
-        if dtype == "object":
-            parsed = self._try_parse_date(value)
-            return parsed.isoformat() if parsed is not None else str(value)
-        return str(value)
-
-    def _is_datetime_column(self, series: pd.Series) -> bool:
-        """
-        Проверяет, можно ли преобразовать колонку в datetime.
-
-        Сначала пытается распознать конкретные форматы дат,
-        затем только использует общий парсинг.
-        """
-        sample_values = series.dropna().head(10)
-        if len(sample_values) == 0:
-            return False
-
-        for date_format in self.COMMON_DATE_FORMATS:
-            try:
-                pd.to_datetime(sample_values, format=date_format, errors="raise")
-                return True
-            except (ValueError, TypeError):
-                continue
-
-        # Если ни один конкретный формат не подошел, пробуем общий парсинг
-        # Но подавляем предупреждение о неопределенном формате
-        try:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore", category=UserWarning, message="Could not infer format"
-                )
-                pd.to_datetime(sample_values, errors="raise")
-                return True
-        except (ValueError, TypeError):
-            return False
-
-    def _try_parse_date(self, value: Any) -> pd.Timestamp | None:
-        """Попытаться распарсить скалярное значение в дату. None, если не дата."""
-        for date_format in self.COMMON_DATE_FORMATS:
-            try:
-                return pd.to_datetime(value, format=date_format)
-            except (ValueError, TypeError):
-                continue
-
-        try:
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=UserWarning)
-                return pd.to_datetime(value)
-        except (ValueError, TypeError):
-            return None
+        return {
+            "row": cell.row - 1,
+            "col": cell.column - 1,
+            "raw": raw,
+            "value": value,
+            "style": style or None,
+        }
 
     @staticmethod
-    def _is_na(value: Any) -> bool:
-        """Безопасная проверка на NaN/None для скаляров и нескаляров."""
-        try:
-            return bool(pd.isna(value))
-        except (TypeError, ValueError):
-            return False
+    def _json_value(value: Any) -> Any:
+        if value is None or isinstance(value, bool | int | float):
+            return value
+        if isinstance(value, datetime | date):
+            return to_excel(value)
+        text = str(value)
+        return {"e": text} if text in EXCEL_ERRORS else text
 
-    def create_streaming_workbook(self, columns_schema: list[dict[str, Any]]) -> tuple:
-        """Начать книгу в write-only режиме: шапка записана, лист готов к дозаписи."""
+    @staticmethod
+    def _rgb(color) -> str | None:
+        rgb = getattr(color, "rgb", None)
+        if isinstance(rgb, str) and len(rgb) == 8:  # AARRGGBB; тема/индексы пропускаем
+            return f"#{rgb[2:].lower()}"
+        return None
+
+    def _style_from_cell(self, cell) -> dict[str, Any]:
+        style: dict[str, Any] = {}
+        if cell.fill and cell.fill.fill_type == "solid":
+            bg = self._rgb(cell.fill.fgColor)
+            if bg and bg != "#ffffff":
+                style["bg"] = bg
+        if cell.font:
+            if cell.font.bold:
+                style["bold"] = True
+            if cell.font.italic:
+                style["italic"] = True
+            fg = self._rgb(cell.font.color)
+            if fg and fg != "#000000":
+                style["fg"] = fg
+        if cell.alignment:
+            if cell.alignment.horizontal in ("left", "center", "right"):
+                style["halign"] = cell.alignment.horizontal
+            if cell.alignment.wrap_text:
+                style["wrap"] = True
+        if cell.number_format and cell.number_format.endswith("%"):
+            style["numFmt"] = "percent"
+        return style
+
+    # --------------------------------------------------------------- экспорт
+
+    @staticmethod
+    def create_streaming_workbook() -> tuple[Workbook, Any]:
+        """Начать книгу в write-only режиме."""
         workbook = Workbook(write_only=True)
-        sheet = workbook.create_sheet()
-        column_names = [str(column["name"]) for column in columns_schema]
-        sheet.append(column_names)
+        return workbook, workbook.create_sheet()
 
-        return workbook, sheet, column_names
+    def append_rows_chunk(
+        self, sheet, rows: Iterable[tuple[int, list]], next_row: int
+    ) -> int:
+        """Дописать строки [(row_index, [cell, ...])] в лист; пропуски заполняются пустыми.
 
-    @staticmethod
-    def append_rows_chunk(sheet, column_names: list[str], rows: list[dict[str, Any]]):
-        """Дописать чанк строк в write-only лист. CPU-bound — звать из потока."""
-        for row_data in rows:
-            sheet.append(row_data.get(name) for name in column_names)
+        CPU-bound — звать из потока. Возвращает индекс следующей строки.
+        """
+        for row_index, cells in rows:
+            for _ in range(row_index - next_row):
+                sheet.append([])
+            line: list[WriteOnlyCell | None] = []
+            for cell in cells:
+                line.extend([None] * (cell.col - len(line)))
+                line.append(self._export_cell(sheet, cell))
+            sheet.append(line)
+            next_row = row_index + 1
+        return next_row
+
+    def _export_cell(self, sheet, cell) -> WriteOnlyCell:
+        if cell.raw is not None and cell.raw.startswith("="):
+            content = cell.raw
+        elif isinstance(cell.value, dict):
+            content = cell.value.get("e")
+        elif cell.value is not None:
+            content = cell.value
+        else:
+            content = cell.raw
+
+        out = WriteOnlyCell(sheet, value=content)
+        style = cell.style or {}
+        if style.get("bg"):
+            out.fill = PatternFill("solid", fgColor=style["bg"].lstrip("#"))
+        if style.get("bold") or style.get("italic") or style.get("fg"):
+            out.font = Font(
+                bold=bool(style.get("bold")),
+                italic=bool(style.get("italic")),
+                color=style["fg"].lstrip("#") if style.get("fg") else None,
+            )
+        if style.get("halign") or style.get("wrap"):
+            out.alignment = Alignment(
+                horizontal=style.get("halign"), wrap_text=bool(style.get("wrap"))
+            )
+        if style.get("numFmt") in EXCEL_NUMBER_FORMATS:
+            out.number_format = EXCEL_NUMBER_FORMATS[style["numFmt"]]
+        return out
 
     @staticmethod
     def finalize_workbook(workbook: Workbook) -> BytesIO:

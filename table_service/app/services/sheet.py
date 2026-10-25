@@ -1,7 +1,7 @@
 import logging
 from redis.asyncio import Redis
 
-from schemas.sheet import MAX_BATCH_ITEMS, MAX_CELLS_IN_EVENT, SSheetEvent
+from schemas.sheet import MAX_CELLS_IN_EVENT, SSheetEvent
 from table_service.app.schemas import SSheetSnapshot, SSheetBatch, SSheetBatchResult
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.exceptions import (
@@ -147,7 +147,6 @@ class SheetService:
             op.kind if op else None,
         )
         return SSheetBatchResult(revision=revision, layout_revision=layout_revision)
-
 
     async def _publish(
         self,
