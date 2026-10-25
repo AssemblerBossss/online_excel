@@ -23,6 +23,7 @@ import type {
     StyleWrite
 } from './types';
 import { LinkedCamera } from '@mui/icons-material';
+import add from 'lodash/add';
 
 const SHEET_NAME = 'Sheet1';
 const MAX_STYLE_CELLS = 20_000;
@@ -258,44 +259,6 @@ export class SheetEngine {
         return out;
     }
 
-    private keysOf(changes: ExportedChange[], extra: Iterable<number> = []): number[] {
-        const keys = new Set<number>(extra);
-        for (const change of changes) {
-            if ('address' in change && change.address.sheet === this.sheet) {
-                keys.add(cellKey(change.address.row, change.address.col));
-            }
-        }
-        return Array.from(keys);
-    }
-
-    private rectKeys(rect: Rect): number[] {
-        const keys: number[] = [];
-        for (let r = rect.y; r < rect.y + rect.height; r++) {
-            for (let c = rect.x; c < rect.x + rect.width; c++) {
-                keys.push(cellKey(r,c));
-            }
-        }
-        return keys;
-    }
-
-    private autoDateStyles(keys: number[]): StyleWrite[] {
-        const out: StyleWrite[] = [];
-        for (const key of keys) {
-            const row = keyRow(key);
-            const col = keyCol(key);
-            const addr = this.addr(row, col);
-            if (this.hf.getCellType(addr) != CellType.VALUE) continue;
-            const detailed = this.hf.getCellValueDetailedType(addr);
-            const fmt = detailed === 'NUMBER_DATE' ? 'date' : detailed === 'NUMBER_DATETIME' ? 'datetime': null;
-            if (!fmt || this.styles.get(key)?.numFmt) continue;
-            const style = {...this.styles.get(key), numFmt: fmt} as CellStyle;
-            this.styles.set(key, style);
-            out.push({row, col, style});
-        }
-        return out;
-    }
-
-
 
         /**
      * Собирает уникальные ключи ячеек, затронутых изменениями HyperFormula,
@@ -366,6 +329,46 @@ export class SheetEngine {
         }
         return out;
     }
+
+    setRaw(row: number, col: number, raw: string): EngineResult {
+        return this.setMatrix(row, col, [[raw]]);
+
+    }
+
+    /** Записать прямоугольник «как ввёл пользователь» (ввод, вставка из буфера). */
+    setMatrix(row: number, col: number, matrix: string[][]): EngineResult {
+        const height = Math.min(matrix.length, MAX_ROWS - row);
+        const width = Math.min(Math.max(...matrix.map((r) => r.length)), MAX_COLS - col);
+        if (height <= 0 || width <= 0) return EMPTY_RESULT();
+
+        const content = matrix.slice(0, height).map((line) =>
+            Array.from({length: width}, (_, i) => (line[i] === undefined || line[i] === '' ? null : line[i])),
+        );
+        const changes = this.hf.setCellContents(this.addr(row, col), content);
+        const touched = this.rectKeys({x: col, y: row, width, height});
+        const cells = this.diffKeys(this.keysOf(changes, touched));
+        return {cells, styles: this.autoDateStyles(touched)};
+    }
+
+    clearRange(rect: Rect): EngineResult {
+        const targets: number[] = [];
+        for (const key of this.mirror.keys()) {
+            const r = keyRow(key);
+            const c = keyCol(key);
+            if (r >= rect.y && r < rect.y + rect.height && c >= rect.x && c < rect.x + rect.width) targets.push(key);
+        }
+        const changes = this.hf.batch(() => {
+            for (const key of targets) {
+                const addr = this.addr(keyRow(key), keyCol(key));
+                if (this.hf.getCellType(addr) === CellType.ARRAY) continue;
+                this.hf.setCellContents(addr, null);
+            }
+        })
+        return {cells: this.diffKeys(this.keysOf(changes, targets)), styles: []};
+    }
+
+    
+
 
 
 
