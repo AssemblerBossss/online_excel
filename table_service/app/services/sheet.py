@@ -1,6 +1,7 @@
 import logging
 from redis.asyncio import Redis
 
+from schemas.sheet import MAX_BATCH_ITEMS, MAX_CELLS_IN_EVENT, SSheetEvent
 from table_service.app.schemas import SSheetSnapshot, SSheetBatch, SSheetBatchResult
 from table_service.app.core.unit_of_work import UnitOfWork
 from table_service.app.exceptions import (
@@ -146,3 +147,36 @@ class SheetService:
             op.kind if op else None,
         )
         return SSheetBatchResult(revision=revision, layout_revision=layout_revision)
+
+
+    async def _publish(
+        self,
+        table_id: int,
+        user_id: int,
+        batch: SSheetBatch,
+        revision: int,
+        layout_revision: int,
+        items: int,
+    ) -> None:
+        if self.event_publisher is None:
+            return
+        common = {
+            "table_id": table_id,
+            "revision": revision,
+            "layout_revision": layout_revision,
+            "actor_id": user_id,
+            "client_id": batch.client_id,
+        }
+        if items > MAX_CELLS_IN_EVENT:
+            # Слишком много для WS-сообщения: клиентам проще перечитать снимок
+            event = SSheetEvent(kind="reload", **common)
+        else:
+            event = SSheetEvent(
+                kind="batch",
+                structural=batch.structural,
+                cells=batch.cells,
+                styles=batch.styles,
+                meta=batch.meta,
+                **common,
+            )
+            await self.event_publisher.publish(event)
