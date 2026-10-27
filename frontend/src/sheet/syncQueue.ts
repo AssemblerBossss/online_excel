@@ -74,6 +74,19 @@ export class SyncQueue {
     }
 
     private async sendItem(item: PendingItem): Promise<void> {
-        
+        const cells = Array.from(item.cells.values());
+        const styles = Array.from(item.styles.values());
+        let first = true;
+        for (let ci = 0, si = 0; first || ci < cells.length || si < styles.length;
+        ci += CHUNK, si +=CHUNK) {
+            await this.handlers.send({
+                structural: first ? item.structural :  null,
+                meta: first ? item.meta : null,
+                cells: cells.slice(ci, ci + CHUNK),
+                styles: styles.slice(si, si + CHUNK),
+            });
+            first = false;
+
+        }
     }
 }
