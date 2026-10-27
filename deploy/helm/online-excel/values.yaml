@@ -1,161 +1,124 @@
-# Default values for online-excel.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+imagePullPolicy: IfNotPresent
 
-# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
-replicaCount: 1
+authService:
+  image: online_excel-auth_service
+  tag: latest
+  replicas: 1
+  port: 8001
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  config:
+    ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+    REFRESH_TOKEN_EXPIRE_DAYS: "30"
+    REDIS_RATE_LIMIT_DB: "1"
+    REDIS_CACHE_DB: "2"
+    MINIO_BUCKET: avatars
+    MINIO_SECURE: "false"
 
-# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
-image:
-  repository: nginx
-  # This sets the pull policy for images.
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+tableService:
+  image: online_excel-table_service
+  tag: latest
+  replicas: 2
+  port: 8000
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  config:
+    EXCEL_APP__CACHE_DB: "0"
 
-# This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
-imagePullSecrets: []
-# This is to override the chart name.
-nameOverride: ""
-fullnameOverride: ""
+notificationService:
+  image: online_excel-notification_service
+  tag: latest
+  replicas: 1
+  port: 8000
+  resources:
+    requests: { cpu: 50m, memory: 32Mi }
+    limits: { cpu: 250m, memory: 128Mi }
+  config:
+    LOG_LEVEL: info
+    SMTP_FROM: no-reply@online-excel.local
 
-# This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
-serviceAccount:
-  # Specifies whether a service account should be created.
-  create: true
-  # Automatically mount a ServiceAccount's API credentials?
-  automount: true
-  # Annotations to add to the service account.
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template.
-  name: ""
+frontend:
+  image: online_excel-frontend
+  tag: latest
+  replicas: 1
+  port: 30090
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 250m, memory: 128Mi }
+  config:
+    LOG_LEVEL: info
+    SMTP_FROM: no-reply@online-excel.local
 
-# This is for setting Kubernetes Annotations to a Pod.
-# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
-podAnnotations: {}
-# This is for setting Kubernetes Labels to a Pod.
-# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
-podLabels: {}
+postgres:
+  image: postgres:16-alpine
+  user: postgres
+  storage: 1Gi
+  # имя -> БД и ключ пароля в Secret app-secrets
+  databases:
+    auth-db:
+      name: auth_db
+      passwordKey: AUTH_DB_PASSWORD
+    table-db:
+      name: online_excel
+      passwordKey: TABLE_DB_PASSWORD
+    notification-db:
+      name: notifications
+      passwordKey: NOTIFICATION_DB_PASSWORD
 
-podSecurityContext: {}
-  # fsGroup: 2000
+redis:
+  image: redis:7-alpine
 
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+rabbitmq:
+  image: rabbitmq:4.2.4-alpine
+  storage: 1Gi
 
-# This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
-service:
-  # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
-  type: ClusterIP
-  # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
-  port: 80
+elasticsearch:
+  image: elasticsearch:9.3.0
+  javaOpts: "-Xms512m -Xmx512m"
+  storage: 1Gi
 
-# This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls: []
-    # - secretName: chart-example-tls
-    #   hosts:
-    #     - chart-example.local
+minio:
+  image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+  storage: 1Gi
+  nodePort: 30900
 
-# -- Expose the service via gateway-api HTTPRoute
-# Requires Gateway API resources and suitable controller installed within the cluster
-# (see: https://gateway-api.sigs.k8s.io/guides/)
-httpRoute:
-  # HTTPRoute enabled.
-  enabled: false
-  # HTTPRoute annotations.
-  annotations: {}
-  # Which Gateways this Route is attached to.
-  parentRefs:
-  - name: gateway
-    sectionName: http
-    # namespace: default
-  # Hostnames matching HTTP header.
-  hostnames:
-  - chart-example.local
-  # List of rules and filters applied.
-  rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /headers
-  #   filters:
-  #   - type: RequestHeaderModifier
-  #     requestHeaderModifier:
-  #       set:
-  #       - name: My-Overwrite-Header
-  #         value: this-is-the-only-value
-  #       remove:
-  #       - User-Agent
-  # - matches:
-  #   - path:
-  #       type: PathPrefix
-  #       value: /echo
-  #     headers:
-  #     - name: version
-  #       value: v2
+# SMTP-заглушка для dev: письма не уходят наружу, видны в веб-UI
+mailpit:
+  image: axllent/mailpit:v1.32
+  uiNodePort: 30825
 
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+traefik:
+  image: traefik:v3.7
+  jwtPluginVersion: v0.10.0
+  nodePort: 30080
+  dashboardNodePort: 30880
+  corsOrigins:
+    - http://localhost:3000
+  rateLimit:
+    average: 60
+    burst: 60
+  maxRequestBodyBytes: 10485760
 
-# This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-livenessProbe:
-  httpGet:
-    path: /
-    port: http
-readinessProbe:
-  httpGet:
-    path: /
-    port: http
+monitoring:
+  # releaseName чарта kube-prometheus-stack — по этой метке Prometheus ищет ServiceMonitor
+  release: monitoring
+  scrapeInterval: 15s
 
-# This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+# Заполняются из values.secret.yaml и --set-file (см. Makefile)
+secrets:
+  tableDbPassword: ""
+  authDbPassword: ""
+  notificationDbPassword: ""
+  rabbitmqUser: ""
+  rabbitmqPassword: ""
+  jwtSecretKey: ""
+  minioRootUser: ""
+  minioRootPassword: ""
+  grafanaAdminUser: ""
+  grafanaAdminPassword: ""
 
-# Additional volumes on the output Deployment definition.
-volumes: []
-  # - name: foo
-  #   secret:
-  #     secretName: mysecret
-  #     optional: false
-
-# Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
-  # - name: foo
-  #   mountPath: "/etc/foo"
-  #   readOnly: true
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
+jwt:
+  privateKey: ""
+  publicKey: ""
