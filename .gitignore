@@ -4,13 +4,12 @@ __pycache__
 .env
 .env.local
 .qwen/
-k8s/base/secrets/jwt-keys.yaml
-k8s/base/jwt-keys.yaml
-keys/*
 node_modules
 dist
+keys/*
 *.xlsx
-
-# kustomize --enable-helm скачивает чарты сюда локально при рендере
-charts/
+deploy/helm/online-excel/values.secret.yaml
 chat_service/.chat_venv
+charts/
+k8s/base/secrets/jwt-keys.yaml
+k8s/base/jwt-keys.yaml
