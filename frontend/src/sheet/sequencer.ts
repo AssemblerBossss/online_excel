@@ -19,4 +19,23 @@ export class EventSequencer {
         }
         this.drain();
     }
+
+    private drain(): void {
+        if (this.expected === null) return;
+        for (let next = this.buffer.get(this.expected); next;
+         next = this.buffer.get(this.expected)) {
+            this.buffer.delete(this.expected);
+            this.expected +=1;
+            this.apply(next);
+        }
+        if (this.buffer.size === 0) {
+            if (this.gapTimer) window.clearTimeout(this.gapTimer);
+            this.gapTimer = null;
+        } else if (this.gapTimer === null) {
+            this.gapTimer = window.setTimeout(() => {
+            this.gapTimer = null;
+            if (this.buffer.size > 0) this.onGap();
+        }, GAP_TIMEOUT_MS);
+        }
+    }
 }
