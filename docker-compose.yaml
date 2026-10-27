@@ -334,7 +334,7 @@ services:
     ports: [ "8010:5432" ]
     volumes:
       - auth_pgdata:/var/lib/postgresql/data
-      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./deploy/helm/online-excel/files/postgresql.conf:/etc/postgresql/postgresql.conf
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
@@ -353,7 +353,7 @@ services:
     ports: [ "7777:5432" ]
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./deploy/helm/online-excel/files/postgresql.conf:/etc/postgresql/postgresql.conf
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
@@ -372,7 +372,7 @@ services:
     ports: [ "7778:5432" ]
     volumes:
       - chat_pgdata:/var/lib/postgresql/data
-      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./deploy/helm/online-excel/files/postgresql.conf:/etc/postgresql/postgresql.conf
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
@@ -391,7 +391,7 @@ services:
     ports: [ "7779:5432" ]
     volumes:
       - notification_pgdata:/var/lib/postgresql/data
-      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./deploy/helm/online-excel/files/postgresql.conf:/etc/postgresql/postgresql.conf
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
@@ -410,7 +410,7 @@ services:
       - "15672:15672"    # Management UI
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-      - ./infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ./deploy/compose/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     labels:
       - "prometheus.scrape=true"
       - "prometheus.port=15692"
@@ -490,7 +490,7 @@ services:
       - "--storage.tsdb.path=/prometheus"
     ports: [ "9090:9090" ]
     volumes:
-      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/compose/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prom_data:/prometheus
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -504,8 +504,8 @@ services:
     ports: [ "3000:3000" ]
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./deploy/compose/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/helm/online-excel/files/dashboards:/var/lib/grafana/dashboards:ro
 
   kibana:
     image: kibana:9.3.0
@@ -529,8 +529,8 @@ services:
       elasticsearch: { condition: service_healthy }
     ports: [ "24224:24224", "24224:24224/udp", "2020:2020" ]
     volumes:
-      - ./infra/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
-      - ./infra/fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf:ro
+      - ./deploy/compose/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./deploy/compose/fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf:ro
     restart: on-failure
 
   # ==================== Gateway ====================
@@ -575,8 +575,8 @@ services:
     ports: [ "8081:80", "8090:8080" ]
     volumes:
       - ./keys/jwt_public.pem:/run/secrets/jwt_public.pem:ro
-      - ./infra/traefik/dynamic.yaml.tmpl:/etc/traefik/dynamic.yaml.tmpl:ro
-      - ./infra/traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - ./deploy/compose/traefik/dynamic.yaml.tmpl:/etc/traefik/dynamic.yaml.tmpl:ro
+      - ./deploy/compose/traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
     labels:
       - "prometheus.scrape=true"
