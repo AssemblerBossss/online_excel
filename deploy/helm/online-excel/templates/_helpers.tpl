@@ -1,15 +1,8 @@
-{{/*
-Expand the name of the chart.
-*/}}
+{{/* Expand the name of the chart. */}}
 {{- define "online-excel.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
-*/}}
 {{- define "online-excel.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
@@ -23,40 +16,51 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
+{{/* Create chart name and version as used by the chart label. */}}
 {{- define "online-excel.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
+{{/* Общие метки всех объектов релиза */}}
 {{- define "online-excel.labels" -}}
-helm.sh/chart: {{ include "online-excel.chart" . }}
-{{ include "online-excel.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
+app.kubernetes.io/part-of: online-excel
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
-{{- define "online-excel.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "online-excel.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{/* Метки компонента: селектор остаётся `app: <name>` */}}
+{{- define "online-excel.componentLabels" -}}
+app: {{ .name }}
+{{ include "online-excel.labels" .root }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
-{{- define "online-excel.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "online-excel.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
+{{/* Образ приложения: repo:tag */}}
+{{- define "online-excel.image" -}}
+{{ .image }}:{{ .tag }}
 {{- end }}
+
+{{/* Ссылка на ключ общего Secret app-secrets */}}
+{{- define "online-excel.secretRef" -}}
+valueFrom:
+  secretKeyRef:
+    name: app-secrets
+    key: {{ . }}
+{{- end }}
+
+{{/* Секретные env auth_service — общие для Deployment и Job миграций */}}
+{{- define "online-excel.authSecretEnv" -}}
+- name: DB_PASSWORD
+  {{- include "online-excel.secretRef" "AUTH_DB_PASSWORD" | nindent 2 }}
+- name: RABBITMQ_URL
+  {{- include "online-excel.secretRef" "RABBITMQ_URL" | nindent 2 }}
+{{- end }}
+
+{{/* Секретные env table_service — общие для Deployment и Job миграций */}}
+{{- define "online-excel.tableSecretEnv" -}}
+- name: EXCEL_APP__DB_PASSWORD
+  {{- include "online-excel.secretRef" "TABLE_DB_PASSWORD" | nindent 2 }}
+- name: EXCEL_APP__RABBITMQ_USER
+  {{- include "online-excel.secretRef" "RABBITMQ_USER" | nindent 2 }}
+- name: EXCEL_APP__RABBITMQ_PASSWORD
+  {{- include "online-excel.secretRef" "RABBITMQ_PASSWORD" | nindent 2 }}
 {{- end }}
