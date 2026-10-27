@@ -64,7 +64,10 @@ export class SyncQueue {
                 await this.sendItem(this.items.shift()!)
             }
         } catch (error) {
+            this.items = [];
             if ((error as {response?: {status?: number}})?.response?.status === 409) {
+                this.handlers.onConflict();
+            } else {
                 this.handlers.onError(error);
             }
         } finally {
