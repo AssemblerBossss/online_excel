@@ -47,7 +47,7 @@ valueFrom:
     key: {{ . }}
 {{- end }}
 
-{{/* Секретные env auth_service — общие для Deployment и Job миграций */}}
+{{/* env auth_service — для Deployment и Job миграций */}}
 {{- define "online-excel.authSecretEnv" -}}
 - name: DB_PASSWORD
   {{- include "online-excel.secretRef" "AUTH_DB_PASSWORD" | nindent 2 }}
@@ -55,7 +55,7 @@ valueFrom:
   {{- include "online-excel.secretRef" "RABBITMQ_URL" | nindent 2 }}
 {{- end }}
 
-{{/* Секретные env table_service — общие для Deployment и Job миграций */}}
+{{/* env table_service — для Deployment и Job миграций */}}
 {{- define "online-excel.tableSecretEnv" -}}
 - name: EXCEL_APP__DB_PASSWORD
   {{- include "online-excel.secretRef" "TABLE_DB_PASSWORD" | nindent 2 }}
