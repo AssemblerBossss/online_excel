@@ -19,3 +19,43 @@ data:
   JWT_PRIVATE_KEY_PATH: /etc/jwt-keys/jwt_private.pem
   JWT_PUBLIC_KEY_PATH: /etc/jwt-keys/jwt_public.pem
   {{- toYaml .Values.authService.config | nindent 2 -}}
+
+--- 
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: table-service-config
+  labels:
+    {{- include "online-excel.labels" . | nindent 4 -}}  
+data:
+  EXCEL_APP__DB_HOST: table-db
+  EXCEL_APP__DB_PORT: "5432"
+  EXCEL_APP__DB_USER: {{ .Values.postgres.user }}
+  EXCEL_APP__DB_NAME: {{ .Values.postgres.databases.[table-db].name }}
+  EXCEL_APP__DB_DRIVER: postgresql+asyncpg
+  EXCEL_APP__CACHE_HOST: redis
+  EXCEL_APP__CACHE_PORT: "6379"
+  EXCEL_APP__CACHE_DB: "0"
+  EXCEL_APP__ES_HOST: elasticsearch
+  EXCEL_APP__ES_PORT: "9200"
+  EXCEL_APP__RABBITMQ_HOST: rabbitmq
+  EXCEL_APP__RABBITMQ_PORT: "5672"
+  {{- toYaml .Values.tableService.config | nindent 2 }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notification-service-config
+  labels:
+    {{- include "online-excel.labels" . | nindent 4 -}}  
+data:
+  SERVER_HOST: 0.0.0.0
+  SERVER_PORT: {{ .Values.notificationService.port | quote }}
+  POSTGRES_HOST: notification-db
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: {{ .Values.postgres.user }}
+  POSTGRES_DB: {{ .Values.postgres.databases.[notification-db].name }}
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: "5672"
+  {{- toYaml .Values.notificationService.config | nindent 2 }}
