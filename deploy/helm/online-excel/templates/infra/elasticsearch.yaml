@@ -71,7 +71,6 @@ metadata:
   name: elasticsearch
   labels:
     {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
-
 spec:
   selector:
     app: elasticsearch
