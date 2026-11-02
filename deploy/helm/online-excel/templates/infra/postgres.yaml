@@ -57,7 +57,7 @@ spec:
               subPath: postgresql.conf
           readinessProbe:
             exec:
-              command: [ "pg_isready", "-U", "postgres" ]
+              command: [ "pg_isready", "-U", {{ $.Values.postgres.user | quote }} ]
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
@@ -71,6 +71,6 @@ spec:
         accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
-            storage: 1Gi
+            storage: {{ $.Values.postgres.storage }}
 ---
 {{- end }}
