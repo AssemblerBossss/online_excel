@@ -1,0 +1,71 @@
+{{- $ctx := dict "name" "rabbitmq" "root" . }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  labels:
+    {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
+spec:
+  serviceName: rabbitmq
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        {{- include "online-excel.componentLabels" $ctx | nindent 8 }}
+    spec:
+      containers:
+        - name: rabbitmq
+          image: {{ .Values.rabbitmq.image }}
+          ports:
+            - containerPort: 5672
+            - containerPort: 15672
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              {{- include "online-excel.secretRef" "RABBITMQ_USER" | nindent 14 }}
+            - name: RABBITMQ_DEFAULT_PASS
+              {{- include "online-excel.secretRef" "RABBITMQ_PASSWORD" | nindent 14 }}
+          livenessProbe:
+            exec:
+              command: [ "rabbitmq-diagnostics", "ping" ]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command: [ "rabbitmq-diagnostics", "ping" ]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+  volumeClaimTemplates:
+    - metadata:
+        name: rabbitmq-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.rabbitmq.storage }}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  labels:
+    {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: management
+      port: 15672
+      targetPort: 15672

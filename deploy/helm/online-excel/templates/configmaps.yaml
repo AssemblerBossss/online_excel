@@ -63,7 +63,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: postgresql-config
+  name: postgres-config
   labels:
     {{- include "online-excel.labels" . | nindent 4 }}
 data:
