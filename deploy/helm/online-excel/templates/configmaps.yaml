@@ -35,7 +35,6 @@ data:
   EXCEL_APP__DB_DRIVER: postgresql+asyncpg
   EXCEL_APP__CACHE_HOST: redis
   EXCEL_APP__CACHE_PORT: "6379"
-  EXCEL_APP__CACHE_DB: "0"
   EXCEL_APP__ES_HOST: elasticsearch
   EXCEL_APP__ES_PORT: "9200"
   EXCEL_APP__RABBITMQ_HOST: rabbitmq
