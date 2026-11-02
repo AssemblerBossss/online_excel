@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: auth-service-config
   labels:
-    {{- include "online-excel.labels" . | nindent 4 -}}
+    {{- include "online-excel.labels" . | nindent 4 }}
 data:
   DB_HOST: auth-db
   DB_PORT: "5432"
@@ -18,7 +18,7 @@ data:
   MINIO_PUBLIC_URL: http://{{ .Values.nodeIp }}:{{ .Values.minio.nodePort }}
   JWT_PRIVATE_KEY_PATH: /etc/jwt-keys/jwt_private.pem
   JWT_PUBLIC_KEY_PATH: /etc/jwt-keys/jwt_public.pem
-  {{- toYaml .Values.authService.config | nindent 2 -}}
+  {{- toYaml .Values.authService.config | nindent 2 }}
 
 --- 
 apiVersion: v1
@@ -26,7 +26,7 @@ kind: ConfigMap
 metadata:
   name: table-service-config
   labels:
-    {{- include "online-excel.labels" . | nindent 4 -}}  
+    {{- include "online-excel.labels" . | nindent 4 }}  
 data:
   EXCEL_APP__DB_HOST: table-db
   EXCEL_APP__DB_PORT: "5432"
@@ -48,7 +48,7 @@ kind: ConfigMap
 metadata:
   name: notification-service-config
   labels:
-    {{- include "online-excel.labels" . | nindent 4 -}}  
+    {{- include "online-excel.labels" . | nindent 4 }}  
 data:
   SERVER_HOST: 0.0.0.0
   SERVER_PORT: {{ .Values.notificationService.port | quote }}
@@ -66,7 +66,9 @@ kind: ConfigMap
 metadata:
   name: postgresql-config
   labels:
-    {{- include "online-excel.labels" . | nindent 4 -}}
+    {{- include "online-excel.labels" . | nindent 4 }}
 data:
   postgresql.conf: |
     {{- .Files.Get "files/postgresql.conf" | nindent 4 }}
+
+---

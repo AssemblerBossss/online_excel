@@ -1,5 +1,7 @@
 imagePullPolicy: IfNotPresent
 
+nodeIp: 192.168.49.2
+
 authService:
   image: online_excel-auth_service
   tag: latest
