@@ -8,7 +8,7 @@ data:
   DB_HOST: auth-db
   DB_PORT: "5432"
   DB_USER: {{ .Values.postgres.user }}
-  DB_NAME: {{ .Values.postgres.databases.[auth-db].name }}
+  DB_NAME: {{ (index .Values.postgres.databases "auth-db").name }}
   DB_DRIVER: postgresql+asyncpg
   RABBITMQ_HOST: rabbitmq
   RABBITMQ_PORT: "5672"
@@ -31,7 +31,7 @@ data:
   EXCEL_APP__DB_HOST: table-db
   EXCEL_APP__DB_PORT: "5432"
   EXCEL_APP__DB_USER: {{ .Values.postgres.user }}
-  EXCEL_APP__DB_NAME: {{ .Values.postgres.databases.[table-db].name }}
+  EXCEL_APP__DB_NAME: {{ (index .Values.postgres.databases "table-db").name }}
   EXCEL_APP__DB_DRIVER: postgresql+asyncpg
   EXCEL_APP__CACHE_HOST: redis
   EXCEL_APP__CACHE_PORT: "6379"
@@ -55,7 +55,18 @@ data:
   POSTGRES_HOST: notification-db
   POSTGRES_PORT: "5432"
   POSTGRES_USER: {{ .Values.postgres.user }}
-  POSTGRES_DB: {{ .Values.postgres.databases.[notification-db].name }}
+  POSTGRES_DB: {{ (index .Values.postgres.databases "notification-db").name }}
   RABBITMQ_HOST: rabbitmq
   RABBITMQ_PORT: "5672"
   {{- toYaml .Values.notificationService.config | nindent 2 }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-config
+  labels:
+    {{- include "online-excel.labels" . | nindent 4 -}}
+data:
+  postgresql.conf: |
+    {{- .Files.Get "files/postgresql.conf" | nindent 4 }}

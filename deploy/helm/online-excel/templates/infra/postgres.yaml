@@ -1,0 +1,76 @@
+{{- range $name, $db := .Values.postgres.databases }}
+{{- $ctx := dict "name" $name "root" $ }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+  {{- include "online-excel.componentLabels" $ctx | nindent 4}}
+spec:
+  clusterIP: None
+  selector:
+    app: {{ $name }}
+  ports:
+    - port: 5432
+      name: postgres
+
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+  {{- include "online-excel.componentLabels" $ctx | nindent 4}}
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        {{- include "online-excel.componentLabels" $ctx | nindent 8 }}
+    spec:
+      containers:
+        - name: postgres
+          image: {{ $.Values.postgres.image }}
+          args: [ "postgres", "-c", "config_file=/etc/postgresql/postgresql.conf" ]
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              value: {{ $.Values.postgres.user }}
+            - name: POSTGRES_DB
+              value: {{ $db.name }}
+            - name: POSTGRES_PASSWORD
+              {{ include "online-excel.secretRef" $db.passwordKey | nindent 14 }}
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: config
+              mountPath: /etc/postgresql/postgresql.conf
+              subPath: postgresql.conf
+          readinessProbe:
+            exec:
+              command: [ "pg_isready", "-U", "postgres" ]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: postgres-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 1Gi
+---
+{{- end }}
