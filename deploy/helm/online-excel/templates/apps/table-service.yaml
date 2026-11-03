@@ -1,0 +1,63 @@
+{{- $ctx := dict "name" "table-service" "root" . }}
+{{- with .Values.tableService }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: table-service
+  labels:
+    {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
+spec:
+  selector:
+    app: table-service
+  ports:
+    - name: http
+      port: {{ .port }}
+      targetPort: {{ .port }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: table-service
+  labels:
+    {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
+spec:
+  replicas: {{ .replicas }}
+  selector:
+    matchLabels:
+      app: table-service
+  template:
+    metadata:
+      labels:
+        {{- include "online-excel.componentLabels" $ctx | nindent 8 }}
+      annotations:
+        # перезапуск подов при изменении конфига/секретов
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps.yaml") $ | sha256sum }}
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") $ | sha256sum }}
+    spec:
+      containers:
+        - name: table-service
+          image: {{ include "online-excel.image" . }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .port }}
+          envFrom:
+            - configMapRef:
+                name: table-service-config
+          env:
+            {{- include "online-excel.tableSecretEnv" $ | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health/
+              port: {{ .port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/
+              port: {{ .port }}
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            {{- toYaml .resources | nindent 12 }}
+{{- end }}

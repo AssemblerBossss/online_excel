@@ -21,6 +21,10 @@ metadata:
   name: auth-service
   labels:
     {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
+  annotations:
+    # перезапуск подов при изменении конфига/секретов
+    checksum/config: {{ include (print $.Template.BasePath "/configmaps.yaml") $ | sha256sum }}
+    checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") $ | sha256sum }}
 spec:
   replicas: {{ .replicas }}
   selector:
