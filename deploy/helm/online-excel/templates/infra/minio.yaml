@@ -1,0 +1,76 @@
+{{- $ctx := dict "name" "minio" "root" . }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  labels:
+    {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
+spec:
+  serviceName: minio
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        {{- include "online-excel.componentLabels" $ctx | nindent 8 }}
+    spec:
+      containers:
+        - name: minio
+          image: {{ .Values.minio.image }}
+          args: [ "server", "/data", "--console-address", ":9001" ]
+          ports:
+            - containerPort: 9000
+            - containerPort: 9001
+          env:
+            - name: MINIO_ROOT_USER
+              {{- include "online-excel.secretRef" "MINIO_ROOT_USER" | nindent 14 }}
+            - name: MINIO_ROOT_PASSWORD
+              {{- include "online-excel.secretRef" "MINIO_ROOT_PASSWORD" | nindent 14 }}
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: minio-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: minio-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.minio.storage }}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
+spec:
+  type: NodePort
+  selector:
+    app: minio
+  ports:
+    - name: api
+      port: 9000
+      targetPort: 9000
+      nodePort: {{ .Values.minio.nodePort }}
+    - name: console
+      port: 9001
+      targetPort: 9001
+
