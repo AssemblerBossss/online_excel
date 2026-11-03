@@ -1,25 +1,25 @@
 {{- $ctx := dict "name" "auth-service" "root" . }}
 {{- with  .Values.authService }}
-  
-
 apiVersion: v1
 kind: Service
 metadata:
   name: auth-service
+  labels:
     {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
 spec:
   selector:
     app: auth-service
   ports:
     - name: http
-      port: {{ .Values.authService.port }}
-      targetPort: {{ .Values.authService.port }}
+      port: {{ .port }}
+      targetPort: {{ .port }}
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: auth-service
+  labels:
     {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
 spec:
   replicas: {{ .replicas }}
