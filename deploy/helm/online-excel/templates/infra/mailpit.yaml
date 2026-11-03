@@ -43,7 +43,7 @@ metadata:
 spec:
   type: NodePort
   selector:
-    app: mailpit
+    app: mailtip
   ports:
     - name: smtp
       port: 1025
