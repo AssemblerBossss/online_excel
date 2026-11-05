@@ -2,8 +2,6 @@ import React from 'react';
 import type {SheetEngine, StyleTarget} from '../../sheet/engine';
 import type {NumFmt, StylePatch} from '../../sheet/types';
 import {colors, rounded, spacing, typography} from '../../styles/theme';
-import apply from 'lodash/fp/apply';
-
 
 interface Props {
     engine: SheetEngine;
@@ -29,23 +27,8 @@ const ALL_STYLE_KEYS: StylePatch = {
     bg: null, fg: null, bold: null, italic: null, halign: null, wrap: null, numFmt: null, decimals: null,
 };
 
-const styles: Record<string, React.CSSProperties> = {
-    bar: {
-        display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: spacing.xxs,
-        padding: `${spacing.xxs}px ${spacing.xs}px`, background: colors.canvasSoft,
-        border: `1px solid ${colors.hairline}`, borderBottom: 'none',
-    },
-    btn: {
-        ...typography.bodySmStrong, minWidth: 28, height: 28, padding: `0 ${spacing.xs}px`, cursor: 'pointer',
-        background: colors.canvas, color: colors.ink, border: `1px solid ${colors.hairline}`, borderRadius: rounded.xs,
-    },
-    btnOn: {background: colors.linkBgSoft, borderColor: colors.link},
-    sep: {width: 1, height: 20, background: colors.hairline, margin: `0 ${spacing.xxs}px`},
-    color: {...typography.caption, display: 'flex', alignItems: 'center', gap: 4, color: colors.body},
-    select: {...typography.caption, height: 28, borderRadius: rounded.xs, border: `1px solid ${colors.hairline}`, background: colors.canvas},
-};
-
 const Toolbar: React.FC<Props> = ({engine, version, canWrite, active, target, onStyle, onFreeze}) => {
+    // version в зависимостях не нужен: компонент перерисовывается вместе со страницей
     void version;
     const current = active ? engine.effectiveStyle(active.row, active.col) : undefined;
     const disabled = !canWrite || !target;
@@ -110,8 +93,22 @@ const Toolbar: React.FC<Props> = ({engine, version, canWrite, active, target, on
             </select>
         </div>
     );
-    
-}
+};
+
+const styles: Record<string, React.CSSProperties> = {
+    bar: {
+        display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: spacing.xxs,
+        padding: `${spacing.xxs}px ${spacing.xs}px`, background: colors.canvasSoft,
+        border: `1px solid ${colors.hairline}`, borderBottom: 'none',
+    },
+    btn: {
+        ...typography.bodySmStrong, minWidth: 28, height: 28, padding: `0 ${spacing.xs}px`, cursor: 'pointer',
+        background: colors.canvas, color: colors.ink, border: `1px solid ${colors.hairline}`, borderRadius: rounded.xs,
+    },
+    btnOn: {background: colors.linkBgSoft, borderColor: colors.link},
+    sep: {width: 1, height: 20, background: colors.hairline, margin: `0 ${spacing.xxs}px`},
+    color: {...typography.caption, display: 'flex', alignItems: 'center', gap: 4, color: colors.body},
+    select: {...typography.caption, height: 28, borderRadius: rounded.xs, border: `1px solid ${colors.hairline}`, background: colors.canvas},
+};
 
 export default Toolbar;
-
