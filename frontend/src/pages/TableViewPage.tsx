@@ -208,8 +208,6 @@ const styles: Record<string, React.CSSProperties> = {
         padding: `${spacing.md}px 0`,
     },
     headerContent: {
-        maxWidth: "1600px",
-        margin: "0 auto",
         padding: `0 ${spacing.lg}px`,
         display: "flex",
         justifyContent: "space-between",
@@ -237,7 +235,7 @@ const styles: Record<string, React.CSSProperties> = {
         borderRadius: rounded.sm,
         cursor: "pointer",
     },
-    main: {maxWidth: "1600px", margin: "0 auto", padding: `${spacing.lg}px ${spacing.lg}px`},
+    main: {margin: "0 auto", padding: `${spacing.lg}px ${spacing.lg}px`},
     contentLayout: {display: "flex", gap: spacing.lg, alignItems: "flex-start"},
     tableColumn: {flex: 1, minWidth: 0},
     sidePanel: {width: 320, flexShrink: 0},
