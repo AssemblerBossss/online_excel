@@ -1,4 +1,4 @@
-import { cellKey, CellKey } from './address';
+import { cellKey } from './address';
 import type { CellWrite, EngineResult, SheetMeta, StructuralOp, StyleWrite} from './types';
 
 

@@ -107,11 +107,6 @@ const TablesPage: React.FC = () => {
                 name: newTableName,
                 description: newTableDescription || undefined,
                 is_public: false,
-                columns_schema: [
-                    {name: 'A', type: 'string'},
-                    {name: 'B', type: 'number'},
-                    {name: 'C', type: 'string'}
-                ]
             });
 
             setTables(prev => [newTable, ...prev]);
@@ -165,11 +160,11 @@ const TablesPage: React.FC = () => {
         const file = e.target.files?.[0];
         if (file) {
             // Проверяем расширение файла
-            const validExtensions = ['.xlsx', '.xls', '.csv'];
+            const validExtensions = ['.xlsx'];
             const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
 
             if (!validExtensions.includes(fileExtension)) {
-                setError('Пожалуйста, выберите файл Excel (.xlsx, .xls) или CSV');
+                setError('Пожалуйста, выберите файл Excel (.xlsx)');
                 return;
             }
 
@@ -471,10 +466,6 @@ const TablesPage: React.FC = () => {
 
                                 <div style={styles.tableMeta}>
                                     <div style={styles.metaItem}>
-                                        <span style={styles.metaLabel}>Столбцов:</span>
-                                        <span>{table.columns_schema?.length || 0}</span>
-                                    </div>
-                                    <div style={styles.metaItem}>
                                         <span style={styles.metaLabel}>Создана:</span>
                                         <span>{formatDate(table.created_at)}</span>
                                     </div>
@@ -557,7 +548,7 @@ const TablesPage: React.FC = () => {
                                     <div style={styles.fileUploadArea}>
                                         <input
                                             type="file"
-                                            accept=".xlsx,.xls,.csv"
+                                            accept=".xlsx"
                                             onChange={handleFileSelect}
                                             style={styles.fileInput}
                                             id="file-upload"
@@ -573,7 +564,7 @@ const TablesPage: React.FC = () => {
                                             ) : (
                                                 <div style={styles.filePlaceholder}>
                                                     <span>📁 Выберите файл Excel или CSV</span>
-                                                    <span style={styles.fileHint}>Поддерживаемые форматы: .xlsx, .xls, .csv</span>
+                                                    <span style={styles.fileHint}>Поддерживаемый формат: .xlsx</span>
                                                 </div>
                                             )}
                                         </label>
