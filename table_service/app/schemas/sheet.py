@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal, Any
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
@@ -84,7 +84,7 @@ class SStructuralOp(BaseModel):
 class SSheetBatch(BaseModel):
     """Пакет изменений листа: (опц.) структурная операция, затем ячейки, оформление, meta."""
 
-    client_id: int = Field(min_length=1, max_length=64)
+    client_id: str = Field(min_length=1, max_length=64)
     base_layout_revision: int = Field(ge=0)
     structural: SStructuralOp | None = None
     cells: list[SCellWrite] = Field(default_factory=list, max_length=MAX_BATCH_ITEMS)
@@ -132,4 +132,4 @@ class SSheetEvent(BaseModel):
     cells: list[SCellWrite] = Field(default_factory=list)
     styles: list[SStyleWrite] = Field(default_factory=list)
     meta: dict[str, Any] | None = None
-    occurred_at: datetime
+    occurred_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

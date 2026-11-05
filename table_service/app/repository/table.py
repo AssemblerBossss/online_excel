@@ -47,11 +47,9 @@ class TableRepository(Base):
         stmt = (
             select(DataTable).where(
                 DataTable.id == table_id,
-                DataTable.is_deleted.is_(False).execution_options(
-                    populate_existing=True
-                ),
+                DataTable.is_deleted.is_(False),
             )
-        ).with_for_update()
+        ).with_for_update().execution_options(populate_existing=True)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 

@@ -22,7 +22,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/{table_id}//sheet", response_model=SSheetSnapshot, status_code=status.HTTP_200_OK
+    "/{table_id}/sheet", response_model=SSheetSnapshot, status_code=status.HTTP_200_OK
 )
 async def get_sheet(
     sheet_service: Annotated[SheetService, Depends(get_sheet_service)],
@@ -39,7 +39,7 @@ async def get_sheet(
 
 
 @router.post(
-    "/{table_id}//sheet/batch",
+    "/{table_id}/sheet/batch",
     response_model=SSheetBatchResult,
     status_code=status.HTTP_200_OK,
 )

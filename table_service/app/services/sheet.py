@@ -122,7 +122,7 @@ class SheetService:
             if styles:
                 await uow_session.cells.upsert_styles(table_id, list(styles.values()))
 
-            touched_rows = [r for r, _ in batch.cells] + [r for r, _ in batch.styles]
+            touched_rows = [c.row for c in batch.cells] + [s.row for s in batch.styles]
             if touched_rows:
                 await uow_session.cells.delete_empty(
                     table_id=table_id,
