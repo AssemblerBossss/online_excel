@@ -1,0 +1,45 @@
+{{- /*
+  Миграции alembic как Helm-хуки:
+  - post-install: при первой установке БД и Secret ещё не существуют до основного манифеста;
+  - pre-upgrade: при обновлении схема накатывается до раскатки новых подов.
+  Job иммутабелен — before-hook-creation удаляет прошлый перед новым запуском.
+*/}}
+{{- $jobs := list
+  (dict "name" "auth-migrate" "db" "auth-db" "svc" .Values.authService "config" "auth-service-config" "alembic" "auth_service/alembic.ini" "env" "online-excel.authSecretEnv")
+  (dict "name" "table-migrate" "db" "table-db" "svc" .Values.tableService "config" "table-service-config" "alembic" "table_service/alembic.ini" "env" "online-excel.tableSecretEnv")
+}}
+{{- range $jobs }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .name }}
+  labels:
+    {{- include "online-excel.labels" $ | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,pre-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded 
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: {{ .name }}
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-db
+          image: {{ $.Values.postgres.image }}
+          command: [ "sh", "-c", "until pg_isready -h {{ .db }} -U {{ $.Values.postgres.user }}; do sleep 2; done" ]
+      containers:
+        - name: migrate
+          image: {{ include "online-excel.image" .svc }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          command: [ "alembic", "-c", {{ .alembic | quote }}, "upgrade", "head" ]
+          envFrom:
+            - configMapRef:
+                name: {{ .config }}
+          env:
+            {{- include .env $ | nindent 12 }}
+
+---
+{{- end }}
