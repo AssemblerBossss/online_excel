@@ -1,0 +1,55 @@
+{{- $ctx := dict "name" "frontend" "root" . }}
+{{ with .Values.frontend }}
+apiVersion: v1
+kind: Service
+metadata: 
+  name: frontend
+  labels:
+    {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
+spec:
+  type: NodePort
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetport: 80
+      nodePort: {{ .nodePort }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
+spec:
+  replicas: {{ .replicas }}
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        {{- include "online-excel.componentLabels" $ctx | nindent 8 }}
+    spec:
+      containers:
+        - name: frontend
+          image: {{ include "online-excel.image" . }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            {{- toYaml .resources | nindent 12 }}
+{{- end }}

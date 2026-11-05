@@ -1,0 +1,71 @@
+{{- $ctx := dict "name" "notification-service" "root" . }}
+{{- with .Values.notificationService }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  labels:
+    {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - name: http
+      port: {{ .port }}
+      targetPort: {{ .port }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  labels:
+    {{- include "online-excel.componentLabels" $ctx | nindent 4 }}
+spec:
+  replicas: {{ .replicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: notification-service          env:
+            {{- include "" $ | nindent 12 }}
+  template:
+    metadata:
+      labels:
+        {{- include "online-excel.componentLabels" $ctx | nindent 8 }}
+      annotations:
+        # перезапуск подов при изменении конфига/секретов
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps.yaml") $ | sha256sum }}
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") $ | sha256sum }}
+    spec:
+      containers:
+        - name: notification-service
+          image: {{ include "online-excel.image" . }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .port }}
+          envFrom:
+            - configMapRef:
+                name: notification-service-config
+          env:
+            - name: POSTGRES_PASSWORD
+              {{- include "online-excel.secretRef" "NOTIFICATION_DB_PASSWORD" | nindent 14 }}
+            - name: RABBITMQ_USER
+              {{- include "online-excel.secretRef" "RABBITMQ_USER" | nindent 14 }}
+            - name: RABBITMQ_PASSWORD
+              {{- include "online-excel.secretRef" "RABBITMQ_PASSWORD" | nindent 14 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .port }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .resources | nindent 12 }}
+{{- end }}
