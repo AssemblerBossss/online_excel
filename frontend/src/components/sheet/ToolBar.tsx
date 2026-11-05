@@ -112,3 +112,6 @@ const Toolbar: React.FC<Props> = ({engine, version, canWrite, active, target, on
     );
     
 }
+
+export default Toolbar;
+
