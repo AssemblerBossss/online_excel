@@ -27,8 +27,7 @@ spec:
     type: Recreate
   selector:
     matchLabels:
-      app: notification-service          env:
-            {{- include "" $ | nindent 12 }}
+      app: notification-service
   template:
     metadata:
       labels:
