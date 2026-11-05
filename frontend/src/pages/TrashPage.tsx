@@ -98,10 +98,6 @@ const TrashPage: React.FC = () => {
 
                                 <div style={styles.tableMeta}>
                                     <div style={styles.metaItem}>
-                                        <span style={styles.metaLabel}>Столбцов:</span>
-                                        <span>{table.columns_schema?.length || 0}</span>
-                                    </div>
-                                    <div style={styles.metaItem}>
                                         <span style={styles.metaLabel}>Удалена:</span>
                                         <span>{table.deleted_at ? formatDate(table.deleted_at) : '—'}</span>
                                     </div>

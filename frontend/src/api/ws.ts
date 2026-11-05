@@ -1,16 +1,6 @@
+import { SheetEvent } from '../sheet/types';
 import api from './axiosInstance';
-import {TableRow} from './tables';
 
-export type RowEventType = 'row.created' | 'row.updated' | 'row.deleted';
-
-export interface RowEvent {
-    event: RowEventType;
-    table_id: number;
-    row_id: number;
-    actor_id: number;
-    row: TableRow | null;
-    occurred_at: string;
-}
 
 interface WsTicketResponse {
     ticket: string;
@@ -28,17 +18,20 @@ async function openTableSocket(tableId: number): Promise<WebSocket> {
 }
 
 /**
- * Подписка на события строк таблицы с автопереподключением (экспоненциальный backoff).
- * Возвращает функцию отписки.
- */
+* Подписка на события листа с автопереподключением (экспоненциальный backoff).
+* onReconnect вызывается при каждом ПОВТОРНОМ подключении: за время обрыва
+* могли пропасть события, поэтому клиент перечитывает снимок листа.
+*/
 export function subscribeToTableEvents(
     tableId: number,
-    onEvent: (event: RowEvent) => void,
+    onEvent: (event: SheetEvent) => void,
+    onReconnect?: () => void,
 ): () => void {
     let ws: WebSocket | null = null;
     let closed = false;
     let attempt = 0;
     let reconnectTimer: number | null = null;
+    let wasConnected = false;
 
     const scheduleReconnect = () => {
         if (closed) return;
@@ -53,10 +46,13 @@ export function subscribeToTableEvents(
             scheduleReconnect();
             return;
         }
+        
         ws.onopen = () => {
             attempt = 0;
+            if (wasConnected) onReconnect?.();
+            wasConnected = true;
         };
-        ws.onmessage = (msg) => onEvent(JSON.parse(msg.data) as RowEvent);
+        ws.onmessage = (msg) => onEvent(JSON.parse(msg.data) as SheetEvent);
         ws.onclose = () => scheduleReconnect();
     };
 
