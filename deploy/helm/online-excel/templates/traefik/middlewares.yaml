@@ -1,0 +1,78 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit
+  labels:
+    {{- include "online-excel.componentLabels" . | nindent 4 }}
+spec:
+  rateLimit:
+    average: {{ .Values.traefik.rateLimit.average }}
+    period: 1m
+    burst: {{ .Values.traefik.rateLimit.burst }}
+    sourceCriterion:
+      ipStrategy:
+        depth: 1
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: jwt-auth
+  labels:
+    {{- include "online-excel.componentLabels" . | nindent 4 }}
+spec:
+  plugin:
+    jwt:
+      Required: true
+      Alg: RS256
+      KeysFiles:
+        - /etc/jwt-keys/jwt_public.pem
+      PayloadFields:
+        - exp
+      JwtHeaders:
+        X-User-ID: user_id
+        X-User-Email: email
+        X-User-Role: role
+        X-User-Active: is_active
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: body-limit
+  labels:
+    {{- include "online-excel.componentLabels" . | nindent 4 }}
+spec:
+  buffering:
+    maxRequestBodyBytes: {{ .Values.traefik.maxRequestBodyBytes | int }}
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-user-headers
+  labels:
+    {{- include "online-excel.componentLabels" . | nindent 4 }}
+spec:
+  headers:
+    customRequestHeaders:
+      X-User-ID: ""
+      X-User-Email: ""
+      X-User-Role: ""
+      X-User-Active: ""
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: cors
+  labels:
+    {{- include "online-excel.componentLabels" . | nindent 4 }}
+spec:
+  headers:
+    accessControlAllowOriginList:
+      {{ toYaml .Values.traefik.corsOrigins | nindent 6 }}
+    accessControlAllowMethods: [ "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS" ]
+    accessControlAllowHeaders: [ "*" ]
+    accessControlAllowCredentials: true
+    accessControlExposeHeaders: [ "Content-Disposition" ]
