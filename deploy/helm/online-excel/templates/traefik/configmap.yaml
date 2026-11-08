@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-static-config
+  labels:
+    {{- include "online-excel.labels" . | nindent 4 }}
+data:
+  traefik.yaml: |
+    entryPoints:
+      web:
+        address: ":80"
+
+    api:
+      dashboard: true
+      insecure: true
+
+    accessLog:
+      format: json
+
+    metrics:
+      prometheus:
+        addEntryPointsLabels: true
+        addServicesLabels: true
+
+    providers:
+      kubernetescrd: {}
+        namespaces:
+          - {{ .Release.Namespace }}
+
+    experimental:
+      plugins:
+        jwt:
+          moduleName: github.com/traefik-plugins/traefik-jwt-plugin
+          version: {{ .Values.traefik.jwtPluginVersion }}
+
+    log:
+      level: INFO
